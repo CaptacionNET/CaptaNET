@@ -9,7 +9,7 @@
   <h2>CaptaNET</h2>
   <h3>Iniciar sesión</h3>
 
-  <input id="email" type="email" placeholder="Email">
+  <input id="username" type="text" placeholder="Usuario">
   <input id="password" type="password" placeholder="Contraseña">
   <button onclick="login()">Entrar</button>
 
@@ -20,9 +20,24 @@
     );
 
     async function login() {
-      const email = document.getElementById("email").value;
+      const username = document.getElementById("username").value;
       const password = document.getElementById("password").value;
 
+      // Buscar email por username
+      const { data: perfil, error: perfilError } = await supabaseClient
+        .from("profiles")
+        .select("email")
+        .eq("username", username)
+        .single();
+
+      if (perfilError || !perfil) {
+        alert("Usuario no encontrado");
+        return;
+      }
+
+      const email = perfil.email;
+
+      // Login con email real
       const { data, error } = await supabaseClient.auth.signInWithPassword({
         email,
         password
@@ -33,13 +48,14 @@
         return;
       }
 
-      const { data: perfil } = await supabaseClient
+      // Obtener perfil completo
+      const { data: perfilCompleto } = await supabaseClient
         .from("profiles")
         .select("*")
         .eq("id", data.user.id)
         .single();
 
-      if (perfil.is_admin) {
+      if (perfilCompleto.is_admin) {
         window.location.href = "admin.html";
       } else {
         window.location.href = "usuario.html";
