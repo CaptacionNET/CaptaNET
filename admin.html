@@ -14,6 +14,7 @@
   <div id="usuarios"></div>
 
   <h3>Crear usuario</h3>
+  <input id="newUsername" type="text" placeholder="Usuario">
   <input id="newEmail" type="email" placeholder="Email">
   <input id="newPassword" type="password" placeholder="Contraseña">
   <input id="newNombre" type="text" placeholder="Nombre">
@@ -21,30 +22,32 @@
   <button onclick="crearUsuario()">Crear</button>
 
   <script>
-    const supabase = supabase.createClient(
-      "TU_URL_SUPABASE",
-      "TU_ANON_KEY"
+    const supabaseClient = supabase.createClient(
+      "https://bnqoisjvboytiphiwosj.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
     );
 
     cargarUsuarios();
 
     async function cargarUsuarios() {
-      const { data } = await supabase.from("profiles").select("*");
+      const { data } = await supabaseClient.from("profiles").select("*");
       let html = "<ul>";
       data.forEach(u => {
-        html += `<li>${u.nombre} - ${u.club} - Admin: ${u.is_admin}</li>`;
+        html += `<li>${u.username} - ${u.nombre} - ${u.club} - Admin: ${u.is_admin}</li>`;
       });
       html += "</ul>";
       document.getElementById("usuarios").innerHTML = html;
     }
 
     async function crearUsuario() {
+      const username = document.getElementById("newUsername").value;
       const email = document.getElementById("newEmail").value;
       const password = document.getElementById("newPassword").value;
       const nombre = document.getElementById("newNombre").value;
       const club = document.getElementById("newClub").value;
 
-      const { data: user, error } = await supabase.auth.signUp({
+      // Crear usuario en auth
+      const { data: user, error } = await supabaseClient.auth.signUp({
         email,
         password
       });
@@ -54,8 +57,11 @@
         return;
       }
 
-      await supabase.from("profiles").insert({
+      // Insertar perfil
+      await supabaseClient.from("profiles").insert({
         id: user.user.id,
+        username,
+        email,
         nombre,
         club,
         is_admin: false
@@ -65,7 +71,7 @@
     }
 
     async function logout() {
-      await supabase.auth.signOut();
+      await supabaseClient.auth.signOut();
       window.location.href = "index.html";
     }
   </script>
