@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>CaptaNET - Usuario</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <h2>Panel Usuario</h2>
+
+  <button onclick="logout()">Cerrar sesión</button>
+
+  <h3>Mi perfil</h3>
+  <div id="perfil"></div>
+
+  <script>
+    const supabase = supabase.createClient(
+      "TU_URL_SUPABASE",
+      "TU_ANON_KEY"
+    );
+
+    cargarPerfil();
+
+    async function cargarPerfil() {
+      const { data: session } = await supabase.auth.getSession();
+      const user = session.session.user;
+
+      const { data: perfil } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      document.getElementById("perfil").innerHTML =
+        `<p>Nombre: ${perfil.nombre}</p>
+         <p>Club: ${perfil.club}</p>`;
+    }
+
+    async function logout() {
+      await supabase.auth.signOut();
+      window.location.href = "index.html";
+    }
+  </script>
+</body>
+</html>

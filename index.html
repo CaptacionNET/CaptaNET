@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>CaptaNET - Login</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <h2>CaptaNET</h2>
+  <h3>Iniciar sesión</h3>
+
+  <input id="email" type="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Contraseña">
+  <button onclick="login()">Entrar</button>
+
+  <script>
+    const supabase = supabase.createClient(
+      "TU_URL_SUPABASE",
+      "TU_ANON_KEY"
+    );
+
+    async function login() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        alert("Error: " + error.message);
+        return;
+      }
+
+      // Obtener perfil
+      const { data: perfil } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", data.user.id)
+        .single();
+
+      if (perfil.is_admin) {
+        window.location.href = "admin.html";
+      } else {
+        window.location.href = "usuario.html";
+      }
+    }
+  </script>
+</body>
+</html>

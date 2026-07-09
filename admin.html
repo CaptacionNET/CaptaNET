@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>CaptaNET - Admin</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <h2>Panel Administrador</h2>
+
+  <button onclick="logout()">Cerrar sesión</button>
+
+  <h3>Usuarios</h3>
+  <div id="usuarios"></div>
+
+  <h3>Crear usuario</h3>
+  <input id="newEmail" type="email" placeholder="Email">
+  <input id="newPassword" type="password" placeholder="Contraseña">
+  <input id="newNombre" type="text" placeholder="Nombre">
+  <input id="newClub" type="text" placeholder="Club">
+  <button onclick="crearUsuario()">Crear</button>
+
+  <script>
+    const supabase = supabase.createClient(
+      "TU_URL_SUPABASE",
+      "TU_ANON_KEY"
+    );
+
+    cargarUsuarios();
+
+    async function cargarUsuarios() {
+      const { data } = await supabase.from("profiles").select("*");
+      let html = "<ul>";
+      data.forEach(u => {
+        html += `<li>${u.nombre} - ${u.club} - Admin: ${u.is_admin}</li>`;
+      });
+      html += "</ul>";
+      document.getElementById("usuarios").innerHTML = html;
+    }
+
+    async function crearUsuario() {
+      const email = document.getElementById("newEmail").value;
+      const password = document.getElementById("newPassword").value;
+      const nombre = document.getElementById("newNombre").value;
+      const club = document.getElementById("newClub").value;
+
+      const { data: user, error } = await supabase.auth.signUp({
+        email,
+        password
+      });
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      await supabase.from("profiles").insert({
+        id: user.user.id,
+        nombre,
+        club,
+        is_admin: false
+      });
+
+      cargarUsuarios();
+    }
+
+    async function logout() {
+      await supabase.auth.signOut();
+      window.location.href = "index.html";
+    }
+  </script>
+</body>
+</html>
