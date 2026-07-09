@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <title>CaptaNET - Panel</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://unpkg.com/tabulator-tables@5.6.2/dist/css/tabulator.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/tabulator-tables@5.6.2/dist/js/tabulator.min.js"></script>
 
   <style>
     .tab-btn {
@@ -21,6 +23,9 @@
       display: none;
       margin-top: 20px;
     }
+    #jugadores-table {
+      margin-top: 20px;
+    }
   </style>
 </head>
 
@@ -31,6 +36,7 @@
   <div id="tabs" style="margin-bottom: 20px;">
     <button id="tab_admin" class="tab-btn" onclick="mostrarTab('admin')">Panel Admin</button>
     <button id="tab_contenido" class="tab-btn" onclick="mostrarTab('contenido')">Contenido</button>
+    <button id="tab_jugadores" class="tab-btn" onclick="mostrarTab('jugadores')">Editar jugadores (Excel Web)</button>
   </div>
 
   <!-- ============================
@@ -161,6 +167,17 @@
 
   </div>
 
+  <!-- ============================
+       TAB: EDITOR JUGADORES (EXCEL WEB)
+       ============================ -->
+  <div id="jugadores" class="tab-content">
+    <h3>Editar jugadores (Excel Web)</h3>
+    <p>Puedes editar, crear y eliminar jugadores directamente en esta tabla.</p>
+
+    <div id="jugadores-table"></div>
+    <p id="jugadores_status" style="margin-top:10px; font-weight:bold;"></p>
+  </div>
+
   <hr>
   <button onclick="logout()">Cerrar sesión</button>
 
@@ -169,6 +186,11 @@
       "https://bnqoisjvboytiphiwosj.supabase.co",
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
     );
+
+    let categoriasCache = [];
+    let ligasCache = [];
+    let equiposCache = [];
+    let jugadoresTable = null;
 
     // ============================
     // PROTEGER PÁGINA Y MOSTRAR TABS
@@ -189,12 +211,15 @@
         .eq("id", userId)
         .single();
 
-      if (profile.is_admin) {
+      if (profile && profile.is_admin) {
         document.getElementById("tab_admin").style.display = "inline-block";
+        document.getElementById("tab_jugadores").style.display = "inline-block";
       } else {
         document.getElementById("tab_admin").style.display = "none";
+        document.getElementById("tab_jugadores").style.display = "none";
       }
 
+      await cargarCachesBasicas();
       mostrarTab("contenido");
       cargarCategorias();
     }
@@ -210,6 +235,33 @@
 
       document.getElementById(tab).style.display = "block";
       document.getElementById("tab_" + tab).classList.add("active");
+
+      if (tab === "jugadores" && !jugadoresTable) {
+        inicializarTablaJugadores();
+      }
+    }
+
+    // ============================
+    // CACHES BÁSICAS (categorias, ligas, equipos)
+    // ============================
+    async function cargarCachesBasicas() {
+      const { data: categorias } = await supabaseClient
+        .from("categorias")
+        .select("*")
+        .order("nombre");
+      categoriasCache = categorias || [];
+
+      const { data: ligas } = await supabaseClient
+        .from("ligas")
+        .select("*")
+        .order("nombre");
+      ligasCache = ligas || [];
+
+      const { data: equipos } = await supabaseClient
+        .from("equipos")
+        .select("*")
+        .order("nombre");
+      equiposCache = equipos || [];
     }
 
     // ============================
@@ -222,7 +274,7 @@
       const { data } = await supabaseClient.from("profiles").select("*");
 
       lista.innerHTML = "";
-      data.forEach(u => {
+      (data || []).forEach(u => {
         const li = document.createElement("li");
         li.textContent = `${u.username} — ${u.email} — ID: ${u.id}`;
         li.onclick = () => {
@@ -312,7 +364,7 @@
       const { data } = await supabaseClient.from("categorias").select("*").order("nombre");
 
       categoria.innerHTML = '<option value="">Selecciona categoría</option>';
-      data.forEach(c => categoria.innerHTML += `<option value="${c.id}">${c.nombre}</option>`);
+      (data || []).forEach(c => categoria.innerHTML += `<option value="${c.id}">${c.nombre}</option>`);
     }
 
     async function cargarLigas() {
@@ -325,7 +377,7 @@
         .order("nombre");
 
       liga.innerHTML = '<option value="">Selecciona competición</option>';
-      data.forEach(l => liga.innerHTML += `<option value="${l.id}">${l.nombre}</option>`);
+      (data || []).forEach(l => liga.innerHTML += `<option value="${l.id}">${l.nombre}</option>`);
 
       grupo.innerHTML = '<option value="">Selecciona grupo</option>';
       equipo.innerHTML = '<option value="">Selecciona equipo</option>';
@@ -343,12 +395,14 @@
 
       grupo.innerHTML = '<option value="">Selecciona grupo</option>';
 
-      if (data.grupo.includes(",")) {
-        data.grupo.split(",").map(g => g.trim()).forEach(g => {
-          grupo.innerHTML += `<option value="${g}">${g}</option>`;
-        });
-      } else {
-        grupo.innerHTML += `<option value="${data.grupo}">${data.grupo}</option>`;
+      if (data && data.grupo) {
+        if (data.grupo.includes(",")) {
+          data.grupo.split(",").map(g => g.trim()).forEach(g => {
+            grupo.innerHTML += `<option value="${g}">${g}</option>`;
+          });
+        } else {
+          grupo.innerHTML += `<option value="${data.grupo}">${data.grupo}</option>`;
+        }
       }
 
       equipo.innerHTML = '<option value="">Selecciona equipo</option>';
@@ -365,7 +419,7 @@
         .order("nombre");
 
       equipo.innerHTML = '<option value="">Selecciona equipo</option>';
-      data.forEach(e => equipo.innerHTML += `<option value="${e.id}">${e.nombre}</option>`);
+      (data || []).forEach(e => equipo.innerHTML += `<option value="${e.id}">${e.nombre}</option>`);
 
       jugador.innerHTML = '<option value="">Selecciona jugador</option>';
     }
@@ -380,7 +434,206 @@
         .order("nombre");
 
       jugador.innerHTML = '<option value="">Selecciona jugador</option>';
-      data.forEach(j => jugador.innerHTML += `<option value="${j.id}">${j.nombre}</option>`);
+      (data || []).forEach(j => jugador.innerHTML += `<option value="${j.id}">${j.nombre}</option>`);
+    }
+
+    // ============================
+    // EDITOR JUGADORES (TABULATOR)
+    // ============================
+    async function inicializarTablaJugadores() {
+      document.getElementById("jugadores_status").textContent = "Cargando jugadores...";
+
+      const { data: jugadores } = await supabaseClient
+        .from("jugadores")
+        .select("*")
+        .order("id");
+
+      const rows = (jugadores || []).map(j => {
+        const equipo = equiposCache.find(e => e.id === j.equipo_id);
+        const liga = equipo ? ligasCache.find(l => l.id === equipo.liga_id) : null;
+        const categoria = liga ? categoriasCache.find(c => c.id === liga.categoria_id) : null;
+
+        return {
+          ...j,
+          categoria_id: categoria ? categoria.id : null,
+          liga_id: liga ? liga.id : null,
+          equipo_id: equipo ? equipo.id : null
+        };
+      });
+
+      const categoriaOptions = categoriasCache.map(c => ({ label: c.nombre, value: c.id }));
+      const ligaOptions = ligasCache.map(l => ({ label: l.nombre, value: l.id }));
+      const equipoOptions = equiposCache.map(e => ({ label: e.nombre, value: e.id }));
+
+      const columns = [
+        { title: "ID", field: "id", visible: false },
+        {
+          title: "Categoría",
+          field: "categoria_id",
+          editor: "select",
+          editorParams: { values: categoriaOptions },
+          formatter: cell => {
+            const v = cell.getValue();
+            const c = categoriasCache.find(x => x.id === v);
+            return c ? c.nombre : "";
+          },
+          cellEdited: async cell => {
+            const row = cell.getRow().getData();
+            const nuevaCategoriaId = cell.getValue();
+
+            const ligasFiltradas = ligasCache.filter(l => l.categoria_id === nuevaCategoriaId);
+            const liga = ligasFiltradas[0] || null;
+            const equiposFiltrados = liga ? equiposCache.filter(e => e.liga_id === liga.id) : [];
+
+            row.liga_id = liga ? liga.id : null;
+            row.equipo_id = equiposFiltrados[0] ? equiposFiltrados[0].id : null;
+            cell.getRow().update(row);
+            await guardarFilaJugador(row);
+          }
+        },
+        {
+          title: "Liga",
+          field: "liga_id",
+          editor: "select",
+          editorParams: cell => {
+            const row = cell.getRow().getData();
+            const categoriaId = row.categoria_id;
+            const ligasFiltradas = ligasCache.filter(l => l.categoria_id === categoriaId);
+            return { values: ligasFiltradas.map(l => ({ label: l.nombre, value: l.id })) };
+          },
+          formatter: cell => {
+            const v = cell.getValue();
+            const l = ligasCache.find(x => x.id === v);
+            return l ? l.nombre : "";
+          },
+          cellEdited: async cell => {
+            const row = cell.getRow().getData();
+            const nuevaLigaId = cell.getValue();
+
+            const equiposFiltrados = equiposCache.filter(e => e.liga_id === nuevaLigaId);
+            row.equipo_id = equiposFiltrados[0] ? equiposFiltrados[0].id : null;
+            cell.getRow().update(row);
+            await guardarFilaJugador(row);
+          }
+        },
+        {
+          title: "Equipo",
+          field: "equipo_id",
+          editor: "select",
+          editorParams: cell => {
+            const row = cell.getRow().getData();
+            const ligaId = row.liga_id;
+            const equiposFiltrados = equiposCache.filter(e => e.liga_id === ligaId);
+            return { values: equiposFiltrados.map(e => ({ label: e.nombre, value: e.id })) };
+          },
+          formatter: cell => {
+            const v = cell.getValue();
+            const e = equiposCache.find(x => x.id === v);
+            return e ? e.nombre : "";
+          },
+          cellEdited: async cell => {
+            const row = cell.getRow().getData();
+            await guardarFilaJugador(row);
+          }
+        },
+        {
+          title: "Nombre",
+          field: "nombre",
+          editor: "input",
+          cellEdited: async cell => {
+            const row = cell.getRow().getData();
+            await guardarFilaJugador(row);
+          }
+        },
+        {
+          title: "Posición",
+          field: "posicion",
+          editor: "input",
+          cellEdited: async cell => {
+            const row = cell.getRow().getData();
+            await guardarFilaJugador(row);
+          }
+        },
+        {
+          title: "Dorsal",
+          field: "dorsal",
+          editor: "input",
+          cellEdited: async cell => {
+            const row = cell.getRow().getData();
+            await guardarFilaJugador(row);
+          }
+        },
+        {
+          title: "Fecha de nacimiento",
+          field: "fecha_nacimiento",
+          editor: "input",
+          cellEdited: async cell => {
+            const row = cell.getRow().getData();
+            await guardarFilaJugador(row);
+          }
+        },
+        {
+          title: "Eliminar",
+          formatter: "buttonCross",
+          width: 80,
+          align: "center",
+          cellClick: async (e, cell) => {
+            const row = cell.getRow().getData();
+            if (row.id) {
+              await supabaseClient.from("jugadores").delete().eq("id", row.id);
+            }
+            cell.getRow().delete();
+            document.getElementById("jugadores_status").textContent = "Jugador eliminado.";
+          }
+        }
+      ];
+
+      jugadoresTable = new Tabulator("#jugadores-table", {
+        data: rows,
+        layout: "fitColumns",
+        reactiveData: true,
+        columns,
+        height: "500px",
+        addRowPos: "top",
+        tooltips: true
+      });
+
+      document.getElementById("jugadores_status").textContent = "Jugadores cargados. Puedes editar, crear y eliminar.";
+    }
+
+    async function guardarFilaJugador(row) {
+      const status = document.getElementById("jugadores_status");
+
+      if (!row.equipo_id || !row.nombre) {
+        status.textContent = "Para guardar, necesitas al menos Equipo y Nombre.";
+        status.style.color = "red";
+        return;
+      }
+
+      const payload = {
+        equipo_id: row.equipo_id,
+        nombre: row.nombre || null,
+        posicion: row.posicion || null,
+        dorsal: row.dorsal || null,
+        fecha_nacimiento: row.fecha_nacimiento || null
+      };
+
+      if (row.id) {
+        await supabaseClient.from("jugadores").update(payload).eq("id", row.id);
+        status.textContent = "Jugador actualizado.";
+        status.style.color = "green";
+      } else {
+        const { data, error } = await supabaseClient.from("jugadores").insert(payload).select("id").single();
+        if (error) {
+          status.textContent = "Error al crear jugador: " + error.message;
+          status.style.color = "red";
+        } else {
+          row.id = data.id;
+          jugadoresTable.updateData([row]);
+          status.textContent = "Jugador creado.";
+          status.style.color = "green";
+        }
+      }
     }
 
     // ============================
