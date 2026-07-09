@@ -2,24 +2,123 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>CaptaNET - Admin</title>
+  <title>CaptaNET - Panel Admin</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
+
 <body>
-  <h2>Panel Administrador</h2>
+  <h2>Panel de Administración</h2>
+  <p>Bienvenido, administrador.</p>
 
+  <hr>
+
+  <!-- ============================
+       LISTA DE USUARIOS
+       ============================ -->
+  <h3>Usuarios registrados</h3>
+  <button onclick="cargarUsuarios()">Actualizar lista</button>
+
+  <ul id="lista_usuarios"></ul>
+
+  <hr>
+
+  <!-- ============================
+       CREAR USUARIO
+       ============================ -->
+  <div style="border: 1px solid #ccc; padding: 20px; margin-top: 20px; max-width: 400px;">
+    <h3>Crear nuevo usuario</h3>
+
+    <label>Email</label>
+    <input id="new_email" type="email" placeholder="Email" style="width: 100%; margin-bottom: 10px;">
+
+    <label>Username</label>
+    <input id="new_username" type="text" placeholder="Username" style="width: 100%; margin-bottom: 10px;">
+
+    <label>Contraseña</label>
+    <input id="new_password_create" type="password" placeholder="Contraseña" style="width: 100%; margin-bottom: 10px;">
+
+    <label>¿Es admin?</label>
+    <select id="new_is_admin" style="width: 100%; margin-bottom: 10px;">
+      <option value="false">No</option>
+      <option value="true">Sí</option>
+    </select>
+
+    <button onclick="crearUsuario()" style="width: 100%; padding: 10px;">
+      Crear usuario
+    </button>
+
+    <p id="create_result" style="margin-top: 10px; font-weight: bold;"></p>
+  </div>
+
+  <hr>
+
+  <!-- ============================
+       EDITAR USUARIO
+       ============================ -->
+  <div style="border: 1px solid #ccc; padding: 20px; margin-top: 20px; max-width: 400px;">
+    <h3>Editar usuario</h3>
+
+    <label>ID del usuario</label>
+    <input id="edit_id" type="text" placeholder="ID" style="width: 100%; margin-bottom: 10px;">
+
+    <label>Nuevo email</label>
+    <input id="edit_email" type="email" placeholder="Nuevo email" style="width: 100%; margin-bottom: 10px;">
+
+    <label>Nuevo username</label>
+    <input id="edit_username" type="text" placeholder="Nuevo username" style="width: 100%; margin-bottom: 10px;">
+
+    <button onclick="editarUsuario()" style="width: 100%; padding: 10px;">
+      Guardar cambios
+    </button>
+
+    <p id="edit_result" style="margin-top: 10px; font-weight: bold;"></p>
+  </div>
+
+  <hr>
+
+  <!-- ============================
+       CAMBIAR CONTRASEÑA
+       ============================ -->
+  <div style="border: 1px solid #ccc; padding: 20px; margin-top: 20px; max-width: 400px;">
+    <h3>Cambiar contraseña</h3>
+
+    <label>ID del usuario</label>
+    <input id="pw_id" type="text" placeholder="ID del usuario" style="width: 100%; margin-bottom: 10px;">
+
+    <label>Nueva contraseña</label>
+    <input id="pw_new" type="password" placeholder="Nueva contraseña" style="width: 100%; margin-bottom: 10px;">
+
+    <button onclick="changePassword()" style="width: 100%; padding: 10px;">
+      Cambiar contraseña
+    </button>
+
+    <p id="pw_result" style="margin-top: 10px; font-weight: bold;"></p>
+  </div>
+
+  <hr>
+
+  <!-- ============================
+       ELIMINAR USUARIO
+       ============================ -->
+  <div style="border: 1px solid #ccc; padding: 20px; margin-top: 20px; max-width: 400px;">
+    <h3>Eliminar usuario</h3>
+
+    <label>ID del usuario</label>
+    <input id="delete_id" type="text" placeholder="ID del usuario" style="width: 100%; margin-bottom: 10px;">
+
+    <button onclick="eliminarUsuario()" style="width: 100%; padding: 10px;">
+      Eliminar usuario
+    </button>
+
+    <p id="delete_result" style="margin-top: 10px; font-weight: bold;"></p>
+  </div>
+
+  <hr>
+
+  <!-- ============================
+       CERRAR SESIÓN
+       ============================ -->
   <button onclick="logout()">Cerrar sesión</button>
-
-  <h3>Usuarios</h3>
-  <div id="usuarios"></div>
-
-  <h3>Crear usuario</h3>
-  <input id="newUsername" type="text" placeholder="Usuario">
-  <input id="newEmail" type="email" placeholder="Email">
-  <input id="newPassword" type="password" placeholder="Contraseña">
-  <input id="newNombre" type="text" placeholder="Nombre">
-  <input id="newClub" type="text" placeholder="Club">
-  <button onclick="crearUsuario()">Crear</button>
 
   <script>
     const supabaseClient = supabase.createClient(
@@ -27,53 +126,180 @@
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
     );
 
-    cargarUsuarios();
-
+    // ============================
+    // LISTA DE USUARIOS
+    // ============================
     async function cargarUsuarios() {
-      const { data } = await supabaseClient.from("profiles").select("*");
-      let html = "<ul>";
-      data.forEach(u => {
-        html += `<li>${u.username} - ${u.nombre} - ${u.club} - Admin: ${u.is_admin}</li>`;
-      });
-      html += "</ul>";
-      document.getElementById("usuarios").innerHTML = html;
-    }
+      const lista = document.getElementById("lista_usuarios");
+      lista.innerHTML = "Cargando...";
 
-    async function crearUsuario() {
-      const username = document.getElementById("newUsername").value;
-      const email = document.getElementById("newEmail").value;
-      const password = document.getElementById("newPassword").value;
-      const nombre = document.getElementById("newNombre").value;
-      const club = document.getElementById("newClub").value;
-
-      // Crear usuario en auth
-      const { data: user, error } = await supabaseClient.auth.signUp({
-        email,
-        password
-      });
+      const { data, error } = await supabaseClient
+        .from("profiles")
+        .select("*");
 
       if (error) {
-        alert(error.message);
+        lista.innerHTML = "Error al cargar usuarios";
         return;
       }
 
-      // Insertar perfil
-      await supabaseClient.from("profiles").insert({
-        id: user.user.id,
-        username,
-        email,
-        nombre,
-        club,
-        is_admin: false
+      lista.innerHTML = "";
+
+      data.forEach(u => {
+        const li = document.createElement("li");
+        li.textContent = `${u.username} — ${u.email} — ID: ${u.id}`;
+        li.style.cursor = "pointer";
+
+        li.onclick = () => {
+          document.getElementById("edit_id").value = u.id;
+          document.getElementById("pw_id").value = u.id;
+          document.getElementById("delete_id").value = u.id;
+        };
+
+        lista.appendChild(li);
       });
+    }
+
+    // ============================
+    // CREAR USUARIO
+    // ============================
+    async function crearUsuario() {
+      const email = document.getElementById("new_email").value.trim();
+      const username = document.getElementById("new_username").value.trim();
+      const password = document.getElementById("new_password_create").value.trim();
+      const is_admin = document.getElementById("new_is_admin").value === "true";
+      const result = document.getElementById("create_result");
+
+      if (!email || !username || !password) {
+        result.textContent = "Todos los campos son obligatorios.";
+        result.style.color = "red";
+        return;
+      }
+
+      const { data: authUser, error: authError } = await supabaseClient.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true
+      });
+
+      if (authError) {
+        result.textContent = "Error: " + authError.message;
+        result.style.color = "red";
+        return;
+      }
+
+      await supabaseClient.from("profiles").insert({
+        id: authUser.user.id,
+        email,
+        username,
+        is_admin
+      });
+
+      result.textContent = "Usuario creado correctamente.";
+      result.style.color = "green";
 
       cargarUsuarios();
     }
 
+    // ============================
+    // EDITAR USUARIO
+    // ============================
+    async function editarUsuario() {
+      const id = document.getElementById("edit_id").value.trim();
+      const email = document.getElementById("edit_email").value.trim();
+      const username = document.getElementById("edit_username").value.trim();
+      const result = document.getElementById("edit_result");
+
+      if (!id) {
+        result.textContent = "Debes seleccionar un usuario.";
+        result.style.color = "red";
+        return;
+      }
+
+      const { error } = await supabaseClient
+        .from("profiles")
+        .update({ email, username })
+        .eq("id", id);
+
+      if (error) {
+        result.textContent = "Error: " + error.message;
+        result.style.color = "red";
+        return;
+      }
+
+      result.textContent = "Usuario actualizado.";
+      result.style.color = "green";
+
+      cargarUsuarios();
+    }
+
+    // ============================
+    // CAMBIAR CONTRASEÑA
+    // ============================
+    async function changePassword() {
+      const user_id = document.getElementById("pw_id").value.trim();
+      const new_password = document.getElementById("pw_new").value.trim();
+      const result = document.getElementById("pw_result");
+
+      if (!user_id || !new_password) {
+        result.textContent = "Debes rellenar ambos campos.";
+        result.style.color = "red";
+        return;
+      }
+
+      const { data, error } = await supabaseClient.functions.invoke(
+        "change-password",
+        {
+          body: { user_id, new_password }
+        }
+      );
+
+      if (error) {
+        result.textContent = "Error: " + error.message;
+        result.style.color = "red";
+        return;
+      }
+
+      result.textContent = "Contraseña cambiada correctamente.";
+      result.style.color = "green";
+    }
+
+    // ============================
+    // ELIMINAR USUARIO
+    // ============================
+    async function eliminarUsuario() {
+      const id = document.getElementById("delete_id").value.trim();
+      const result = document.getElementById("delete_result");
+
+      if (!id) {
+        result.textContent = "Debes seleccionar un usuario.";
+        result.style.color = "red";
+        return;
+      }
+
+      const { error: authError } = await supabaseClient.auth.admin.deleteUser(id);
+
+      if (authError) {
+        result.textContent = "Error: " + authError.message;
+        result.style.color = "red";
+        return;
+      }
+
+      await supabaseClient.from("profiles").delete().eq("id", id);
+
+      result.textContent = "Usuario eliminado.";
+      result.style.color = "green";
+
+      cargarUsuarios();
+    }
+
+    // ============================
+    // CERRAR SESIÓN
+    // ============================
     async function logout() {
       await supabaseClient.auth.signOut();
       window.location.href = "index.html";
     }
   </script>
+
 </body>
 </html>
