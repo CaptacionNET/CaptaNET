@@ -260,6 +260,46 @@
 
       const { data } = await supabaseClient.from(tabla).select("*");
 
+/* ============================
+   CAMPOS PREDETERMINADOS
+   ============================ */
+if (tabla === "jugador_usuario_datos") {
+
+  const userId = session.session.user.id;
+
+  // Si el usuario no tiene ningún campo creado
+  const { data: existentes } = await supabaseClient
+    .from("jugador_usuario_datos")
+    .select("*")
+    .eq("usuario_id", userId);
+
+  if (!existentes || existentes.length === 0) {
+
+    const camposBase = [
+      { campo: "Año nacimiento", valor: "" },
+      { campo: "Comentario", valor: "" },
+      { campo: "Valoración", valor: "" },
+      { campo: "Teléfono", valor: "" },
+      { campo: "Contactado", valor: "No" }
+    ];
+
+    // Crear los campos base sin jugador_id (el usuario lo asignará)
+    for (const c of camposBase) {
+      await supabaseClient.from("jugador_usuario_datos").insert({
+        usuario_id: userId,
+        campo: c.campo,
+        valor: c.valor
+      });
+    }
+
+    // Recargar datos
+    const { data: nuevos } = await supabaseClient.from("jugador_usuario_datos").select("*").eq("usuario_id", userId);
+    data.length = 0;
+    nuevos.forEach(n => data.push(n));
+  }
+}
+
+      
       const columnas = [];
 
       /* ============================
