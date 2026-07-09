@@ -204,6 +204,29 @@
     let equiposCache = [];
     let universalTable = null;
 
+async function crearUsuario() {
+  const email = document.getElementById("new_email").value;
+  const username = document.getElementById("new_username").value;
+  const password = document.getElementById("new_password_create").value;
+  const is_admin = document.getElementById("new_is_admin").value === "true";
+
+  const { data, error } = await supabaseClient.functions.invoke("create-user", {
+    body: {
+      email,
+      password,
+      username,
+      is_admin
+    }
+  });
+
+  if (error) {
+    document.getElementById("create_result").innerText = "Error: " + error.message;
+  } else {
+    document.getElementById("create_result").innerText = "Usuario creado correctamente";
+  }
+}
+
+    
     async function protegerPagina() {
       const { data: session } = await supabaseClient.auth.getSession();
 
