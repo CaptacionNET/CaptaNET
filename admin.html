@@ -194,9 +194,10 @@
   <button onclick="logout()">Cerrar sesión</button>
 
   <script>
-    const supabaseClient = supabase.createClient(
-      "https://bnqoisjvboytiphiwosj.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
+  const supabaseClient = supabase.createClient(
+  "https://bnqoisjvboytiphiwosj.supabase.co",
+  "sb_secret_eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MzYwODAxNywiZXhwIjoyMDk5MTg0MDE3fQ._9hvRbcrASM59Wav_AthABoOY3O-gj8XLrsz9zYyvEo"
+);
     );
 
     let categoriasCache = [];
