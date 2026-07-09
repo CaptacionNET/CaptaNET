@@ -299,6 +299,22 @@ if (tabla === "jugador_usuario_datos") {
   }
 }
 
+// Si la tabla está vacía, obtener columnas desde information_schema
+if (!data || data.length === 0) {
+  const { data: columnasBD } = await supabaseClient.rpc("get_table_columns", {
+    table_name: tabla
+  });
+
+  columnasBD.forEach(col => {
+    if (["id", "usuario_id", "fecha"].includes(col.column_name)) return;
+
+    columnas.push({
+      title: col.column_name,
+      field: col.column_name,
+      editor: "input"
+    });
+  });
+}
       
       const columnas = [];
 
