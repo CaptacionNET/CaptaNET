@@ -2,122 +2,166 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>CaptaNET - Panel Admin</title>
+  <title>CaptaNET - Panel</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    .tab-btn {
+      padding: 10px 20px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      background: #f5f5f5;
+      margin-right: 10px;
+    }
+    .tab-btn.active {
+      background: #ddd;
+      font-weight: bold;
+    }
+    .tab-content {
+      display: none;
+      margin-top: 20px;
+    }
+  </style>
 </head>
 
 <body>
-  <h2>Panel de Administración</h2>
-  <p>Bienvenido, administrador.</p>
+  <h2>CaptaNET</h2>
 
-  <hr>
-
-  <!-- ============================
-       LISTA DE USUARIOS
-       ============================ -->
-  <h3>Usuarios registrados</h3>
-  <button onclick="cargarUsuarios()">Actualizar lista</button>
-
-  <ul id="lista_usuarios"></ul>
-
-  <hr>
+  <!-- BOTONES DE PESTAÑAS -->
+  <div id="tabs" style="margin-bottom: 20px;">
+    <button id="tab_admin" class="tab-btn" onclick="mostrarTab('admin')">Panel Admin</button>
+    <button id="tab_contenido" class="tab-btn" onclick="mostrarTab('contenido')">Contenido</button>
+  </div>
 
   <!-- ============================
-       CREAR USUARIO
+       TAB: PANEL ADMIN
        ============================ -->
-  <div style="border: 1px solid #ccc; padding: 20px; margin-top: 20px; max-width: 400px;">
-    <h3>Crear nuevo usuario</h3>
+  <div id="admin" class="tab-content">
 
-    <label>Email</label>
-    <input id="new_email" type="email" placeholder="Email" style="width: 100%; margin-bottom: 10px;">
+    <h3>Panel de Administración</h3>
+    <p>Bienvenido, administrador.</p>
 
-    <label>Username</label>
-    <input id="new_username" type="text" placeholder="Username" style="width: 100%; margin-bottom: 10px;">
+    <hr>
 
-    <label>Contraseña</label>
-    <input id="new_password_create" type="password" placeholder="Contraseña" style="width: 100%; margin-bottom: 10px;">
+    <!-- LISTA DE USUARIOS -->
+    <h3>Usuarios registrados</h3>
+    <button onclick="cargarUsuarios()">Actualizar lista</button>
+    <ul id="lista_usuarios"></ul>
 
-    <label>¿Es admin?</label>
-    <select id="new_is_admin" style="width: 100%; margin-bottom: 10px;">
-      <option value="false">No</option>
-      <option value="true">Sí</option>
-    </select>
+    <hr>
 
-    <button onclick="crearUsuario()" style="width: 100%; padding: 10px;">
-      Crear usuario
-    </button>
+    <!-- CREAR USUARIO -->
+    <div style="border: 1px solid #ccc; padding: 20px; max-width: 400px;">
+      <h3>Crear nuevo usuario</h3>
 
-    <p id="create_result" style="margin-top: 10px; font-weight: bold;"></p>
+      <label>Email</label>
+      <input id="new_email" type="email" style="width: 100%; margin-bottom: 10px;">
+
+      <label>Username</label>
+      <input id="new_username" type="text" style="width: 100%; margin-bottom: 10px;">
+
+      <label>Contraseña</label>
+      <input id="new_password_create" type="password" style="width: 100%; margin-bottom: 10px;">
+
+      <label>¿Es admin?</label>
+      <select id="new_is_admin" style="width: 100%; margin-bottom: 10px;">
+        <option value="false">No</option>
+        <option value="true">Sí</option>
+      </select>
+
+      <button onclick="crearUsuario()" style="width: 100%;">Crear usuario</button>
+      <p id="create_result" style="font-weight: bold;"></p>
+    </div>
+
+    <hr>
+
+    <!-- EDITAR USUARIO -->
+    <div style="border: 1px solid #ccc; padding: 20px; max-width: 400px;">
+      <h3>Editar usuario</h3>
+
+      <label>ID del usuario</label>
+      <input id="edit_id" type="text" style="width: 100%; margin-bottom: 10px;">
+
+      <label>Nuevo email</label>
+      <input id="edit_email" type="email" style="width: 100%; margin-bottom: 10px;">
+
+      <label>Nuevo username</label>
+      <input id="edit_username" type="text" style="width: 100%; margin-bottom: 10px;">
+
+      <button onclick="editarUsuario()" style="width: 100%;">Guardar cambios</button>
+      <p id="edit_result" style="font-weight: bold;"></p>
+    </div>
+
+    <hr>
+
+    <!-- CAMBIAR CONTRASEÑA -->
+    <div style="border: 1px solid #ccc; padding: 20px; max-width: 400px;">
+      <h3>Cambiar contraseña</h3>
+
+      <label>ID del usuario</label>
+      <input id="pw_id" type="text" style="width: 100%; margin-bottom: 10px;">
+
+      <label>Nueva contraseña</label>
+      <input id="pw_new" type="password" style="width: 100%; margin-bottom: 10px;">
+
+      <button onclick="changePassword()" style="width: 100%;">Cambiar contraseña</button>
+      <p id="pw_result" style="font-weight: bold;"></p>
+    </div>
+
+    <hr>
+
+    <!-- ELIMINAR USUARIO -->
+    <div style="border: 1px solid #ccc; padding: 20px; max-width: 400px;">
+      <h3>Eliminar usuario</h3>
+
+      <label>ID del usuario</label>
+      <input id="delete_id" type="text" style="width: 100%; margin-bottom: 10px;">
+
+      <button onclick="eliminarUsuario()" style="width: 100%;">Eliminar usuario</button>
+      <p id="delete_result" style="font-weight: bold;"></p>
+    </div>
+
+  </div>
+
+  <!-- ============================
+       TAB: CONTENIDO
+       ============================ -->
+  <div id="contenido" class="tab-content">
+
+    <h3>Contenido público (requiere login)</h3>
+
+    <div style="border: 1px solid #ccc; padding: 20px; max-width: 500px;">
+      <h3>Seleccionar contenido</h3>
+
+      <label>Categoría</label>
+      <select id="categoria" style="width: 100%; margin-bottom: 10px;" onchange="cargarLigas()">
+        <option value="">Selecciona categoría</option>
+      </select>
+
+      <label>Competición</label>
+      <select id="liga" style="width: 100%; margin-bottom: 10px;" onchange="cargarGrupos()">
+        <option value="">Selecciona competición</option>
+      </select>
+
+      <label>Grupo</label>
+      <select id="grupo" style="width: 100%; margin-bottom: 10px;" onchange="cargarEquipos()">
+        <option value="">Selecciona grupo</option>
+      </select>
+
+      <label>Equipo</label>
+      <select id="equipo" style="width: 100%; margin-bottom: 10px;" onchange="cargarJugadores()">
+        <option value="">Selecciona equipo</option>
+      </select>
+
+      <label>Jugador</label>
+      <select id="jugador" style="width: 100%; margin-bottom: 10px;">
+        <option value="">Selecciona jugador</option>
+      </select>
+    </div>
+
   </div>
 
   <hr>
-
-  <!-- ============================
-       EDITAR USUARIO
-       ============================ -->
-  <div style="border: 1px solid #ccc; padding: 20px; margin-top: 20px; max-width: 400px;">
-    <h3>Editar usuario</h3>
-
-    <label>ID del usuario</label>
-    <input id="edit_id" type="text" placeholder="ID" style="width: 100%; margin-bottom: 10px;">
-
-    <label>Nuevo email</label>
-    <input id="edit_email" type="email" placeholder="Nuevo email" style="width: 100%; margin-bottom: 10px;">
-
-    <label>Nuevo username</label>
-    <input id="edit_username" type="text" placeholder="Nuevo username" style="width: 100%; margin-bottom: 10px;">
-
-    <button onclick="editarUsuario()" style="width: 100%; padding: 10px;">
-      Guardar cambios
-    </button>
-
-    <p id="edit_result" style="margin-top: 10px; font-weight: bold;"></p>
-  </div>
-
-  <hr>
-
-  <!-- ============================
-       CAMBIAR CONTRASEÑA
-       ============================ -->
-  <div style="border: 1px solid #ccc; padding: 20px; margin-top: 20px; max-width: 400px;">
-    <h3>Cambiar contraseña</h3>
-
-    <label>ID del usuario</label>
-    <input id="pw_id" type="text" placeholder="ID del usuario" style="width: 100%; margin-bottom: 10px;">
-
-    <label>Nueva contraseña</label>
-    <input id="pw_new" type="password" placeholder="Nueva contraseña" style="width: 100%; margin-bottom: 10px;">
-
-    <button onclick="changePassword()" style="width: 100%; padding: 10px;">
-      Cambiar contraseña
-    </button>
-
-    <p id="pw_result" style="margin-top: 10px; font-weight: bold;"></p>
-  </div>
-
-  <hr>
-
-  <!-- ============================
-       ELIMINAR USUARIO
-       ============================ -->
-  <div style="border: 1px solid #ccc; padding: 20px; margin-top: 20px; max-width: 400px;">
-    <h3>Eliminar usuario</h3>
-
-    <label>ID del usuario</label>
-    <input id="delete_id" type="text" placeholder="ID del usuario" style="width: 100%; margin-bottom: 10px;">
-
-    <button onclick="eliminarUsuario()" style="width: 100%; padding: 10px;">
-      Eliminar usuario
-    </button>
-
-    <p id="delete_result" style="margin-top: 10px; font-weight: bold;"></p>
-  </div>
-
-  <hr>
-
-  <!-- ============================
-       CERRAR SESIÓN
-       ============================ -->
   <button onclick="logout()">Cerrar sesión</button>
 
   <script>
@@ -127,53 +171,74 @@
     );
 
     // ============================
-    // LISTA DE USUARIOS
+    // PROTEGER PÁGINA Y MOSTRAR TABS
+    // ============================
+    async function protegerPagina() {
+      const { data: session } = await supabaseClient.auth.getSession();
+
+      if (!session.session) {
+        window.location.href = "index.html";
+        return;
+      }
+
+      const userId = session.session.user.id;
+
+      const { data: profile } = await supabaseClient
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", userId)
+        .single();
+
+      if (profile.is_admin) {
+        document.getElementById("tab_admin").style.display = "inline-block";
+      } else {
+        document.getElementById("tab_admin").style.display = "none";
+      }
+
+      mostrarTab("contenido");
+      cargarCategorias();
+    }
+
+    protegerPagina();
+
+    // ============================
+    // CAMBIO DE PESTAÑAS
+    // ============================
+    function mostrarTab(tab) {
+      document.querySelectorAll(".tab-content").forEach(div => div.style.display = "none");
+      document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+
+      document.getElementById(tab).style.display = "block";
+      document.getElementById("tab_" + tab).classList.add("active");
+    }
+
+    // ============================
+    // FUNCIONES PANEL ADMIN
     // ============================
     async function cargarUsuarios() {
       const lista = document.getElementById("lista_usuarios");
       lista.innerHTML = "Cargando...";
 
-      const { data, error } = await supabaseClient
-        .from("profiles")
-        .select("*");
-
-      if (error) {
-        lista.innerHTML = "Error al cargar usuarios";
-        return;
-      }
+      const { data } = await supabaseClient.from("profiles").select("*");
 
       lista.innerHTML = "";
-
       data.forEach(u => {
         const li = document.createElement("li");
         li.textContent = `${u.username} — ${u.email} — ID: ${u.id}`;
-        li.style.cursor = "pointer";
-
         li.onclick = () => {
           document.getElementById("edit_id").value = u.id;
           document.getElementById("pw_id").value = u.id;
           document.getElementById("delete_id").value = u.id;
         };
-
         lista.appendChild(li);
       });
     }
 
-    // ============================
-    // CREAR USUARIO
-    // ============================
     async function crearUsuario() {
-      const email = document.getElementById("new_email").value.trim();
-      const username = document.getElementById("new_username").value.trim();
-      const password = document.getElementById("new_password_create").value.trim();
-      const is_admin = document.getElementById("new_is_admin").value === "true";
-      const result = document.getElementById("create_result");
-
-      if (!email || !username || !password) {
-        result.textContent = "Todos los campos son obligatorios.";
-        result.style.color = "red";
-        return;
-      }
+      const email = new_email.value.trim();
+      const username = new_username.value.trim();
+      const password = new_password_create.value.trim();
+      const is_admin = new_is_admin.value === "true";
 
       const { data: authUser, error: authError } = await supabaseClient.auth.admin.createUser({
         email,
@@ -182,8 +247,8 @@
       });
 
       if (authError) {
-        result.textContent = "Error: " + authError.message;
-        result.style.color = "red";
+        create_result.textContent = authError.message;
+        create_result.style.color = "red";
         return;
       }
 
@@ -194,106 +259,132 @@
         is_admin
       });
 
-      result.textContent = "Usuario creado correctamente.";
-      result.style.color = "green";
-
+      create_result.textContent = "Usuario creado.";
+      create_result.style.color = "green";
       cargarUsuarios();
     }
 
-    // ============================
-    // EDITAR USUARIO
-    // ============================
     async function editarUsuario() {
-      const id = document.getElementById("edit_id").value.trim();
-      const email = document.getElementById("edit_email").value.trim();
-      const username = document.getElementById("edit_username").value.trim();
-      const result = document.getElementById("edit_result");
+      const id = edit_id.value.trim();
+      const email = edit_email.value.trim();
+      const username = edit_username.value.trim();
 
-      if (!id) {
-        result.textContent = "Debes seleccionar un usuario.";
-        result.style.color = "red";
-        return;
-      }
+      await supabaseClient.from("profiles").update({ email, username }).eq("id", id);
 
-      const { error } = await supabaseClient
-        .from("profiles")
-        .update({ email, username })
-        .eq("id", id);
-
-      if (error) {
-        result.textContent = "Error: " + error.message;
-        result.style.color = "red";
-        return;
-      }
-
-      result.textContent = "Usuario actualizado.";
-      result.style.color = "green";
-
+      edit_result.textContent = "Usuario actualizado.";
+      edit_result.style.color = "green";
       cargarUsuarios();
     }
 
-    // ============================
-    // CAMBIAR CONTRASEÑA
-    // ============================
     async function changePassword() {
-      const user_id = document.getElementById("pw_id").value.trim();
-      const new_password = document.getElementById("pw_new").value.trim();
-      const result = document.getElementById("pw_result");
+      const user_id = pw_id.value.trim();
+      const new_password = pw_new.value.trim();
 
-      if (!user_id || !new_password) {
-        result.textContent = "Debes rellenar ambos campos.";
-        result.style.color = "red";
-        return;
-      }
-
-      const { data, error } = await supabaseClient.functions.invoke(
-        "change-password",
-        {
-          body: { user_id, new_password }
-        }
-      );
+      const { error } = await supabaseClient.functions.invoke("change-password", {
+        body: { user_id, new_password }
+      });
 
       if (error) {
-        result.textContent = "Error: " + error.message;
-        result.style.color = "red";
+        pw_result.textContent = error.message;
+        pw_result.style.color = "red";
         return;
       }
 
-      result.textContent = "Contraseña cambiada correctamente.";
-      result.style.color = "green";
+      pw_result.textContent = "Contraseña cambiada.";
+      pw_result.style.color = "green";
     }
 
-    // ============================
-    // ELIMINAR USUARIO
-    // ============================
     async function eliminarUsuario() {
-      const id = document.getElementById("delete_id").value.trim();
-      const result = document.getElementById("delete_result");
+      const id = delete_id.value.trim();
 
-      if (!id) {
-        result.textContent = "Debes seleccionar un usuario.";
-        result.style.color = "red";
-        return;
-      }
-
-      const { error: authError } = await supabaseClient.auth.admin.deleteUser(id);
-
-      if (authError) {
-        result.textContent = "Error: " + authError.message;
-        result.style.color = "red";
-        return;
-      }
-
+      await supabaseClient.auth.admin.deleteUser(id);
       await supabaseClient.from("profiles").delete().eq("id", id);
 
-      result.textContent = "Usuario eliminado.";
-      result.style.color = "green";
-
+      delete_result.textContent = "Usuario eliminado.";
+      delete_result.style.color = "green";
       cargarUsuarios();
     }
 
     // ============================
-    // CERRAR SESIÓN
+    // CONTENIDO PÚBLICO
+    // ============================
+    async function cargarCategorias() {
+      const { data } = await supabaseClient.from("categorias").select("*").order("nombre");
+
+      categoria.innerHTML = '<option value="">Selecciona categoría</option>';
+      data.forEach(c => categoria.innerHTML += `<option value="${c.id}">${c.nombre}</option>`);
+    }
+
+    async function cargarLigas() {
+      const categoriaId = categoria.value;
+
+      const { data } = await supabaseClient
+        .from("ligas")
+        .select("*")
+        .eq("categoria_id", categoriaId)
+        .order("nombre");
+
+      liga.innerHTML = '<option value="">Selecciona competición</option>';
+      data.forEach(l => liga.innerHTML += `<option value="${l.id}">${l.nombre}</option>`);
+
+      grupo.innerHTML = '<option value="">Selecciona grupo</option>';
+      equipo.innerHTML = '<option value="">Selecciona equipo</option>';
+      jugador.innerHTML = '<option value="">Selecciona jugador</option>';
+    }
+
+    async function cargarGrupos() {
+      const ligaId = liga.value;
+
+      const { data } = await supabaseClient
+        .from("ligas")
+        .select("grupo")
+        .eq("id", ligaId)
+        .single();
+
+      grupo.innerHTML = '<option value="">Selecciona grupo</option>';
+
+      if (data.grupo.includes(",")) {
+        data.grupo.split(",").map(g => g.trim()).forEach(g => {
+          grupo.innerHTML += `<option value="${g}">${g}</option>`;
+        });
+      } else {
+        grupo.innerHTML += `<option value="${data.grupo}">${data.grupo}</option>`;
+      }
+
+      equipo.innerHTML = '<option value="">Selecciona equipo</option>';
+      jugador.innerHTML = '<option value="">Selecciona jugador</option>';
+    }
+
+    async function cargarEquipos() {
+      const ligaId = liga.value;
+
+      const { data } = await supabaseClient
+        .from("equipos")
+        .select("*")
+        .eq("liga_id", ligaId)
+        .order("nombre");
+
+      equipo.innerHTML = '<option value="">Selecciona equipo</option>';
+      data.forEach(e => equipo.innerHTML += `<option value="${e.id}">${e.nombre}</option>`);
+
+      jugador.innerHTML = '<option value="">Selecciona jugador</option>';
+    }
+
+    async function cargarJugadores() {
+      const equipoId = equipo.value;
+
+      const { data } = await supabaseClient
+        .from("jugadores")
+        .select("*")
+        .eq("equipo_id", equipoId)
+        .order("nombre");
+
+      jugador.innerHTML = '<option value="">Selecciona jugador</option>';
+      data.forEach(j => jugador.innerHTML += `<option value="${j.id}">${j.nombre}</option>`);
+    }
+
+    // ============================
+    // LOGOUT
     // ============================
     async function logout() {
       await supabaseClient.auth.signOut();
