@@ -187,10 +187,11 @@
     <p id="universal_status" style="margin-top:10px; font-weight:bold;"></p>
   </div>
 
-  <script>
+<script>
+
 window.client = supabase.createClient(
   "https://bnqoisjvboytiphiwosj.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MzYwODAxNywiZXhwIjoyMDk5MTg0MDE3fQ._9hvRbcrASM59Wav_AthABoOY3O-gj8XLrsz9zYyvEo"
 );
 
 function irVisor() {
@@ -212,16 +213,21 @@ function mostrarTab(id) {
 mostrarTab("admin");
 
 async function cargarUsuarios() {
-  const { data } = await client.from("profiles").select("*");
+  const { data, error } = await client.functions.invoke("admin-list-users");
+
   const lista = document.getElementById("lista_usuarios");
   lista.innerHTML = "";
-  if (data) {
-    data.forEach(u => {
-      const li = document.createElement("li");
-      li.textContent = `${u.id} - ${u.email} - ${u.username}`;
-      lista.appendChild(li);
-    });
+
+  if (error) {
+    lista.innerHTML = "Error al cargar usuarios";
+    return;
   }
+
+  data.users.forEach(u => {
+    const li = document.createElement("li");
+    li.textContent = `${u.id} - ${u.email} - ${u.user_metadata?.username || ""}`;
+    lista.appendChild(li);
+  });
 }
 
 async function crearUsuario() {
@@ -245,32 +251,35 @@ async function editarUsuario() {
   const email = document.getElementById("edit_email").value;
   const username = document.getElementById("edit_username").value;
 
-  await client.from("profiles").update({
-    email,
-    username
-  }).eq("id", id);
+  const { data, error } = await client.functions.invoke("admin-update-profile", {
+    body: { id, email, username }
+  });
 
-  document.getElementById("edit_result").textContent = "Actualizado";
+  document.getElementById("edit_result").textContent =
+    error ? "Error actualizando usuario" : "Usuario actualizado";
 }
 
 async function changePassword() {
   const id = document.getElementById("pw_id").value;
-  const newPw = document.getElementById("pw_new").value;
+  const password = document.getElementById("pw_new").value;
 
-  const { error } = await client.auth.admin.updateUserById(id, {
-    password: newPw
+  const { data, error } = await client.functions.invoke("admin-update-password", {
+    body: { id, password }
   });
 
-  document.getElementById("pw_result").textContent = error ? error.message : "Contraseña cambiada";
+  document.getElementById("pw_result").textContent =
+    error ? "Error cambiando contraseña" : "Contraseña cambiada";
 }
 
 async function eliminarUsuario() {
   const id = document.getElementById("delete_id").value;
 
-  await client.auth.admin.deleteUser(id);
-  await client.from("profiles").delete().eq("id", id);
+  const { data, error } = await client.functions.invoke("admin-delete-user", {
+    body: { id }
+  });
 
-  document.getElementById("delete_result").textContent = "Usuario eliminado";
+  document.getElementById("delete_result").textContent =
+    error ? "Error eliminando usuario" : "Usuario eliminado";
 }
 
 async function cargarListaDeClubs() {
@@ -443,34 +452,4 @@ async function cargarTablaUniversal() {
     addRowPos: "top",
     tooltips: true,
     cellEdited: async cell => {
-      const row = cell.getRow().getData();
-      await guardarUniversal(tabla, row);
-    }
-  });
-
-  status.textContent = "Tabla cargada.";
-}
-
-async function guardarUniversal(tabla, row) {
-  const status = document.getElementById("universal_status");
-
-  const payload = { ...row };
-  delete payload.id;
-
-  if (row.id) {
-    await client.from(tabla).update(payload).eq("id", row.id);
-    status.textContent = "Fila actualizada.";
-  } else {
-    const { data, error } = await client.from(tabla).insert(payload).select("id").single();
-    if (!error) {
-      row.id = data.id;
-      universalTable.updateData([row]);
-      status.textContent = "Fila creada.";
-    } else {
-      status.textContent = "Error: " + error.message;
-    }
-  }
-}
-
-async function logout() {
-  await client.auth.signOut();
+      const row = cell
