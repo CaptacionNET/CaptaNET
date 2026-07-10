@@ -72,11 +72,9 @@ async function logout() {
 }
 
 /* ============================
-   TODO TU VISOR ORIGINAL
-   (no modificado)
+   TABLA
 ============================ */
 
-/* === CREAR TABLA === */
 let tabla;
 let filaComentario = null;
 
@@ -106,21 +104,44 @@ function crearTabla() {
     ],
     cellEdited: async function(cell){
       const d = cell.getRow().getData();
-      await supabase.from("jugadores_club")
+      await client.from("jugadores_club")
         .update({ [cell.getField()]: cell.getValue() })
         .eq("id", d.id);
     }
   });
 }
-crearTabla();
 
-/* === MODAL === */
+/* ============================
+   CARGA DE DATOS
+============================ */
+
+async function cargarDatos() {
+  const { data, error } = await client
+    .from("jugadores_club")
+    .select("*");
+
+  if (error) {
+    console.error("Error cargando datos:", error);
+    return;
+  }
+
+  tabla.setData(data);
+}
+
+crearTabla();
+cargarDatos();
+
+/* ============================
+   MODAL
+============================ */
+
 function abrirModal(){ document.getElementById("modalComentario").style.display="flex"; }
 function cerrarModal(){ document.getElementById("modalComentario").style.display="none"; }
 
 async function guardarComentario(){
   const nuevo = document.getElementById("comentarioInput").value;
-  await supabase.from("jugadores_club")
+
+  await client.from("jugadores_club")
     .update({ comentario:nuevo })
     .eq("id", filaComentario.id);
 
@@ -129,12 +150,18 @@ async function guardarComentario(){
   cerrarModal();
 }
 
-/* === MODOS === */
-function modoCompeticiones(){ /* ... */ }
-function modoValoraciones(){ /* ... */ }
-function modoBuscador(){ /* ... */ }
+/* ============================
+   MODOS (vacíos)
+============================ */
 
-/* === UTILIDADES === */
+function modoCompeticiones(){}
+function modoValoraciones(){}
+function modoBuscador(){}
+
+/* ============================
+   UTILIDADES
+============================ */
+
 function fillSelect(id, arr){
   const s = document.getElementById(id);
   s.innerHTML = "";
