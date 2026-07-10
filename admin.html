@@ -56,28 +56,36 @@
 
     <hr>
 
-    <!-- CREAR USUARIO -->
-    <div style="border: 1px solid #ccc; padding: 20px; max-width: 400px;">
-      <h3>Crear nuevo usuario</h3>
+    <<!-- CREAR USUARIO -->
+<div style="border: 1px solid #ccc; padding: 20px; max-width: 400px;">
+  <h3>Crear nuevo usuario</h3>
 
-      <label>Email</label>
-      <input id="new_email" type="email" style="width: 100%; margin-bottom: 10px;">
+  <label>Email</label>
+  <input id="new_email" type="email" style="width: 100%; margin-bottom: 10px;">
 
-      <label>Username</label>
-      <input id="new_username" type="text" style="width: 100%; margin-bottom: 10px;">
+  <label>Username</label>
+  <input id="new_username" type="text" style="width: 100%; margin-bottom: 10px;">
 
-      <label>Contraseña</label>
-      <input id="new_password_create" type="password" style="width: 100%; margin-bottom: 10px;">
+  <label>Nombre</label>
+  <input id="new_nombre" type="text" style="width: 100%; margin-bottom: 10px;">
 
-      <label>¿Es admin?</label>
-      <select id="new_is_admin" style="width: 100%; margin-bottom: 10px;">
-        <option value="false">No</option>
-        <option value="true">Sí</option>
-      </select>
+  <label>Contraseña</label>
+  <input id="new_password_create" type="password" style="width: 100%; margin-bottom: 10px;">
 
-      <button onclick="crearUsuario()" style="width: 100%;">Crear usuario</button>
-      <p id="create_result" style="font-weight: bold;"></p>
-    </div>
+  <label>¿Es admin?</label>
+  <select id="new_is_admin" style="width: 100%; margin-bottom: 10px;">
+    <option value="false">No</option>
+    <option value="true">Sí</option>
+  </select>
+
+  <label>Club</label>
+  <select id="new_club_id" style="width: 100%; margin-bottom: 10px;">
+    <!-- Se rellenará automáticamente desde Supabase -->
+  </select>
+
+  <button onclick="crearUsuario()" style="width: 100%;">Crear usuario</button>
+  <p id="create_result" style="font-weight: bold;"></p>
+</div>
 
     <hr>
 
@@ -204,28 +212,53 @@
     let equiposCache = [];
     let universalTable = null;
 
-async function crearUsuario() {
-  const email = document.getElementById("new_email").value;
-  const username = document.getElementById("new_username").value;
-  const password = document.getElementById("new_password_create").value;
-  const is_admin = document.getElementById("new_is_admin").value === "true";
+  async function cargarListaDeClubs() {
+      const { data: clubs, error } = await supabaseClient
+        .from("clubs")
+        .select("id, nombre")
+        .order("nombre");
 
-  const { data, error } = await supabaseClient.functions.invoke("create-user", {
-    body: {
-      email,
-      password,
-      username,
-      is_admin
+      if (error) {
+        console.error("Error cargando clubes:", error);
+        return;
+      }
+
+      const select = document.getElementById("new_club_id");
+      select.innerHTML = "";
+
+      clubs.forEach(club => {
+        const option = document.createElement("option");
+        option.value = club.id;
+        option.textContent = club.nombre;
+        select.appendChild(option);
+      });
     }
-  });
+    
+async function crearUsuario() {
+      const email = document.getElementById("new_email").value;
+      const username = document.getElementById("new_username").value;
+      const nombre = document.getElementById("new_nombre").value;
+      const password = document.getElementById("new_password_create").value;
+      const is_admin = document.getElementById("new_is_admin").value === "true";
+      const club_id = document.getElementById("new_club_id").value;
 
-  if (error) {
-    document.getElementById("create_result").innerText = "Error: " + error.message;
-  } else {
-    document.getElementById("create_result").innerText = "Usuario creado correctamente";
-  }
-}
+      const { data, error } = await supabaseClient.functions.invoke("create-user", {
+        body: {
+          email,
+          password,
+          username,
+          nombre,
+          club_id,
+          is_admin
+        }
+      });
 
+      if (error) {
+        document.getElementById("create_result").innerText = "Error: " + error.message;
+      } else {
+        document.getElementById("create_result").innerText = "Usuario creado correctamente";
+      }
+    }
     
     async function protegerPagina() {
       const { data: session } = await supabaseClient.auth.getSession();
@@ -235,6 +268,11 @@ async function crearUsuario() {
         return;
       }
 
+(async () => {
+  await cargarListaDeClubs();
+  await protegerPagina();
+})();li
+      
       const userId = session.session.user.id;
 
       const { data: profile } = await supabaseClient
