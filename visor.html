@@ -43,7 +43,14 @@ button { padding:8px 14px; cursor:pointer; }
   </div>
 </div>
 
-<div id="filtros"></div>
+<!-- FILTROS -->
+<div id="filtros">
+  <input id="filtroNombre" placeholder="Nombre" oninput="aplicarFiltros()">
+  <input id="filtroPosicion" placeholder="Posición" oninput="aplicarFiltros()">
+  <input id="filtroAnio" placeholder="Año" type="number" oninput="aplicarFiltros()">
+  <input id="filtroValoracion" placeholder="Valoración mínima" type="number" oninput="aplicarFiltros()">
+</div>
+
 <div id="tabla"></div>
 
 <div id="modalComentario" class="modal">
@@ -102,4 +109,85 @@ function crearTabla() {
         width:120,
         cellClick:function(e, cell){
           filaComentario = cell.getRow().getData();
-          document.getElement
+          document.getElementById("comentarioInput").value = filaComentario.comentario || "";
+          abrirModal();
+        }
+      }
+    ],
+    cellEdited: async function(cell){
+      if (!esAdmin) return;
+      const d = cell.getRow().getData();
+      await client.from("jugadores_club")
+        .update({ [cell.getField()]: cell.getValue() })
+        .eq("id", d.id);
+    }
+  });
+}
+
+/* --- CARGA DE DATOS --- */
+async function cargarDatos() {
+  const { data, error } = await client
+    .from("jugadores_club")
+    .select("*");
+
+  if (error) {
+    console.error("Error cargando datos:", error);
+    return;
+  }
+
+  tabla.setData(data);
+}
+
+crearTabla();
+cargarDatos();
+
+/* --- FILTROS --- */
+function aplicarFiltros() {
+  const nombre = document.getElementById("filtroNombre").value.toLowerCase();
+  const posicion = document.getElementById("filtroPosicion").value.toLowerCase();
+  const anio = document.getElementById("filtroAnio").value;
+  const valoracion = document.getElementById("filtroValoracion").value;
+
+  tabla.setFilter([
+    nombre ? { field:"jugador_nombre", type:"like", value:nombre } : null,
+    posicion ? { field:"posicion", type:"like", value:posicion } : null,
+    anio ? { field:"anio_nacimiento", type:"=", value:parseInt(anio) } : null,
+    valoracion ? { field:"valoracion", type:">=", value:parseInt(valoracion) } : null
+  ].filter(x => x));
+}
+
+/* --- MODAL --- */
+function abrirModal(){ document.getElementById("modalComentario").style.display="flex"; }
+function cerrarModal(){ document.getElementById("modalComentario").style.display="none"; }
+
+async function guardarComentario(){
+  const nuevo = document.getElementById("comentarioInput").value;
+
+  await client.from("jugadores_club")
+    .update({ comentario:nuevo })
+    .eq("id", filaComentario.id);
+
+  filaComentario.comentario = nuevo;
+  tabla.updateData([filaComentario]);
+  cerrarModal();
+}
+
+/* --- OTROS --- */
+function modoCompeticiones(){}
+function modoValoraciones(){}
+function modoBuscador(){}
+
+function fillSelect(id, arr){
+  const s = document.getElementById(id);
+  s.innerHTML = "";
+  arr.forEach(x => {
+    const o = document.createElement("option");
+    o.value = x.id;
+    o.textContent = x.nombre;
+    s.appendChild(o);
+  });
+}
+</script>
+
+</body>
+</html>
