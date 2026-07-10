@@ -260,18 +260,33 @@ async function crearUsuario() {
       }
     }
     
-    async function protegerPagina() {
-      const { data: session } = await supabaseClient.auth.getSession();
+async function protegerPagina() {
+  const { data: session } = await supabaseClient.auth.getSession();
 
-      if (!session.session) {
-        window.location.href = "index.html";
-        return;
-      }
+  if (!session.session) {
+    window.location.href = "index.html";
+    return;
+  }
+}
 
-(async () => {
+    async function cargarPerfilUsuario() {
+  const { data: session } = await supabaseClient.auth.getSession();
+
+  const { data: profile } = await supabaseClient
+    .from("profiles")
+    .select("club_id, is_admin")
+    .eq("id", session.session.user.id)
+    .single();
+
+  window.USER_CLUB_ID = profile.club_id;
+  window.USER_IS_ADMIN = profile.is_admin;
+}
+
+
+document.addEventListener("DOMContentLoaded", async () => {
   await cargarListaDeClubs();
   await protegerPagina();
-})();li
+});
       
       const userId = session.session.user.id;
 
@@ -293,8 +308,6 @@ async function crearUsuario() {
       mostrarTab("contenido");
       cargarCategorias();
     }
-
-    protegerPagina();
 
     function mostrarTab(tab) {
       document.querySelectorAll(".tab-content").forEach(div => div.style.display = "none");
@@ -442,6 +455,14 @@ async function crearUsuario() {
       await supabaseClient.auth.signOut();
       window.location.href = "index.html";
     }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+  await protegerPagina();
+  await cargarPerfilUsuario();
+  await cargarListaDeClubs();
+});
+
+    
   </script>
 
 </body>
