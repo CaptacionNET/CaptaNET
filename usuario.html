@@ -16,7 +16,7 @@
   <div id="perfil"></div>
 
   <script>
-    const supabase = supabase.createClient(
+    const client = supabase.createClient(
       "https://bnqoisjvboytiphiwosj.supabase.co",
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
     );
@@ -24,7 +24,7 @@
     cargarPerfil();
 
     async function cargarPerfil() {
-      const { data: session } = await supabase.auth.getSession();
+      const { data: session } = await client.auth.getSession();
 
       if (!session || !session.session) {
         window.location.href = "index.html";
@@ -50,7 +50,7 @@
     }
 
     async function logout() {
-      await supabase.auth.signOut();
+      await client.auth.signOut();
       window.location.href = "index.html";
     }
   </script>
