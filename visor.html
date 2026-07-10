@@ -4,12 +4,9 @@
 <meta charset="UTF-8">
 <title>CaptaNET – Visor</title>
 
-<!-- Tabulator desde jsdelivr (funciona en Cloudflare Pages) -->
 <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@5.4.4/dist/css/tabulator.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@5.4.4/dist/js/tabulator.min.js"></script>
 
-
-<!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
@@ -65,7 +62,7 @@ const client = supabase.createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
 );
 
-function irPerfil() {
+async function irPerfil() {
   window.location.href = "/usuario";
 }
 
@@ -77,17 +74,26 @@ async function logout() {
 let tabla;
 let filaComentario = null;
 
+/* --- DETECTAR ADMIN --- */
+let esAdmin = false;
+(async () => {
+  const session = await client.auth.getSession();
+  const email = session.data.session?.user?.email;
+  esAdmin = (email === "TU_CORREO_ADMIN");   // <-- CAMBIA ESTO
+})();
+
+/* --- TABLA --- */
 function crearTabla() {
   tabla = new Tabulator("#tabla", {
     layout:"fitColumns",
     height:"80vh",
     columns:[
-      {title:"Jugador", field:"jugador_nombre"},
-      {title:"Año", field:"anio_nacimiento", editor:"number"},
-      {title:"Posición", field:"posicion", editor:"input"},
-      {title:"Valoración", field:"valoracion", editor:"number"},
-      {title:"Contacto", field:"contacto", editor:"input"},
-      {title:"Contactado", field:"contactado", editor:"tickCross"},
+      {title:"Jugador", field:"jugador_nombre", editor: esAdmin ? "input" : false},
+      {title:"Año", field:"anio_nacimiento", editor: esAdmin ? "number" : false},
+      {title:"Posición", field:"posicion", editor: esAdmin ? "input" : false},
+      {title:"Valoración", field:"valoracion", editor: esAdmin ? "number" : false},
+      {title:"Contacto", field:"contacto", editor: esAdmin ? "input" : false},
+      {title:"Contactado", field:"contactado", editor: esAdmin ? "tickCross" : false},
       {
         title:"Comentario",
         field:"comentario",
@@ -96,66 +102,4 @@ function crearTabla() {
         width:120,
         cellClick:function(e, cell){
           filaComentario = cell.getRow().getData();
-          document.getElementById("comentarioInput").value = filaComentario.comentario || "";
-          abrirModal();
-        }
-      }
-    ],
-    cellEdited: async function(cell){
-      const d = cell.getRow().getData();
-      await client.from("jugadores_club")
-        .update({ [cell.getField()]: cell.getValue() })
-        .eq("id", d.id);
-    }
-  });
-}
-
-async function cargarDatos() {
-  const { data, error } = await client
-    .from("jugadores_club")
-    .select("*");
-
-  if (error) {
-    console.error("Error cargando datos:", error);
-    return;
-  }
-
-  tabla.setData(data);
-}
-
-crearTabla();
-cargarDatos();
-
-function abrirModal(){ document.getElementById("modalComentario").style.display="flex"; }
-function cerrarModal(){ document.getElementById("modalComentario").style.display="none"; }
-
-async function guardarComentario(){
-  const nuevo = document.getElementById("comentarioInput").value;
-
-  await client.from("jugadores_club")
-    .update({ comentario:nuevo })
-    .eq("id", filaComentario.id);
-
-  filaComentario.comentario = nuevo;
-  tabla.updateData([filaComentario]);
-  cerrarModal();
-}
-
-function modoCompeticiones(){}
-function modoValoraciones(){}
-function modoBuscador(){}
-
-function fillSelect(id, arr){
-  const s = document.getElementById(id);
-  s.innerHTML = "";
-  arr.forEach(x => {
-    const o = document.createElement("option");
-    o.value = x.id;
-    o.textContent = x.nombre;
-    s.appendChild(o);
-  });
-}
-</script>
-
-</body>
-</html>
+          document.getElement
