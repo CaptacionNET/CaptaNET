@@ -92,4 +92,143 @@ let esAdmin = false;
   crearBotonAdd();
 })();
 
-/* --- BOT
+/* --- BOTÓN AÑADIR --- */
+function crearBotonAdd() {
+  if (!esAdmin) return;
+  document.getElementById("botonAdd").innerHTML =
+    `<button onclick="addFila()">Añadir jugador</button>`;
+}
+
+function addFila() {
+  const nueva = {
+    jugador_nombre: "",
+    anio_nacimiento: null,
+    posicion: "",
+    valoracion: null,
+    contacto: "",
+    contactado: false,
+    comentario: ""
+  };
+
+  tabla.addRow(nueva).then(async row => {
+    const d = row.getData();
+    const { data, error } = await client
+      .from("jugadores_club")
+      .insert([d])
+      .select();
+
+    if (!error) row.update(data[0]);
+  });
+}
+
+/* --- TABLA --- */
+function crearTabla() {
+  tabla = new Tabulator("#tabla", {
+    layout:"fitColumns",
+    height:"80vh",
+    columns:[
+      {title:"Jugador", field:"jugador_nombre", editor: esAdmin ? "input" : false},
+      {title:"Año", field:"anio_nacimiento", editor: esAdmin ? "number" : false},
+      {title:"Posición", field:"posicion", editor: esAdmin ? "input" : false},
+      {title:"Valoración", field:"valoracion", editor: esAdmin ? "number" : false},
+      {title:"Contacto", field:"contacto", editor: esAdmin ? "input" : false},
+      {title:"Contactado", field:"contactado", editor: esAdmin ? "tickCross" : false},
+
+      {
+        title:"Comentario",
+        field:"comentario",
+        formatter:"buttonClick",
+        formatterParams:{label:"Ver"},
+        width:120,
+        cellClick:function(e, cell){
+          filaComentario = cell.getRow().getData();
+          document.getElementById("comentarioInput").value = filaComentario.comentario || "";
+          abrirModal();
+        }
+      },
+
+      esAdmin ? {
+        title:"Eliminar",
+        formatter:"buttonClick",
+        formatterParams:{label:"X"},
+        width:80,
+        cellClick: async function(e, cell){
+          const d = cell.getRow().getData();
+          await client.from("jugadores_club").delete().eq("id", d.id);
+          cell.getRow().delete();
+        }
+      } : null
+    ].filter(x => x),
+
+    cellEdited: async function(cell){
+      if (!esAdmin) return;
+      const d = cell.getRow().getData();
+      await client.from("jugadores_club")
+        .update({ [cell.getField()]: cell.getValue() })
+        .eq("id", d.id);
+    }
+  });
+}
+
+/* --- CARGA DE DATOS --- */
+async function cargarDatos() {
+  const { data, error } = await client
+    .from("jugadores_club")
+    .select("*");
+
+  if (!error) tabla.setData(data);
+}
+
+crearTabla();
+cargarDatos();
+
+/* --- FILTROS --- */
+function aplicarFiltros() {
+  const nombre = document.getElementById("filtroNombre").value.toLowerCase();
+  const posicion = document.getElementById("filtroPosicion").value.toLowerCase();
+  const anio = document.getElementById("filtroAnio").value;
+  const valoracion = document.getElementById("filtroValoracion").value;
+
+  tabla.setFilter([
+    nombre ? { field:"jugador_nombre", type:"like", value:nombre } : null,
+    posicion ? { field:"posicion", type:"like", value:posicion } : null,
+    anio ? { field:"anio_nacimiento", type:"=", value:parseInt(anio) } : null,
+    valoracion ? { field:"valoracion", type:">=", value:parseInt(valoracion) } : null
+  ].filter(x => x));
+}
+
+/* --- MODAL --- */
+function abrirModal(){ document.getElementById("modalComentario").style.display="flex"; }
+function cerrarModal(){ document.getElementById("modalComentario").style.display="none"; }
+
+async function guardarComentario(){
+  const nuevo = document.getElementById("comentarioInput").value;
+
+  await client.from("jugadores_club")
+    .update({ comentario:nuevo })
+    .eq("id", filaComentario.id);
+
+  filaComentario.comentario = nuevo;
+  tabla.updateData([filaComentario]);
+  cerrarModal();
+}
+
+/* --- OTROS --- */
+function modoCompeticiones(){}
+function modoValoraciones(){}
+function modoBuscador(){}
+
+function fillSelect(id, arr){
+  const s = document.getElementById(id);
+  s.innerHTML = "";
+  arr.forEach(x => {
+    const o = document.createElement("option");
+    o.value = x.id;
+    o.textContent = x.nombre;
+    s.appendChild(o);
+  });
+}
+</script>
+
+</body>
+</html>
