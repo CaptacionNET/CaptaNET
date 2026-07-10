@@ -5,6 +5,7 @@
   <title>CaptaNET - Usuario</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
+
 <body>
   <h2>Panel Usuario</h2>
 
@@ -14,24 +15,40 @@
   <div id="perfil"></div>
 
   <script>
-    const supabaseClient = supabase.createClient(
+    /* ============================
+       CLIENTE SUPABASE CORRECTO
+    ============================= */
+    const supabase = supabase.createClient(
       "https://bnqoisjvboytiphiwosj.supabase.co",
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
     );
 
-    cargarPerfil();
+    /* ============================
+       INICIO: REDIRECCIÓN AL VISOR
+    ============================= */
+    init();
 
-    async function cargarPerfil() {
-      const { data: session } = await supabaseClient.auth.getSession();
+    async function init() {
+      const { data: session } = await supabase.auth.getSession();
 
       if (!session || !session.session) {
+        // No hay sesión → volver al login
         window.location.href = "index.html";
         return;
       }
 
+      // Si hay sesión → cargar perfil
+      cargarPerfil();
+    }
+
+    /* ============================
+       CARGAR PERFIL DEL USUARIO
+    ============================= */
+    async function cargarPerfil() {
+      const { data: session } = await supabase.auth.getSession();
       const user = session.session.user;
 
-      const { data: perfil } = await supabaseClient
+      const { data: perfil } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
@@ -40,11 +57,23 @@
       document.getElementById("perfil").innerHTML =
         `<p>Usuario: ${perfil.username}</p>
          <p>Nombre: ${perfil.nombre}</p>
-         <p>Club: ${perfil.club}</p>`;
+         <p>Club: ${perfil.club}</p>
+         <br>
+         <button onclick="irVisor()">Ir al visor</button>`;
     }
 
+    /* ============================
+       IR AL VISOR
+    ============================= */
+    function irVisor() {
+      window.location.href = "visor.html";
+    }
+
+    /* ============================
+       LOGOUT
+    ============================= */
     async function logout() {
-      await supabaseClient.auth.signOut();
+      await supabase.auth.signOut();
       window.location.href = "index.html";
     }
   </script>
