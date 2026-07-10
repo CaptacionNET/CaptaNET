@@ -82,14 +82,17 @@ async function logout() {
 
 let tabla;
 let filaComentario = null;
-
-/* --- DETECTAR ADMIN --- */
 let esAdmin = false;
+
+/* --- INICIALIZACIÓN COMPLETA --- */
 (async () => {
   const session = await client.auth.getSession();
   const email = session.data.session?.user?.email;
-  esAdmin = (email === "arturo@captacion.net");   /* <-- CAMBIA ESTO */
+  esAdmin = (email === "arturo@captacion.net");
+
+  crearTabla();
   crearBotonAdd();
+  cargarDatos();
 })();
 
 /* --- BOTÓN AÑADIR --- */
@@ -178,9 +181,6 @@ async function cargarDatos() {
 
   if (!error) tabla.setData(data);
 }
-
-crearTabla();
-cargarDatos();
 
 /* --- FILTROS --- */
 function aplicarFiltros() {
