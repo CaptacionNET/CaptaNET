@@ -318,13 +318,14 @@ async function protegerPagina() {
   if (profile && profile.is_admin) {
     document.getElementById("tab_admin").style.display = "inline-block";
     document.getElementById("tab_editor").style.display = "inline-block";
+    mostrarTab("admin");
   } else {
     document.getElementById("tab_admin").style.display = "none";
     document.getElementById("tab_editor").style.display = "none";
+    mostrarTab("contenido");
   }
 
   await cargarCachesBasicas();
-  mostrarTab("contenido");
   cargarCategorias();
 }
 
@@ -452,4 +453,134 @@ async function cargarTablaUniversal() {
     addRowPos: "top",
     tooltips: true,
     cellEdited: async cell => {
-      const row = cell
+      const row = cell.getRow().getData();
+      await guardarUniversal(tabla, row);
+    }
+  });
+
+  status.textContent = "Tabla cargada.";
+}
+
+async function guardarUniversal(tabla, row) {
+  const status = document.getElementById("universal_status");
+
+  const payload = { ...row };
+  delete payload.id;
+
+  if (row.id) {
+    await client.from(tabla).update(payload).eq("id", row.id);
+    status.textContent = "Fila actualizada.";
+  } else {
+    const { data, error } = await client
+      .from(tabla)
+      .insert(payload)
+      .select("id")
+      .single();
+
+    if (!error) {
+      row.id = data.id;
+      universalTable.updateData([row]);
+      status.textContent = "Fila creada.";
+    } else {
+      status.textContent = "Error: " + error.message;
+    }
+  }
+}
+
+async function cargarCategorias() {
+  const { data } = await client.from("categorias").select("*").order("nombre");
+
+  const select = document.getElementById("categoria");
+  select.innerHTML = "<option value=''>Selecciona categoría</option>";
+
+  data.forEach(cat => {
+    const opt = document.createElement("option");
+    opt.value = cat.id;
+    opt.textContent = cat.nombre;
+    select.appendChild(opt);
+  });
+}
+
+async function cargarLigas() {
+  const categoriaId = document.getElementById("categoria").value;
+
+  const { data } = await client
+    .from("ligas")
+    .select("*")
+    .eq("categoria_id", categoriaId)
+    .order("nombre");
+
+  const select = document.getElementById("liga");
+  select.innerHTML = "<option value=''>Selecciona competición</option>";
+
+  data.forEach(liga => {
+    const opt = document.createElement("option");
+    opt.value = liga.id;
+    opt.textContent = liga.nombre;
+    select.appendChild(opt);
+  });
+}
+
+async function cargarGrupos() {
+  const ligaId = document.getElementById("liga").value;
+
+  const { data } = await client
+    .from("grupos")
+    .select("*")
+    .eq("liga_id", ligaId)
+    .order("nombre");
+
+  const select = document.getElementById("grupo");
+  select.innerHTML = "<option value=''>Selecciona grupo</option>";
+
+  data.forEach(grupo => {
+    const opt = document.createElement("option");
+    opt.value = grupo.id;
+    opt.textContent = grupo.nombre;
+    select.appendChild(opt);
+  });
+}
+
+async function cargarEquipos() {
+  const grupoId = document.getElementById("grupo").value;
+
+  const { data } = await client
+    .from("equipos")
+    .select("*")
+    .eq("grupo_id", grupoId)
+    .order("nombre");
+
+  const select = document.getElementById("equipo");
+  select.innerHTML = "<option value=''>Selecciona equipo</option>";
+
+  data.forEach(eq => {
+    const opt = document.createElement("option");
+    opt.value = eq.id;
+    opt.textContent = eq.nombre;
+    select.appendChild(opt);
+  });
+}
+
+async function cargarJugadores() {
+  const equipoId = document.getElementById("equipo").value;
+
+  const { data } = await client
+    .from("jugadores")
+    .select("*")
+    .eq("equipo_id", equipoId)
+    .order("nombre");
+
+  const select = document.getElementById("jugador");
+  select.innerHTML = "<option value=''>Selecciona jugador</option>";
+
+  data.forEach(j => {
+    const opt = document.createElement("option");
+    opt.value = j.id;
+    opt.textContent = j.nombre;
+    select.appendChild(opt);
+  });
+}
+
+</script>
+</body>
+</html>
