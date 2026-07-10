@@ -582,5 +582,26 @@ async function cargarJugadores() {
 }
 
 </script>
+
+<input type="file" id="excel" />
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<script>
+document.getElementById('excel').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  const data = await file.arrayBuffer();
+  const workbook = XLSX.read(data);
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const filas = XLSX.utils.sheet_to_json(sheet);
+
+  const { data: res, error } = await client
+    .from('clubs')
+    .insert(filas);
+
+  console.log(res, error);
+});
+</script>
+  
 </body>
 </html>
