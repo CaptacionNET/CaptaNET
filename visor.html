@@ -16,6 +16,7 @@ body { font-family: Arial; margin: 0; padding: 0; }
 #right-buttons { display:flex; gap:10px; }
 button { padding:8px 14px; cursor:pointer; }
 #filtros { padding:10px; background:#f7f7f7; display:flex; gap:10px; }
+#botonAdd { padding:10px; }
 #tabla { margin:10px; }
 .modal {
   display:none; position:fixed; top:0; left:0; width:100%; height:100%;
@@ -51,6 +52,9 @@ button { padding:8px 14px; cursor:pointer; }
   <input id="filtroValoracion" placeholder="Valoración mínima" type="number" oninput="aplicarFiltros()">
 </div>
 
+<!-- BOTÓN AÑADIR (solo admin) -->
+<div id="botonAdd"></div>
+
 <div id="tabla"></div>
 
 <div id="modalComentario" class="modal">
@@ -69,9 +73,7 @@ const client = supabase.createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
 );
 
-async function irPerfil() {
-  window.location.href = "/usuario";
-}
+function irPerfil() { window.location.href = "/usuario"; }
 
 async function logout() {
   await client.auth.signOut();
@@ -86,108 +88,8 @@ let esAdmin = false;
 (async () => {
   const session = await client.auth.getSession();
   const email = session.data.session?.user?.email;
-  esAdmin = (email === "TU_CORREO_ADMIN");   // <-- CAMBIA ESTO
+  esAdmin = (email === "TU_CORREO_ADMIN");   /* <-- CAMBIA ESTO */
+  crearBotonAdd();
 })();
 
-/* --- TABLA --- */
-function crearTabla() {
-  tabla = new Tabulator("#tabla", {
-    layout:"fitColumns",
-    height:"80vh",
-    columns:[
-      {title:"Jugador", field:"jugador_nombre", editor: esAdmin ? "input" : false},
-      {title:"Año", field:"anio_nacimiento", editor: esAdmin ? "number" : false},
-      {title:"Posición", field:"posicion", editor: esAdmin ? "input" : false},
-      {title:"Valoración", field:"valoracion", editor: esAdmin ? "number" : false},
-      {title:"Contacto", field:"contacto", editor: esAdmin ? "input" : false},
-      {title:"Contactado", field:"contactado", editor: esAdmin ? "tickCross" : false},
-      {
-        title:"Comentario",
-        field:"comentario",
-        formatter:"buttonClick",
-        formatterParams:{label:"Ver"},
-        width:120,
-        cellClick:function(e, cell){
-          filaComentario = cell.getRow().getData();
-          document.getElementById("comentarioInput").value = filaComentario.comentario || "";
-          abrirModal();
-        }
-      }
-    ],
-    cellEdited: async function(cell){
-      if (!esAdmin) return;
-      const d = cell.getRow().getData();
-      await client.from("jugadores_club")
-        .update({ [cell.getField()]: cell.getValue() })
-        .eq("id", d.id);
-    }
-  });
-}
-
-/* --- CARGA DE DATOS --- */
-async function cargarDatos() {
-  const { data, error } = await client
-    .from("jugadores_club")
-    .select("*");
-
-  if (error) {
-    console.error("Error cargando datos:", error);
-    return;
-  }
-
-  tabla.setData(data);
-}
-
-crearTabla();
-cargarDatos();
-
-/* --- FILTROS --- */
-function aplicarFiltros() {
-  const nombre = document.getElementById("filtroNombre").value.toLowerCase();
-  const posicion = document.getElementById("filtroPosicion").value.toLowerCase();
-  const anio = document.getElementById("filtroAnio").value;
-  const valoracion = document.getElementById("filtroValoracion").value;
-
-  tabla.setFilter([
-    nombre ? { field:"jugador_nombre", type:"like", value:nombre } : null,
-    posicion ? { field:"posicion", type:"like", value:posicion } : null,
-    anio ? { field:"anio_nacimiento", type:"=", value:parseInt(anio) } : null,
-    valoracion ? { field:"valoracion", type:">=", value:parseInt(valoracion) } : null
-  ].filter(x => x));
-}
-
-/* --- MODAL --- */
-function abrirModal(){ document.getElementById("modalComentario").style.display="flex"; }
-function cerrarModal(){ document.getElementById("modalComentario").style.display="none"; }
-
-async function guardarComentario(){
-  const nuevo = document.getElementById("comentarioInput").value;
-
-  await client.from("jugadores_club")
-    .update({ comentario:nuevo })
-    .eq("id", filaComentario.id);
-
-  filaComentario.comentario = nuevo;
-  tabla.updateData([filaComentario]);
-  cerrarModal();
-}
-
-/* --- OTROS --- */
-function modoCompeticiones(){}
-function modoValoraciones(){}
-function modoBuscador(){}
-
-function fillSelect(id, arr){
-  const s = document.getElementById(id);
-  s.innerHTML = "";
-  arr.forEach(x => {
-    const o = document.createElement("option");
-    o.value = x.id;
-    o.textContent = x.nombre;
-    s.appendChild(o);
-  });
-}
-</script>
-
-</body>
-</html>
+/* --- BOT
