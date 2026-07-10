@@ -57,20 +57,10 @@
         return;
       }
 
-      // 3. Obtener perfil completo
-      const { data: perfilCompleto } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", data.user.id)
-        .single();
-
-      // 4. Redirección según rol
-      if (perfilCompleto.is_admin) {
-        window.location.href = "admin.html";
-      } else {
-        window.location.href = "usuario.html";
-      }
+      // 3. Redirección directa al visor
+      window.location.href = "visor.html";
     }
   </script>
 </body>
 </html>
+
