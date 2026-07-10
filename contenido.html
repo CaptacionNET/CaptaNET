@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>CaptaNET - Contenido</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 
 <body>
@@ -41,6 +42,18 @@
     </div>
 
     <button onclick="logout()">Cerrar sesión</button>
+
+    <hr>
+
+    <h3>Importar datos desde Excel</h3>
+
+    <button onclick="document.getElementById('excelInput').click()">
+      Importar Excel
+    </button>
+
+    <input type="file" id="excelInput" accept=".xlsx,.xls" style="display:none" onchange="importarExcel()">
+
+    <p id="excelStatus"></p>
 
   </div>
 
@@ -109,4 +122,135 @@
     }
 
     // ============================
-    // CARGAR GRUPOS SEG
+    // CARGAR GRUPOS SEGÚN LIGA
+    // ============================
+    async function cargarGrupos() {
+      const liga = document.getElementById("liga").value;
+
+      const { data } = await supabaseClient
+        .from("grupos")
+        .select("*")
+        .eq("liga_id", liga)
+        .order("nombre");
+
+      const sel = document.getElementById("grupo");
+      sel.innerHTML = '<option value="">Selecciona grupo</option>';
+
+      data.forEach(g => {
+        sel.innerHTML += `<option value="${g.id}">${g.nombre}</option>`;
+      });
+
+      document.getElementById("equipo").innerHTML = '<option value="">Selecciona equipo</option>';
+      document.getElementById("jugador").innerHTML = '<option value="">Selecciona jugador</option>';
+    }
+
+    // ============================
+    // CARGAR EQUIPOS SEGÚN GRUPO
+    // ============================
+    async function cargarEquipos() {
+      const grupo = document.getElementById("grupo").value;
+
+      const { data } = await supabaseClient
+        .from("equipos")
+        .select("*")
+        .eq("grupo_id", grupo)
+        .order("nombre");
+
+      const sel = document.getElementById("equipo");
+      sel.innerHTML = '<option value="">Selecciona equipo</option>';
+
+      data.forEach(e => {
+        sel.innerHTML += `<option value="${e.id}">${e.nombre}</option>`;
+      });
+
+      document.getElementById("jugador").innerHTML = '<option value="">Selecciona jugador</option>';
+    }
+
+    // ============================
+    // CARGAR JUGADORES SEGÚN EQUIPO
+    // ============================
+    async function cargarJugadores() {
+      const equipo = document.getElementById("equipo").value;
+
+      const { data } = await supabaseClient
+        .from("jugadores")
+        .select("*")
+        .eq("equipo_id", equipo)
+        .order("nombre");
+
+      const sel = document.getElementById("jugador");
+      sel.innerHTML = '<option value="">Selecciona jugador</option>';
+
+      data.forEach(j => {
+        sel.innerHTML += `<option value="${j.id}">${j.nombre} ${j.apellido}</option>`;
+      });
+    }
+
+    // ============================
+    // IMPORTAR EXCEL
+    // ============================
+    async function importarExcel() {
+      const file = document.getElementById("excelInput").files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+
+      reader.onload = async (e) => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+
+        const json = XLSX.utils.sheet_to_json(sheet);
+
+        document.getElementById("excelStatus").textContent =
+          "Procesando " + json.length + " filas...";
+
+        await procesarExcel(json);
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+
+    // ============================
+    // PROCESAR EXCEL → INSERTAR EN SUPABASE
+    // ============================
+    async function procesarExcel(json) {
+      const tabla = "jugadores_club"; // Puedes cambiarlo si quieres importar otra tabla
+
+      const datos = json.map(row => ({
+        jugador_id: row.jugador_id,
+        club_id: row.club_id,
+        anio_nacimiento: row.anio_nacimiento,
+        posicion: row.posicion,
+        comentario: row.comentario,
+        valoracion: row.valoracion,
+        contacto: row.contacto,
+        contactado: row.contactado === "SI"
+      }));
+
+      const { error } = await supabaseClient
+        .from(tabla)
+        .upsert(datos);
+
+      if (error) {
+        document.getElementById("excelStatus").textContent =
+          "Error: " + error.message;
+      } else {
+        document.getElementById("excelStatus").textContent =
+          "Importación completada correctamente.";
+      }
+    }
+
+    // ============================
+    // LOGOUT
+    // ============================
+    async function logout() {
+      await supabaseClient.auth.signOut();
+      window.location.href = "index.html";
+    }
+  </script>
+
+</body>
+</html>
