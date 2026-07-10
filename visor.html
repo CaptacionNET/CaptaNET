@@ -88,7 +88,7 @@ let esAdmin = false;
 (async () => {
   const session = await client.auth.getSession();
   const email = session.data.session?.user?.email;
-  esAdmin = (email === "TU_CORREO_ADMIN");   /* <-- CAMBIA ESTO */
+  esAdmin = (email === "arturo@captacion.net");   /* <-- CAMBIA ESTO */
   crearBotonAdd();
 })();
 
