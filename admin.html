@@ -601,6 +601,24 @@ document.getElementById('excel').addEventListener('change', async (e) => {
 
   console.log(res, error);
 });
+  
+</script>
+
+<h3>Crear club</h3>
+<input id="nuevoClub" placeholder="Nombre del club">
+<button onclick="crearClub()">Crear</button>
+
+<script>
+async function crearClub() {
+  const nombre = document.getElementById("nuevoClub").value;
+
+  const { data, error } = await supabase
+    .from("clubs")
+    .insert({ nombre });
+
+  console.log("data:", data);
+  console.log("error:", error);
+}
 </script>
   
 </body>
