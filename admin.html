@@ -202,65 +202,69 @@
   <button onclick="logout()">Cerrar sesión</button>
 
   <script>
-   window.supabaseClient = supabase.createClient(
+  // ===============================
+// CLIENTE SUPABASE (CORREGIDO)
+// ===============================
+window.supabaseClient = supabase.createClient(
   "https://bnqoisjvboytiphiwosj.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
 );
 
+let categoriasCache = [];
+let ligasCache = [];
+let equiposCache = [];
+let universalTable = null;
 
-    let categoriasCache = [];
-    let ligasCache = [];
-    let equiposCache = [];
-    let universalTable = null;
 
-  async function cargarListaDeClubs() {
-      const { data: clubs, error } = await supabaseClient
-        .from("clubs")
-        .select("id, nombre")
-        .order("nombre");
+// ===============================
+// CARGAR LISTA DE CLUBS
+// ===============================
+async function cargarListaDeClubs() {
+  const { data: clubs, error } = await supabaseClient
+    .from("clubs")
+    .select("id, nombre")
+    .order("nombre");
 
-      if (error) {
-        console.error("Error cargando clubes:", error);
-        return;
-      }
+  if (error) {
+    console.error("Error cargando clubes:", error);
+    return;
+  }
 
-      const select = document.getElementById("new_club_id");
-      select.innerHTML = "";
+  const select = document.getElementById("new_club_id");
+  select.innerHTML = "";
 
-      clubs.forEach(club => {
-        const option = document.createElement("option");
-        option.value = club.id;
-        option.textContent = club.nombre;
-        select.appendChild(option);
-      });
-    }
-    
+  clubs.forEach(club => {
+    const option = document.createElement("option");
+    option.value = club.id;
+    option.textContent = club.nombre;
+    select.appendChild(option);
+  });
+}
+
+
+// ===============================
+// CREAR USUARIO
+// ===============================
 async function crearUsuario() {
-      const email = document.getElementById("new_email").value;
-      const username = document.getElementById("new_username").value;
-      const nombre = document.getElementById("new_nombre").value;
-      const password = document.getElementById("new_password_create").value;
-      const is_admin = document.getElementById("new_is_admin").value === "true";
-      const club_id = document.getElementById("new_club_id").value;
+  const email = document.getElementById("new_email").value;
+  const username = document.getElementById("new_username").value;
+  const nombre = document.getElementById("new_nombre").value;
+  const password = document.getElementById("new_password_create").value;
+  const is_admin = document.getElementById("new_is_admin").value === "true";
+  const club_id = document.getElementById("new_club_id").value;
 
-      const { data, error } = await supabaseClient.functions.invoke("create-user", {
-        body: {
-          email,
-          password,
-          username,
-          nombre,
-          club_id,
-          is_admin
-        }
-      });
+  const { data, error } = await supabaseClient.functions.invoke("create-user", {
+    body: { email, password, username, nombre, club_id, is_admin }
+  });
 
-      if (error) {
-        document.getElementById("create_result").innerText = "Error: " + error.message;
-      } else {
-        document.getElementById("create_result").innerText = "Usuario creado correctamente";
-      }
-    }
-    
+  document.getElementById("create_result").innerText =
+    error ? "Error: " + error.message : "Usuario creado correctamente";
+}
+
+
+// ===============================
+// PROTEGER PÁGINA
+// ===============================
 async function protegerPagina() {
   const { data: session } = await supabaseClient.auth.getSession();
 
@@ -268,9 +272,33 @@ async function protegerPagina() {
     window.location.href = "index.html";
     return;
   }
+
+  const userId = session.session.user.id;
+
+  const { data: profile } = await supabaseClient
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", userId)
+    .single();
+
+  if (profile && profile.is_admin) {
+    document.getElementById("tab_admin").style.display = "inline-block";
+    document.getElementById("tab_editor").style.display = "inline-block";
+  } else {
+    document.getElementById("tab_admin").style.display = "none";
+    document.getElementById("tab_editor").style.display = "none";
+  }
+
+  await cargarCachesBasicas();
+  mostrarTab("contenido");
+  cargarCategorias();
 }
 
-    async function cargarPerfilUsuario() {
+
+// ===============================
+// CARGAR PERFIL USUARIO
+// ===============================
+async function cargarPerfilUsuario() {
   const { data: session } = await supabaseClient.auth.getSession();
 
   const { data: profile } = await supabaseClient
@@ -284,178 +312,182 @@ async function protegerPagina() {
 }
 
 
+// ===============================
+// ARRANQUE DEL PANEL
+// ===============================
 document.addEventListener("DOMContentLoaded", async () => {
-  await cargarListaDeClubs();
   await protegerPagina();
+  await cargarPerfilUsuario();
+  await cargarListaDeClubs();
 });
-      
-      const userId = session.session.user.id;
 
-      const { data: profile } = await supabaseClient
-        .from("profiles")
-        .select("is_admin")
-        .eq("id", userId)
-        .single();
 
-      if (profile && profile.is_admin) {
-        document.getElementById("tab_admin").style.display = "inline-block";
-        document.getElementById("tab_editor").style.display = "inline-block";
-      } else {
-        document.getElementById("tab_admin").style.display = "none";
-        document.getElementById("tab_editor").style.display = "none";
+// ===============================
+// MOSTRAR TABS
+// ===============================
+function mostrarTab(tab) {
+  document.querySelectorAll(".tab-content").forEach(div => div.style.display = "none");
+  document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+
+  document.getElementById(tab).style.display = "block";
+  document.getElementById("tab_" + tab).classList.add("active");
+}
+
+
+// ===============================
+// CACHES BÁSICAS
+// ===============================
+async function cargarCachesBasicas() {
+  const { data: categorias } = await supabaseClient.from("categorias").select("*").order("nombre");
+  categoriasCache = categorias || [];
+
+  const { data: ligas } = await supabaseClient.from("ligas").select("*").order("nombre");
+  ligasCache = ligas || [];
+
+  const { data: equipos } = await supabaseClient.from("equipos").select("*").order("nombre");
+  equiposCache = equipos || [];
+}
+
+
+// ===============================
+// TABLA UNIVERSAL
+// ===============================
+async function cargarTablaUniversal() {
+  const tabla = document.getElementById("tabla_selector").value;
+  const status = document.getElementById("universal_status");
+
+  if (!tabla) {
+    status.textContent = "Selecciona una tabla.";
+    return;
+  }
+
+  status.textContent = "Cargando tabla...";
+
+  const { data } = await supabaseClient.from(tabla).select("*");
+
+  const columnas = [];
+
+  if (tabla === "jugadores") {
+    columnas.push({
+      title: "Categoría",
+      field: "categoria_id",
+      editor: "select",
+      editorParams: { values: categoriasCache.map(c => ({ label: c.nombre, value: c.id })) },
+      formatter: cell => {
+        const c = categoriasCache.find(x => x.id === cell.getValue());
+        return c ? c.nombre : "";
       }
+    });
 
-      await cargarCachesBasicas();
-      mostrarTab("contenido");
-      cargarCategorias();
-    }
-
-    function mostrarTab(tab) {
-      document.querySelectorAll(".tab-content").forEach(div => div.style.display = "none");
-      document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
-
-      document.getElementById(tab).style.display = "block";
-      document.getElementById("tab_" + tab).classList.add("active");
-    }
-
-    async function cargarCachesBasicas() {
-      const { data: categorias } = await supabaseClient.from("categorias").select("*").order("nombre");
-      categoriasCache = categorias || [];
-
-      const { data: ligas } = await supabaseClient.from("ligas").select("*").order("nombre");
-      ligasCache = ligas || [];
-
-      const { data: equipos } = await supabaseClient.from("equipos").select("*").order("nombre");
-      equiposCache = equipos || [];
-    }
-
-    async function cargarTablaUniversal() {
-      const tabla = document.getElementById("tabla_selector").value;
-      const status = document.getElementById("universal_status");
-
-      if (!tabla) {
-        status.textContent = "Selecciona una tabla.";
-        return;
+    columnas.push({
+      title: "Liga",
+      field: "liga_id",
+      editor: "select",
+      editorParams: cell => {
+        const categoriaId = cell.getRow().getData().categoria_id;
+        const ligasFiltradas = ligasCache.filter(l => l.categoria_id === categoriaId);
+        return { values: ligasFiltradas.map(l => ({ label: l.nombre, value: l.id })) };
+      },
+      formatter: cell => {
+        const l = ligasCache.find(x => x.id === cell.getValue());
+        return l ? l.nombre : "";
       }
+    });
 
-      status.textContent = "Cargando tabla...";
-
-      const { data } = await supabaseClient.from(tabla).select("*");
-
-      const columnas = [];
-
-      if (tabla === "jugadores") {
-        columnas.push({
-          title: "Categoría",
-          field: "categoria_id",
-          editor: "select",
-          editorParams: { values: categoriasCache.map(c => ({ label: c.nombre, value: c.id })) },
-          formatter: cell => {
-            const c = categoriasCache.find(x => x.id === cell.getValue());
-            return c ? c.nombre : "";
-          }
-        });
-
-        columnas.push({
-          title: "Liga",
-          field: "liga_id",
-          editor: "select",
-          editorParams: cell => {
-            const categoriaId = cell.getRow().getData().categoria_id;
-            const ligasFiltradas = ligasCache.filter(l => l.categoria_id === categoriaId);
-            return { values: ligasFiltradas.map(l => ({ label: l.nombre, value: l.id })) };
-          },
-          formatter: cell => {
-            const l = ligasCache.find(x => x.id === cell.getValue());
-            return l ? l.nombre : "";
-          }
-        });
-
-        columnas.push({
-          title: "Equipo",
-          field: "equipo_id",
-          editor: "select",
-          editorParams: cell => {
-            const ligaId = cell.getRow().getData().liga_id;
-            const equiposFiltrados = equiposCache.filter(e => e.liga_id === ligaId);
-            return { values: equiposFiltrados.map(e => ({ label: e.nombre, value: e.id })) };
-          },
-          formatter: cell => {
-            const e = equiposCache.find(x => x.id === cell.getValue());
-            return e ? e.nombre : "";
-          }
-        });
+    columnas.push({
+      title: "Equipo",
+      field: "equipo_id",
+      editor: "select",
+      editorParams: cell => {
+        const ligaId = cell.getRow().getData().liga_id;
+        const equiposFiltrados = equiposCache.filter(e => e.liga_id === ligaId);
+        return { values: equiposFiltrados.map(e => ({ label: e.nombre, value: e.id })) };
+      },
+      formatter: cell => {
+        const e = equiposCache.find(x => x.id === cell.getValue());
+        return e ? e.nombre : "";
       }
+    });
+  }
 
-      if (data && data.length > 0) {
-        Object.keys(data[0]).forEach(col => {
-          if (["categoria_id", "liga_id", "equipo_id"].includes(col)) return;
-
-          columnas.push({
-            title: col,
-            field: col,
-            editor: "input"
-          });
-        });
-      }
+  if (data && data.length > 0) {
+    Object.keys(data[0]).forEach(col => {
+      if (["categoria_id", "liga_id", "equipo_id"].includes(col)) return;
 
       columnas.push({
-        title: "Eliminar",
-        formatter: "buttonCross",
-        width: 80,
-        align: "center",
-        cellClick: async (e, cell) => {
-          const row = cell.getRow().getData();
-          if (row.id) {
-            await supabaseClient.from(tabla).delete().eq("id", row.id);
-          }
-          cell.getRow().delete();
-          status.textContent = "Fila eliminada.";
-        }
+        title: col,
+        field: col,
+        editor: "input"
       });
+    });
+  }
 
-      universalTable = new Tabulator("#universal-table", {
-        data: data || [],
-        layout: "fitColumns",
-        reactiveData: true,
-        columns,
-        height: "500px",
-        addRowPos: "top",
-        tooltips: true,
-        cellEdited: async cell => {
-          const row = cell.getRow().getData();
-          await guardarUniversal(tabla, row);
-        }
-      });
-
-      status.textContent = "Tabla cargada.";
-    }
-
-    async function guardarUniversal(tabla, row) {
-      const status = document.getElementById("universal_status");
-
-      const payload = { ...row };
-      delete payload.id;
-
+  columnas.push({
+    title: "Eliminar",
+    formatter: "buttonCross",
+    width: 80,
+    align: "center",
+    cellClick: async (e, cell) => {
+      const row = cell.getRow().getData();
       if (row.id) {
-        await supabaseClient.from(tabla).update(payload).eq("id", row.id);
-        status.textContent = "Fila actualizada.";
-      } else {
-        const { data, error } = await supabaseClient.from(tabla).insert(payload).select("id").single();
-        if (!error) {
-          row.id = data.id;
-          universalTable.updateData([row]);
-          status.textContent = "Fila creada.";
-        } else {
-          status.textContent = "Error: " + error.message;
-        }
+        await supabaseClient.from(tabla).delete().eq("id", row.id);
       }
+      cell.getRow().delete();
+      status.textContent = "Fila eliminada.";
     }
+  });
 
-    async function logout() {
-      await supabaseClient.auth.signOut();
-      window.location.href = "index.html";
+  universalTable = new Tabulator("#universal-table", {
+    data: data || [],
+    layout: "fitColumns",
+    reactiveData: true,
+    columns,
+    height: "500px",
+    addRowPos: "top",
+    tooltips: true,
+    cellEdited: async cell => {
+      const row = cell.getRow().getData();
+      await guardarUniversal(tabla, row);
     }
+  });
+
+  status.textContent = "Tabla cargada.";
+}
+
+
+// ===============================
+// GUARDAR UNIVERSAL
+// ===============================
+async function guardarUniversal(tabla, row) {
+  const status = document.getElementById("universal_status");
+
+  const payload = { ...row };
+  delete payload.id;
+
+  if (row.id) {
+    await supabaseClient.from(tabla).update(payload).eq("id", row.id);
+    status.textContent = "Fila actualizada.";
+  } else {
+    const { data, error } = await supabaseClient.from(tabla).insert(payload).select("id").single();
+    if (!error) {
+      row.id = data.id;
+      universalTable.updateData([row]);
+      status.textContent = "Fila creada.";
+    } else {
+      status.textContent = "Error: " + error.message;
+    }
+  }
+}
+
+
+// ===============================
+// LOGOUT
+// ===============================
+async function logout() {
+  await supabaseClient.auth.signOut();
+  window.location.href = "index.html";
+}
+
 
     document.addEventListener("DOMContentLoaded", async () => {
   await protegerPagina();
