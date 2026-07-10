@@ -17,23 +17,17 @@
   <button onclick="login()">Entrar</button>
 
   <script>
-    /* ============================
-       CLIENTE SUPABASE CORRECTO
-    ============================= */
     const client = supabase.createClient(
       "https://bnqoisjvboytiphiwosj.supabase.co",
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
     );
 
-    /* ============================
-       LOGIN POR USUARIO → EMAIL
-    ============================= */
     async function login() {
       const username = document.getElementById("username").value;
       const password = document.getElementById("password").value;
 
-      // 1. Buscar email por username
-      const { data: perfil, error: perfilError } = await supabase
+      // Buscar email por username
+      const { data: perfil, error: perfilError } = await client
         .from("profiles")
         .select("email")
         .eq("username", username)
@@ -46,7 +40,7 @@
 
       const email = perfil.email;
 
-      // 2. Login con email real
+      // Login con email real
       const { data, error } = await client.auth.signInWithPassword({
         email,
         password
@@ -57,10 +51,9 @@
         return;
       }
 
-      // 3. Redirección directa al visor
+      // Redirección directa al visor
       window.location.href = "visor.html";
     }
   </script>
 </body>
 </html>
-
