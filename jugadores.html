@@ -79,9 +79,12 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 
     <div id="ficha_contenido" style="display:none;">
       <div class="ficha-cab">
-        <div class="foto-wrap" id="foto_wrap" onclick="document.getElementById('foto_input').click()">
-          <div class="foto-placeholder" id="foto_placeholder">Subir foto</div>
-          <img id="foto_img" style="display:none;">
+        <div>
+          <div class="foto-wrap" id="foto_wrap" onclick="document.getElementById('foto_input').click()">
+            <div class="foto-placeholder" id="foto_placeholder">Subir foto</div>
+            <img id="foto_img" style="display:none;">
+          </div>
+          <a href="#" id="btn_eliminar_foto" style="display:none;font-size:12px;color:#dc2626;text-align:center;margin-top:6px;" onclick="eliminarFoto(event)">Eliminar foto</a>
         </div>
         <input type="file" id="foto_input" accept="image/*" style="display:none;" onchange="onFotoSeleccionada()">
         <div class="ficha-info">
@@ -299,16 +302,7 @@ async function abrirJugador(jugadorId) {
   document.getElementById("f_actitud").value = priv?.actitud ?? "";
   document.getElementById("f_comentario").value = priv?.comentario || "";
 
-  const fotoImg = document.getElementById("foto_img");
-  const fotoPlaceholder = document.getElementById("foto_placeholder");
-  if (priv?.foto_url) {
-    fotoImg.src = priv.foto_url;
-    fotoImg.style.display = "block";
-    fotoPlaceholder.style.display = "none";
-  } else {
-    fotoImg.style.display = "none";
-    fotoPlaceholder.style.display = "flex";
-  }
+  actualizarFotoUI(priv?.foto_url);
 
   document.getElementById("status").textContent = "";
 }
@@ -380,11 +374,7 @@ async function onFotoSeleccionada() {
 
   try {
     const blob = await redimensionarImagen(file);
-
-    const previewUrl = URL.createObjectURL(blob);
-    document.getElementById("foto_img").src = previewUrl;
-    document.getElementById("foto_img").style.display = "block";
-    document.getElementById("foto_placeholder").style.display = "none";
+    actualizarFotoUI(URL.createObjectURL(blob));
 
     status.textContent = "Subiendo foto...";
 
@@ -407,10 +397,49 @@ async function onFotoSeleccionada() {
       );
 
     jugadorActual.privado = { ...jugadorActual.privado, foto_url: data.publicUrl };
+    actualizarFotoUI(data.publicUrl);
     status.textContent = "Foto guardada.";
   } catch (e) {
     status.textContent = "Error subiendo la foto: " + e.message;
   }
+}
+
+function actualizarFotoUI(url) {
+  const fotoImg = document.getElementById("foto_img");
+  const fotoPlaceholder = document.getElementById("foto_placeholder");
+  const btnEliminar = document.getElementById("btn_eliminar_foto");
+
+  if (url) {
+    fotoImg.src = url;
+    fotoImg.style.display = "block";
+    fotoPlaceholder.style.display = "none";
+    btnEliminar.style.display = "block";
+  } else {
+    fotoImg.style.display = "none";
+    fotoPlaceholder.style.display = "flex";
+    btnEliminar.style.display = "none";
+  }
+}
+
+async function eliminarFoto(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  if (!jugadorActual) return;
+  if (!confirm("¿Eliminar la foto de este jugador?")) return;
+
+  const status = document.getElementById("status");
+
+  const { error } = await client.from("jugadores_club")
+    .upsert(
+      { jugador_id: jugadorActual.id, club_id: miClubId, temporada_id: jugadorActual.temporada_id, foto_url: null },
+      { onConflict: "jugador_id,club_id,temporada_id" }
+    );
+
+  if (error) { status.textContent = "Error eliminando la foto: " + error.message; return; }
+
+  jugadorActual.privado = { ...jugadorActual.privado, foto_url: null };
+  actualizarFotoUI(null);
+  status.textContent = "Foto eliminada.";
 }
 
 async function mensajeError(error) {
