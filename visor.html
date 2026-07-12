@@ -30,6 +30,7 @@ input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-rad
 <div id="topbar">
   <div class="brand">CaptaNET <span id="brand_extra" style="color:var(--muted);font-weight:400;"></span></div>
   <div style="display:flex;gap:10px;">
+    <button class="secondary" onclick="window.location.href='jugadores.html'">Jugadores</button>
     <button class="secondary" onclick="window.location.href='plantillas.html'">Plantillas</button>
     <button class="secondary" onclick="window.location.href='usuario.html'">Mi perfil</button>
     <button class="secondary" onclick="logout()">Cerrar sesión</button>
@@ -250,7 +251,11 @@ function crearTabla() {
       height: "70vh",
       reactiveData: true,
       columns: [
-      { title: "Jugador", field: "nombre", frozen: true },
+      {
+        title: "Jugador", field: "nombre", frozen: true,
+        formatter: cell => `<span style="color:var(--primary);cursor:pointer;text-decoration:underline;">${cell.getValue()}</span>`,
+        cellClick: (e, cell) => { window.location.href = "jugadores.html?jugador_id=" + cell.getRow().getData().jugador_id; }
+      },
       { title: "Equipo", field: "equipo" },
       { title: "Dorsal", field: "dorsal" },
       { title: "Año", field: "anio_nacimiento", editor: "number" },

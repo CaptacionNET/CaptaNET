@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>CaptaNET - Jugadores</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#2563eb;--bg:#f5f6fa;--card:#fff;--border:#e2e4eb;--text:#1f2430;--muted:#6b7280;}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
+#topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;background:var(--card);border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px;}
+#topbar .brand{font-weight:700;font-size:18px;color:var(--primary);}
+button{background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px;}
+button:hover{opacity:.9;}
+button.secondary{background:#fff;color:var(--text);border:1px solid var(--border);}
+input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;}
+label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
+.barra{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:16px 24px;}
+.layout{display:flex;gap:20px;padding:0 24px 24px;align-items:flex-start;}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;width:300px;flex-shrink:0;}
+.panel h3{margin:0 0 10px;font-size:15px;}
+.panel-tabs{display:flex;gap:6px;margin-bottom:12px;}
+.panel-tab{flex:1;padding:6px;border:1px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;font-size:12px;text-align:center;}
+.panel-tab.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+.resultado{border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px;font-size:13px;cursor:pointer;}
+.resultado:hover{border-color:var(--primary);}
+.resultado .nombre{font-weight:600;}
+.resultado .meta{color:var(--muted);font-size:12px;}
+.ficha{flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px;min-width:0;}
+.ficha-vacia{color:var(--muted);text-align:center;padding:60px 20px;}
+.ficha-cab{display:flex;gap:20px;margin-bottom:20px;}
+.foto-wrap{width:120px;height:120px;border-radius:10px;background:#eef0f5;flex-shrink:0;overflow:hidden;position:relative;cursor:pointer;border:2px dashed var(--border);}
+.foto-wrap img{width:100%;height:100%;object-fit:cover;}
+.foto-wrap .foto-placeholder{display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:12px;text-align:center;padding:8px;}
+.ficha-info h2{margin:0 0 4px;font-size:22px;}
+.ficha-info p{margin:0;color:var(--muted);font-size:14px;}
+.campos-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
+.campo-full{grid-column:1 / -1;}
+.status{font-weight:600;color:var(--muted);margin:12px 0 0;}
+.tick{display:flex;align-items:center;gap:8px;}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="brand">CaptaNET · Jugadores</div>
+  <div style="display:flex;gap:10px;">
+    <button class="secondary" onclick="window.location.href='visor.html'">Volver al visor</button>
+    <button class="secondary" onclick="logout()">Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="barra">
+  <div id="campo_club_wrap" style="display:none;">
+    <select id="filtro_club" onchange="onClubChange()"></select>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="panel">
+    <div class="panel-tabs">
+      <div class="panel-tab active" id="tab_informes" onclick="cambiarPanel('informes')">Mis informes</div>
+      <div class="panel-tab" id="tab_nuevo" onclick="cambiarPanel('nuevo')">Nuevo informe</div>
+    </div>
+
+    <div id="panel_informes">
+      <input id="buscador_informes" type="text" placeholder="Buscar..." style="width:100%;margin-bottom:10px;" oninput="filtrarInformes()">
+      <div id="lista_informes"></div>
+    </div>
+
+    <div id="panel_nuevo" style="display:none;">
+      <input id="buscador_nuevo" type="text" placeholder="Buscar jugador por nombre..." style="width:100%;margin-bottom:10px;" oninput="buscarNuevo()">
+      <div id="resultados_nuevo"></div>
+    </div>
+  </div>
+
+  <div class="ficha" id="ficha">
+    <div class="ficha-vacia" id="ficha_vacia">Elige un jugador de la lista, o crea un informe nuevo buscándolo por nombre.</div>
+
+    <div id="ficha_contenido" style="display:none;">
+      <div class="ficha-cab">
+        <div class="foto-wrap" id="foto_wrap" onclick="document.getElementById('foto_input').click()">
+          <div class="foto-placeholder" id="foto_placeholder">Subir foto</div>
+          <img id="foto_img" style="display:none;">
+        </div>
+        <input type="file" id="foto_input" accept="image/*" style="display:none;" onchange="onFotoSeleccionada()">
+        <div class="ficha-info">
+          <h2 id="f_nombre"></h2>
+          <p id="f_sub"></p>
+        </div>
+      </div>
+
+      <div class="campos-grid">
+        <div>
+          <label>Posición (mi club)</label>
+          <input id="f_posicion" type="text" oninput="guardarInformeDebounced()">
+        </div>
+        <div>
+          <label>Año de nacimiento (estimado)</label>
+          <input id="f_anio" type="number" oninput="guardarInformeDebounced()">
+        </div>
+        <div>
+          <label>Teléfono</label>
+          <input id="f_contacto" type="text" oninput="guardarInformeDebounced()">
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <label class="tick"><input id="f_contactado" type="checkbox" style="width:auto;" onchange="guardarInformeDebounced()"> Contactado</label>
+        </div>
+        <div>
+          <label>Técnica (1-10)</label>
+          <input id="f_tecnica" type="number" min="1" max="10" oninput="guardarInformeDebounced()">
+        </div>
+        <div>
+          <label>Táctica (1-10)</label>
+          <input id="f_tactica" type="number" min="1" max="10" oninput="guardarInformeDebounced()">
+        </div>
+        <div>
+          <label>Físico</label>
+          <select id="f_fisico" onchange="guardarInformeDebounced()">
+            <option value="">-</option>
+            <option>BAJO</option>
+            <option>MEDIO-BAJO</option>
+            <option>MEDIO</option>
+            <option>MEDIO-ALTO</option>
+            <option>ALTO</option>
+            <option>MUY ALTO</option>
+          </select>
+        </div>
+        <div>
+          <label>Actitud (1-10)</label>
+          <input id="f_actitud" type="number" min="1" max="10" oninput="guardarInformeDebounced()">
+        </div>
+        <div class="campo-full">
+          <label>Comentario</label>
+          <textarea id="f_comentario" style="width:100%;min-height:110px;" oninput="guardarInformeDebounced()"></textarea>
+        </div>
+      </div>
+
+      <p id="status" class="status"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+const client = supabase.createClient(
+  "https://bnqoisjvboytiphiwosj.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
+);
+
+let esAdmin = false;
+let miClubId = null;
+let informesCache = [];
+let jugadorActual = null;
+
+async function protegerPagina() {
+  const { data: session } = await client.auth.getSession();
+  if (!session.session) { window.location.href = "index.html"; return false; }
+
+  const { data: perfil } = await client
+    .from("profiles").select("is_admin, club_id").eq("id", session.session.user.id).single();
+
+  esAdmin = !!perfil?.is_admin;
+  miClubId = perfil?.club_id || null;
+  return true;
+}
+
+async function logout() {
+  await client.auth.signOut();
+  window.location.href = "index.html";
+}
+
+async function cargarClubsSiAdmin() {
+  if (!esAdmin) return;
+  document.getElementById("campo_club_wrap").style.display = "block";
+  const { data: clubs } = await client.from("clubs").select("id, nombre").order("nombre");
+  const sel = document.getElementById("filtro_club");
+  sel.innerHTML = "";
+  (clubs || []).forEach(c => sel.innerHTML += `<option value="${c.id}">${c.nombre}</option>`);
+  if (clubs && clubs.length) miClubId = clubs[0].id;
+}
+
+function onClubChange() {
+  miClubId = document.getElementById("filtro_club").value;
+  cargarInformes();
+}
+
+function cambiarPanel(nombre) {
+  document.getElementById("panel_informes").style.display = nombre === "informes" ? "block" : "none";
+  document.getElementById("panel_nuevo").style.display = nombre === "nuevo" ? "block" : "none";
+  document.getElementById("tab_informes").classList.toggle("active", nombre === "informes");
+  document.getElementById("tab_nuevo").classList.toggle("active", nombre === "nuevo");
+}
+
+function tieneDatosPrivado(p) {
+  return !!(p.anio_nacimiento || p.posicion || p.contacto || p.contactado ||
+    p.tecnica || p.tactica || p.fisico || p.actitud || (p.comentario && String(p.comentario).trim()));
+}
+
+async function cargarInformes() {
+  const { data: privados } = await client.from("jugadores_club").select("*").eq("club_id", miClubId);
+  const conDatos = (privados || []).filter(tieneDatosPrivado);
+
+  if (!conDatos.length) { informesCache = []; renderListaInformes([]); return; }
+
+  const ids = conDatos.map(p => p.jugador_id);
+  const { data: jugadores } = await client.from("jugadores").select("*").in("id", ids);
+
+  const equipoIds = [...new Set((jugadores || []).map(j => j.equipo_id).filter(Boolean))];
+  const { data: equipos } = equipoIds.length
+    ? await client.from("equipos").select("id, nombre").in("id", equipoIds)
+    : { data: [] };
+
+  informesCache = (jugadores || []).map(j => {
+    const equipo = (equipos || []).find(e => e.id === j.equipo_id);
+    return { id: j.id, nombre: j.nombre, equipo: equipo?.nombre || "" };
+  }).sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  renderListaInformes(informesCache);
+}
+
+function renderListaInformes(lista) {
+  const cont = document.getElementById("lista_informes");
+  if (!lista.length) { cont.innerHTML = "<p style='color:var(--muted);font-size:12px;'>Aún no tienes informes.</p>"; return; }
+  cont.innerHTML = "";
+  lista.forEach(j => {
+    const div = document.createElement("div");
+    div.className = "resultado";
+    div.onclick = () => abrirJugador(j.id);
+    div.innerHTML = `<div class="nombre">${j.nombre}</div><div class="meta">${j.equipo}</div>`;
+    cont.appendChild(div);
+  });
+}
+
+function filtrarInformes() {
+  const q = document.getElementById("buscador_informes").value.trim().toLowerCase();
+  renderListaInformes(q ? informesCache.filter(j => j.nombre.toLowerCase().includes(q)) : informesCache);
+}
+
+let buscarNuevoTimeout = null;
+function buscarNuevo() {
+  clearTimeout(buscarNuevoTimeout);
+  buscarNuevoTimeout = setTimeout(ejecutarBusquedaNueva, 300);
+}
+
+async function ejecutarBusquedaNueva() {
+  const q = document.getElementById("buscador_nuevo").value.trim();
+  const cont = document.getElementById("resultados_nuevo");
+  if (!q) { cont.innerHTML = ""; return; }
+
+  const { data: jugadores } = await client.from("jugadores").select("*").ilike("nombre", `%${q}%`).limit(20);
+  if (!jugadores || !jugadores.length) { cont.innerHTML = "<p style='color:var(--muted);font-size:12px;'>Sin resultados.</p>"; return; }
+
+  const equipoIds = [...new Set(jugadores.map(j => j.equipo_id).filter(Boolean))];
+  const { data: equipos } = equipoIds.length
+    ? await client.from("equipos").select("id, nombre").in("id", equipoIds)
+    : { data: [] };
+
+  cont.innerHTML = "";
+  jugadores.forEach(j => {
+    const equipo = (equipos || []).find(e => e.id === j.equipo_id);
+    const div = document.createElement("div");
+    div.className = "resultado";
+    div.onclick = () => abrirJugador(j.id);
+    div.innerHTML = `<div class="nombre">${j.nombre}</div><div class="meta">${equipo?.nombre || "Sin equipo"}</div>`;
+    cont.appendChild(div);
+  });
+}
+
+async function abrirJugador(jugadorId) {
+  const { data: j } = await client.from("jugadores").select("*").eq("id", jugadorId).single();
+  if (!j) return;
+
+  const equipo = j.equipo_id
+    ? (await client.from("equipos").select("nombre").eq("id", j.equipo_id).single()).data
+    : null;
+
+  const { data: priv } = await client
+    .from("jugadores_club").select("*").eq("club_id", miClubId).eq("jugador_id", jugadorId).maybeSingle();
+
+  jugadorActual = { ...j, equipo: equipo?.nombre || "", privado: priv || {} };
+
+  document.getElementById("ficha_vacia").style.display = "none";
+  document.getElementById("ficha_contenido").style.display = "block";
+
+  document.getElementById("f_nombre").textContent = j.nombre;
+  document.getElementById("f_sub").textContent =
+    [jugadorActual.equipo, j.posicion, j.dorsal ? "Dorsal " + j.dorsal : null,
+     j.fecha_nacimiento ? new Date(j.fecha_nacimiento).getFullYear() : null]
+      .filter(Boolean).join(" · ");
+
+  document.getElementById("f_posicion").value = priv?.posicion || "";
+  document.getElementById("f_anio").value = priv?.anio_nacimiento || "";
+  document.getElementById("f_contacto").value = priv?.contacto || "";
+  document.getElementById("f_contactado").checked = !!priv?.contactado;
+  document.getElementById("f_tecnica").value = priv?.tecnica ?? "";
+  document.getElementById("f_tactica").value = priv?.tactica ?? "";
+  document.getElementById("f_fisico").value = priv?.fisico || "";
+  document.getElementById("f_actitud").value = priv?.actitud ?? "";
+  document.getElementById("f_comentario").value = priv?.comentario || "";
+
+  const fotoImg = document.getElementById("foto_img");
+  const fotoPlaceholder = document.getElementById("foto_placeholder");
+  if (priv?.foto_url) {
+    fotoImg.src = priv.foto_url;
+    fotoImg.style.display = "block";
+    fotoPlaceholder.style.display = "none";
+  } else {
+    fotoImg.style.display = "none";
+    fotoPlaceholder.style.display = "flex";
+  }
+
+  document.getElementById("status").textContent = "";
+}
+
+let guardarInformeTimeout = null;
+function guardarInformeDebounced() {
+  clearTimeout(guardarInformeTimeout);
+  guardarInformeTimeout = setTimeout(guardarInforme, 600);
+}
+
+async function guardarInforme() {
+  if (!jugadorActual) return;
+  const status = document.getElementById("status");
+
+  const payload = {
+    jugador_id: jugadorActual.id,
+    club_id: miClubId,
+    temporada_id: jugadorActual.temporada_id,
+    posicion: document.getElementById("f_posicion").value || null,
+    anio_nacimiento: document.getElementById("f_anio").value || null,
+    contacto: document.getElementById("f_contacto").value || null,
+    contactado: document.getElementById("f_contactado").checked,
+    tecnica: document.getElementById("f_tecnica").value || null,
+    tactica: document.getElementById("f_tactica").value || null,
+    fisico: document.getElementById("f_fisico").value || null,
+    actitud: document.getElementById("f_actitud").value || null,
+    comentario: document.getElementById("f_comentario").value || null
+  };
+
+  if (jugadorActual.privado?.foto_url) payload.foto_url = jugadorActual.privado.foto_url;
+
+  const { data, error } = await client.from("jugadores_club")
+    .upsert(payload, { onConflict: "jugador_id,club_id,temporada_id" }).select().single();
+
+  if (error) { status.textContent = "Error guardando: " + error.message; return; }
+
+  jugadorActual.privado = data;
+  status.textContent = "Guardado.";
+  cargarInformes();
+}
+
+function redimensionarImagen(file, maxLado = 640, calidad = 0.82) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > height && width > maxLado) { height = height * (maxLado / width); width = maxLado; }
+      else if (height > maxLado) { width = width * (maxLado / height); height = maxLado; }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("No se pudo procesar la imagen")), "image/jpeg", calidad);
+    };
+    img.onerror = () => reject(new Error("No se pudo leer la imagen"));
+    img.src = url;
+  });
+}
+
+async function onFotoSeleccionada() {
+  const file = document.getElementById("foto_input").files[0];
+  if (!file || !jugadorActual) return;
+
+  const status = document.getElementById("status");
+  status.textContent = "Procesando imagen...";
+
+  try {
+    const blob = await redimensionarImagen(file);
+
+    const previewUrl = URL.createObjectURL(blob);
+    document.getElementById("foto_img").src = previewUrl;
+    document.getElementById("foto_img").style.display = "block";
+    document.getElementById("foto_placeholder").style.display = "none";
+
+    status.textContent = "Subiendo foto...";
+
+    const { data, error } = await client.functions.invoke("get-upload-url", {
+      body: { jugador_id: jugadorActual.id, content_type: "image/jpeg" }
+    });
+    if (error) throw new Error(await mensajeError(error));
+
+    const subida = await fetch(data.uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": "image/jpeg" },
+      body: blob
+    });
+    if (!subida.ok) throw new Error("El almacenamiento rechazó la subida (" + subida.status + ")");
+
+    await client.from("jugadores_club")
+      .upsert(
+        { jugador_id: jugadorActual.id, club_id: miClubId, temporada_id: jugadorActual.temporada_id, foto_url: data.publicUrl },
+        { onConflict: "jugador_id,club_id,temporada_id" }
+      );
+
+    jugadorActual.privado = { ...jugadorActual.privado, foto_url: data.publicUrl };
+    status.textContent = "Foto guardada.";
+  } catch (e) {
+    status.textContent = "Error subiendo la foto: " + e.message;
+  }
+}
+
+async function mensajeError(error) {
+  if (!error) return "";
+  if (error.context && typeof error.context.json === "function") {
+    try {
+      const body = await error.context.json();
+      if (body?.error) return typeof body.error === "string" ? body.error : JSON.stringify(body.error);
+    } catch (e) {}
+  }
+  return error.message || "Error desconocido";
+}
+
+async function abrirDesdeUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const jugadorId = params.get("jugador_id");
+  if (jugadorId) await abrirJugador(jugadorId);
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const ok = await protegerPagina();
+  if (!ok) return;
+  await cargarClubsSiAdmin();
+  await cargarInformes();
+  await abrirDesdeUrl();
+});
+</script>
+</body>
+</html>
