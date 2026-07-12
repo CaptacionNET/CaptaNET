@@ -136,7 +136,8 @@ button:disabled{opacity:.6;cursor:default;}
       const slug = getClubSlug();
       if (!slug) return;
 
-      const { data: nombre } = await client.rpc("get_club_nombre_by_slug", { p_slug: slug });
+      const { data: nombre, error } = await client.rpc("get_club_nombre_by_slug", { p_slug: slug });
+      if (error) { console.error("[CaptaNET] get_club_nombre_by_slug:", error); return; }
       if (nombre) {
         document.getElementById("subtitle").textContent = nombre;
         document.title = "CaptaNET - " + nombre;
@@ -175,6 +176,25 @@ button:disabled{opacity:.6;cursor:default;}
         submitBtn.disabled = false;
         submitBtn.textContent = "Entrar";
         return;
+      }
+
+      const slug = getClubSlug();
+      if (slug) {
+        const { data: { user } } = await client.auth.getUser();
+        const { data: perfil } = await client
+          .from("profiles").select("is_admin, club_id").eq("id", user.id).single();
+
+        if (!perfil?.is_admin) {
+          const { data: club } = await client.from("clubs").select("id").eq("slug", slug).single();
+
+          if (!club || club.id !== perfil?.club_id) {
+            await client.auth.signOut();
+            mostrarError("Esta cuenta no pertenece a este club.");
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Entrar";
+            return;
+          }
+        }
       }
 
       window.location.href = "visor.html";
