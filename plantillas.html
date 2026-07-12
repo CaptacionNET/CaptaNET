@@ -67,14 +67,18 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 }
 .tarjeta .colores span{width:15px;height:15px;border-radius:50%;border:1px solid var(--border);cursor:pointer;display:inline-block;}
 .panel-detalle{width:300px;flex-shrink:0;}
+.panel-izda{display:flex;flex-direction:column;gap:16px;flex-shrink:0;}
 .barra{margin-bottom:12px;}
-.barra .barra-cab{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px;}
+.barra .barra-cab{font-size:12px;color:var(--muted);margin-bottom:4px;}
 .barra .barra-cab b{color:var(--text);}
 .barra .barra-fondo{background:#eef0f5;border-radius:6px;height:9px;overflow:hidden;}
 .barra .barra-relleno{background:var(--primary);height:100%;}
-.det-fila{display:flex;justify-content:space-between;padding:5px 0;font-size:13px;border-top:1px solid var(--border);}
+.det-fila{padding:5px 0;font-size:13px;border-top:1px solid var(--border);}
 .det-fila span{color:var(--muted);}
 .det-fila b{color:var(--text);}
+.leyenda-fila{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.leyenda-dot{width:16px;height:16px;border-radius:50%;border:1px solid var(--border);flex-shrink:0;}
+.leyenda-fila input{flex:1;font-size:12px;padding:6px 8px;min-width:0;}
 .tooltip{
   position:fixed;z-index:100;background:#fff;border:1px solid var(--border);border-radius:8px;
   padding:12px 14px;font-size:12px;box-shadow:0 10px 25px rgba(0,0,0,.2);width:220px;
@@ -113,41 +117,63 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 <p id="status" class="status"></p>
 
 <div class="layout">
-  <div class="panel">
-    <h3>Añadir jugador</h3>
-    <div class="panel-tabs">
-      <div class="panel-tab active" id="tab_buscar" onclick="cambiarPanel('buscar')">Ya valorados</div>
-      <div class="panel-tab" id="tab_club" onclick="cambiarPanel('club')">Mi club</div>
-      <div class="panel-tab" id="tab_manual" onclick="cambiarPanel('manual')">Manual</div>
+  <div class="panel-izda">
+    <div class="panel">
+      <h3>Añadir jugador</h3>
+      <div class="panel-tabs">
+        <div class="panel-tab active" id="tab_buscar" onclick="cambiarPanel('buscar')">Ya valorados</div>
+        <div class="panel-tab" id="tab_club" onclick="cambiarPanel('club')">Mi club</div>
+        <div class="panel-tab" id="tab_manual" onclick="cambiarPanel('manual')">Manual</div>
+      </div>
+
+      <div id="panel_buscar">
+        <input id="buscador" type="text" placeholder="Buscar por nombre..." style="width:100%;margin-bottom:10px;" oninput="buscarJugadores()">
+        <div id="resultados_busqueda"></div>
+      </div>
+
+      <div id="panel_club" style="display:none;">
+        <input id="buscador_club" type="text" placeholder="Buscar en mi club..." style="width:100%;margin-bottom:10px;" oninput="buscarClub()">
+        <div id="resultados_club"></div>
+        <hr style="margin:14px 0;border:none;border-top:1px solid var(--border);">
+        <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">¿No está en la lista? Añádelo a tu club:</p>
+        <label>Nombre</label>
+        <input id="club_nombre" type="text" style="width:100%;margin-bottom:8px;">
+        <label>Posición</label>
+        <input id="club_posicion" type="text" style="width:100%;margin-bottom:8px;">
+        <label>Año de nacimiento</label>
+        <input id="club_anio" type="number" style="width:100%;margin-bottom:10px;">
+        <button style="width:100%;" onclick="crearJugadorClub()">+ Crear y añadir</button>
+      </div>
+
+      <div id="panel_manual" style="display:none;">
+        <label>Nombre</label>
+        <input id="manual_nombre" type="text" style="width:100%;margin-bottom:8px;">
+        <label>Posición (opcional)</label>
+        <input id="manual_posicion" type="text" style="width:100%;margin-bottom:8px;">
+        <label>Año (opcional)</label>
+        <input id="manual_anio" type="number" style="width:100%;margin-bottom:10px;">
+        <button style="width:100%;" onclick="anadirManual()">Añadir al campo</button>
+      </div>
     </div>
 
-    <div id="panel_buscar">
-      <input id="buscador" type="text" placeholder="Buscar por nombre..." style="width:100%;margin-bottom:10px;" oninput="buscarJugadores()">
-      <div id="resultados_busqueda"></div>
-    </div>
-
-    <div id="panel_club" style="display:none;">
-      <input id="buscador_club" type="text" placeholder="Buscar en mi club..." style="width:100%;margin-bottom:10px;" oninput="buscarClub()">
-      <div id="resultados_club"></div>
-      <hr style="margin:14px 0;border:none;border-top:1px solid var(--border);">
-      <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">¿No está en la lista? Añádelo a tu club:</p>
-      <label>Nombre</label>
-      <input id="club_nombre" type="text" style="width:100%;margin-bottom:8px;">
-      <label>Posición</label>
-      <input id="club_posicion" type="text" style="width:100%;margin-bottom:8px;">
-      <label>Año de nacimiento</label>
-      <input id="club_anio" type="number" style="width:100%;margin-bottom:10px;">
-      <button style="width:100%;" onclick="crearJugadorClub()">+ Crear y añadir</button>
-    </div>
-
-    <div id="panel_manual" style="display:none;">
-      <label>Nombre</label>
-      <input id="manual_nombre" type="text" style="width:100%;margin-bottom:8px;">
-      <label>Posición (opcional)</label>
-      <input id="manual_posicion" type="text" style="width:100%;margin-bottom:8px;">
-      <label>Año (opcional)</label>
-      <input id="manual_anio" type="number" style="width:100%;margin-bottom:10px;">
-      <button style="width:100%;" onclick="anadirManual()">Añadir al campo</button>
+    <div class="panel" id="panel_leyenda">
+      <h3>Leyenda de colores</h3>
+      <div class="leyenda-fila">
+        <span class="leyenda-dot" style="background:#fff;"></span>
+        <input id="leyenda_blanco" type="text" placeholder="Blanco significa..." oninput="guardarLeyendaDebounced()">
+      </div>
+      <div class="leyenda-fila">
+        <span class="leyenda-dot" style="background:#bfdbfe;"></span>
+        <input id="leyenda_azul" type="text" placeholder="Azul significa..." oninput="guardarLeyendaDebounced()">
+      </div>
+      <div class="leyenda-fila">
+        <span class="leyenda-dot" style="background:#fef08a;"></span>
+        <input id="leyenda_amarillo" type="text" placeholder="Amarillo significa..." oninput="guardarLeyendaDebounced()">
+      </div>
+      <div class="leyenda-fila">
+        <span class="leyenda-dot" style="background:#bbf7d0;"></span>
+        <input id="leyenda_verde" type="text" placeholder="Verde significa..." oninput="guardarLeyendaDebounced()">
+      </div>
     </div>
   </div>
 
@@ -170,6 +196,11 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
       <div id="det_extra"></div>
     </div>
   </div>
+</div>
+
+<div style="margin:0 24px 24px;">
+  <label>Notas de la plantilla</label>
+  <textarea id="notas_plantilla" style="width:100%;min-height:90px;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;" oninput="guardarNotasDebounced()"></textarea>
 </div>
 
 <div class="tooltip" id="tooltip"></div>
@@ -267,6 +298,45 @@ function rangoActual() {
   return { min: min || 0, max: max || 9999 };
 }
 
+function cargarLeyendaYNotas() {
+  document.getElementById("leyenda_blanco").value = plantillaActual?.leyenda_blanco || "";
+  document.getElementById("leyenda_azul").value = plantillaActual?.leyenda_azul || "";
+  document.getElementById("leyenda_amarillo").value = plantillaActual?.leyenda_amarillo || "";
+  document.getElementById("leyenda_verde").value = plantillaActual?.leyenda_verde || "";
+  document.getElementById("notas_plantilla").value = plantillaActual?.notas || "";
+}
+
+let guardarLeyendaTimeout = null;
+function guardarLeyendaDebounced() {
+  clearTimeout(guardarLeyendaTimeout);
+  guardarLeyendaTimeout = setTimeout(guardarLeyenda, 600);
+}
+
+async function guardarLeyenda() {
+  if (!plantillaActualId) return;
+  const payload = {
+    leyenda_blanco: document.getElementById("leyenda_blanco").value || null,
+    leyenda_azul: document.getElementById("leyenda_azul").value || null,
+    leyenda_amarillo: document.getElementById("leyenda_amarillo").value || null,
+    leyenda_verde: document.getElementById("leyenda_verde").value || null
+  };
+  await client.from("plantillas").update(payload).eq("id", plantillaActualId);
+  if (plantillaActual) Object.assign(plantillaActual, payload);
+}
+
+let guardarNotasTimeout = null;
+function guardarNotasDebounced() {
+  clearTimeout(guardarNotasTimeout);
+  guardarNotasTimeout = setTimeout(guardarNotas, 600);
+}
+
+async function guardarNotas() {
+  if (!plantillaActualId) return;
+  const notas = document.getElementById("notas_plantilla").value;
+  await client.from("plantillas").update({ notas }).eq("id", plantillaActualId);
+  if (plantillaActual) plantillaActual.notas = notas;
+}
+
 async function cargarPlantillas() {
   const sel = document.getElementById("selector_plantilla");
   if (!miClubId) { sel.innerHTML = "<option value=''>Sin club asignado</option>"; return; }
@@ -283,6 +353,7 @@ async function cargarPlantillas() {
     document.getElementById("btn_eliminar_plantilla").style.display = "inline-block";
     document.getElementById("btn_editar_plantilla").style.display = "inline-block";
     actualizarRangoLabel();
+    cargarLeyendaYNotas();
     cargarTablero();
   } else {
     plantillaActual = null;
@@ -290,6 +361,7 @@ async function cargarPlantillas() {
     document.getElementById("btn_eliminar_plantilla").style.display = "none";
     document.getElementById("btn_editar_plantilla").style.display = "none";
     actualizarRangoLabel();
+    cargarLeyendaYNotas();
     renderTablero([]);
   }
 }
@@ -298,6 +370,7 @@ function onPlantillaChange() {
   plantillaActualId = document.getElementById("selector_plantilla").value;
   plantillaActual = plantillasCache.find(p => p.id === plantillaActualId) || null;
   actualizarRangoLabel();
+  cargarLeyendaYNotas();
   cargarTablero();
 }
 
@@ -348,6 +421,7 @@ async function confirmarNuevaPlantilla() {
     plantillaActualId = data.id;
     plantillaActual = data;
     actualizarRangoLabel();
+    cargarLeyendaYNotas();
     return;
   }
 
@@ -362,6 +436,7 @@ async function confirmarNuevaPlantilla() {
   plantillaActualId = data.id;
   plantillaActual = data;
   actualizarRangoLabel();
+  cargarLeyendaYNotas();
   cargarTablero();
 }
 
@@ -497,7 +572,7 @@ function barraHtml(etiqueta, valor, max = 10) {
   const pct = valor ? Math.min(100, (valor / max) * 100) : 0;
   return `
     <div class="barra">
-      <div class="barra-cab"><span>${etiqueta}</span><b>${valor ?? "-"}</b></div>
+      <div class="barra-cab"><span>${etiqueta}: </span><b>${valor ?? "-"}</b></div>
       <div class="barra-fondo"><div class="barra-relleno" style="width:${pct}%;"></div></div>
     </div>
   `;
@@ -508,7 +583,7 @@ function barraFisicoHtml(valor) {
   const pct = (nivel / 6) * 100;
   return `
     <div class="barra">
-      <div class="barra-cab"><span>Físico</span><b>${valor || "-"}</b></div>
+      <div class="barra-cab"><span>Físico: </span><b>${valor || "-"}</b></div>
       <div class="barra-fondo"><div class="barra-relleno" style="width:${pct}%;"></div></div>
     </div>
   `;
@@ -541,8 +616,8 @@ function mostrarDetalle(fila) {
     barraHtml("Actitud", fila.actitud);
 
   extra.innerHTML = `
-    <div class="det-fila"><span>Contactado</span><b>${fila.contactado ? "Sí" : "No"}</b></div>
-    ${fila.contacto ? `<div class="det-fila"><span>Teléfono</span><b>${fila.contacto}</b></div>` : ""}
+    <div class="det-fila"><span>Contactado: </span><b>${fila.contactado ? "Sí" : "No"}</b></div>
+    ${fila.contacto ? `<div class="det-fila"><span>Teléfono: </span><b>${fila.contacto}</b></div>` : ""}
     ${fila.comentario ? `<p style="margin-top:12px;font-size:13px;">${fila.comentario}</p>` : ""}
   `;
 }
