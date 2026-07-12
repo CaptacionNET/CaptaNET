@@ -216,7 +216,7 @@ function columnasPara(nivel) {
 
   const cols = base[nivel].slice();
   cols.push({
-    title: "Eliminar", formatter: "buttonCross", width: 90, align: "center",
+    title: "Eliminar", formatter: "buttonCross", width: 90, hozAlign: "center",
     cellClick: async (e, cell) => {
       if (!confirm("¿Eliminar esta fila?")) return;
       const row = cell.getRow().getData();
@@ -302,7 +302,7 @@ async function cargarClubs() {
         formatter: cell => nombreTemporada(cell.getValue())
       },
       {
-        title: "Eliminar", formatter: "buttonCross", width: 90, align: "center",
+        title: "Eliminar", formatter: "buttonCross", width: 90, hozAlign: "center",
         cellClick: async (e, cell) => {
           if (!confirm("¿Eliminar este club?")) return;
           const row = cell.getRow().getData();
@@ -502,10 +502,10 @@ async function cargarUsuarios() {
       { title: "Admin", field: "is_admin", editor: "tickCross", formatter: "tickCross" },
       {
         title: "Nueva contraseña", field: "contrasena", editor: "input",
-        editorParams: { elementAttributes: { type: "password" } }
+        editorParams: { elementAttributes: { type: "password", autocomplete: "new-password" } }
       },
       {
-        title: "Eliminar", formatter: "buttonCross", width: 90, align: "center",
+        title: "Eliminar", formatter: "buttonCross", width: 90, hozAlign: "center",
         cellClick: async (e, cell) => {
           const row = cell.getRow().getData();
           if (!row.id) { cell.getRow().delete(); return; }
