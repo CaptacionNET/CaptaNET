@@ -259,7 +259,12 @@ function crearTabla() {
       { title: "Comentario", field: "comentario", editor: "textarea", formatter: "textarea" }
       ],
       cellEdited: cell => {
-        if (CAMPOS_PRIVADOS.includes(cell.getField())) guardarPrivado(cell.getRow().getData());
+        console.log("[CaptaNET] cellEdited", cell.getField(), cell.getValue());
+        if (CAMPOS_PRIVADOS.includes(cell.getField())) {
+          guardarPrivado(cell.getRow().getData());
+        } else {
+          console.log("[CaptaNET] campo no está en CAMPOS_PRIVADOS, no se guarda:", cell.getField());
+        }
       }
     });
   });
@@ -352,16 +357,29 @@ async function guardarPrivado(row) {
     comentario: row.comentario || null
   };
 
-  const { error } = await client.from("jugadores_club").upsert(payload, { onConflict: "jugador_id,club_id,temporada_id" });
+  console.log("[CaptaNET] guardarPrivado payload:", payload);
 
-  aviso.style.display = "block";
-  if (error) {
+  try {
+    const { data, error } = await client.from("jugadores_club")
+      .upsert(payload, { onConflict: "jugador_id,club_id,temporada_id" })
+      .select();
+
+    console.log("[CaptaNET] resultado upsert:", { data, error });
+
+    aviso.style.display = "block";
+    if (error) {
+      aviso.style.color = "#dc2626";
+      aviso.textContent = "No se pudo guardar: " + error.message;
+    } else {
+      aviso.style.color = "#16a34a";
+      aviso.textContent = "Guardado.";
+      setTimeout(() => { aviso.style.display = "none"; aviso.style.color = ""; }, 1500);
+    }
+  } catch (e) {
+    console.error("[CaptaNET] excepción guardando:", e);
+    aviso.style.display = "block";
     aviso.style.color = "#dc2626";
-    aviso.textContent = "No se pudo guardar: " + error.message;
-  } else {
-    aviso.style.color = "#16a34a";
-    aviso.textContent = "Guardado.";
-    setTimeout(() => { aviso.style.display = "none"; aviso.style.color = ""; }, 1500);
+    aviso.textContent = "Excepción al guardar: " + e.message;
   }
 }
 
