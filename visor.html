@@ -32,6 +32,7 @@ input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-rad
   <div style="display:flex;gap:10px;">
     <button class="secondary" onclick="window.location.href='usuario.html'">Mi perfil</button>
     <button class="secondary" onclick="logout()">Cerrar sesión</button>
+    <button id="btn_equipo" class="secondary" style="display:none;" onclick="window.location.href='equipo.html'">Mi equipo</button>
     <button id="btn_admin" class="secondary" style="display:none;" onclick="window.location.href='admin.html'">Panel Admin</button>
   </div>
 </div>
@@ -104,12 +105,13 @@ async function protegerPagina() {
   if (!session.session) { window.location.href = "index.html"; return false; }
 
   const { data: perfil } = await client
-    .from("profiles").select("is_admin, club_id, clubs(nombre)").eq("id", session.session.user.id).single();
+    .from("profiles").select("is_admin, is_club_admin, club_id, clubs(nombre)").eq("id", session.session.user.id).single();
 
   esAdmin = !!perfil?.is_admin;
   miClubId = perfil?.club_id || null;
 
   if (esAdmin) document.getElementById("btn_admin").style.display = "inline-block";
+  if (perfil?.is_club_admin) document.getElementById("btn_equipo").style.display = "inline-block";
 
   document.getElementById("brand_extra").textContent =
     esAdmin ? "· ADMIN" : (perfil?.clubs?.nombre ? "· " + perfil.clubs.nombre : "");

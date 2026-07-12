@@ -500,6 +500,7 @@ async function cargarUsuarios() {
         formatter: cell => clubsCache.find(c => c.id === cell.getValue())?.nombre || ""
       },
       { title: "Admin", field: "is_admin", editor: "tickCross", formatter: "tickCross" },
+      { title: "Admin de club", field: "is_club_admin", editor: "tickCross", formatter: "tickCross" },
       {
         title: "Nueva contraseña", field: "contrasena", editor: "input",
         editorParams: { elementAttributes: { type: "password", autocomplete: "new-password" } }
@@ -543,10 +544,15 @@ async function guardarUsuario(cell) {
     return;
   }
 
-  if (campo === "club_id" || campo === "is_admin") {
+  if (campo === "club_id" || campo === "is_admin" || campo === "is_club_admin") {
+    if (campo === "is_club_admin" && row.is_club_admin && row.club_id) {
+      await client.from("profiles").update({ is_club_admin: false })
+        .eq("club_id", row.club_id).neq("id", row.id);
+    }
     const { error } = await client.from("profiles")
-      .update({ club_id: row.club_id, is_admin: row.is_admin }).eq("id", row.id);
+      .update({ club_id: row.club_id, is_admin: row.is_admin, is_club_admin: row.is_club_admin }).eq("id", row.id);
     status.textContent = error ? "Error: " + error.message : "Guardado.";
+    if (!error && campo === "is_club_admin") await cargarUsuarios();
     return;
   }
 
