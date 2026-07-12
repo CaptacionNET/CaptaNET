@@ -1,19 +1,40 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>CaptaNET - Usuario</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CaptaNET - Mi perfil</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#2563eb;--bg:#f5f6fa;--card:#fff;--border:#e2e4eb;--text:#1f2430;--muted:#6b7280;}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
+#topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;background:var(--card);border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px;}
+#topbar .brand{font-weight:700;font-size:18px;color:var(--primary);}
+button{background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px;}
+button:hover{opacity:.9;}
+button.secondary{background:#fff;color:var(--text);border:1px solid var(--border);}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;margin:20px 24px;max-width:420px;}
+.fila{display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border);font-size:14px;}
+.fila:first-child{border-top:none;}
+.fila span{color:var(--muted);}
+.fila b{color:var(--text);text-align:right;}
+@media (max-width:600px){
+  .card{margin:16px;max-width:none;}
+}
+</style>
 </head>
 
 <body>
-  <h2>Mi perfil</h2>
+  <div id="topbar">
+    <div class="brand">CaptaNET · Mi perfil</div>
+    <div style="display:flex;gap:10px;">
+      <button class="secondary" onclick="volver()">Volver al visor</button>
+      <button class="secondary" onclick="logout()">Cerrar sesión</button>
+    </div>
+  </div>
 
-  <button onclick="volver()">Volver al visor</button>
-  <button onclick="logout()">Cerrar sesión</button>
-
-  <h3>Datos del usuario</h3>
-  <div id="perfil"></div>
+  <div class="card" id="perfil"></div>
 
   <script>
     const client = supabase.createClient(
@@ -39,12 +60,13 @@
         .eq("id", user.id)
         .single();
 
-      document.getElementById("perfil").innerHTML =
-        `<p>Usuario: ${perfil.username}</p>
-         <p>Nombre: ${perfil.nombre || ""}</p>
-         <p>Email: ${perfil.email || ""}</p>
-         <p>Club: ${perfil.clubs?.nombre || "(sin asignar)"}</p>
-         <p>Admin: ${perfil.is_admin ? "Sí" : "No"}</p>`;
+      document.getElementById("perfil").innerHTML = `
+        <div class="fila"><span>Usuario</span><b>${perfil.username || ""}</b></div>
+        <div class="fila"><span>Nombre</span><b>${perfil.nombre || ""}</b></div>
+        <div class="fila"><span>Email</span><b>${perfil.email || ""}</b></div>
+        <div class="fila"><span>Club</span><b>${perfil.clubs?.nombre || "(sin asignar)"}</b></div>
+        <div class="fila"><span>Admin</span><b>${perfil.is_admin ? "Sí" : "No"}</b></div>
+      `;
     }
 
     function volver() {

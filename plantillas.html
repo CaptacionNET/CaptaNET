@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CaptaNET - Plantillas</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -40,7 +41,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 .campo .area-abajo{position:absolute;right:0;top:18%;bottom:18%;width:100px;border:2px solid var(--border);border-right:none;}
 .tarjeta{
   position:absolute;transform:translate(-50%,-50%);
-  cursor:grab;user-select:none;
+  cursor:grab;user-select:none;touch-action:none;
 }
 .tarjeta.arrastrando{cursor:grabbing;z-index:20;}
 .tarjeta .avatar{
@@ -92,6 +93,23 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:200;}
 .modal-box{background:#fff;border-radius:10px;padding:24px;width:320px;box-shadow:0 20px 50px rgba(0,0,0,.3);}
 .modal-box h3{margin:0 0 14px;}
+
+@media (hover:none){
+  .tarjeta .quitar{display:block !important;}
+  .tarjeta .colores{display:flex !important;}
+}
+
+@media (max-width:900px){
+  .layout{flex-direction:column;padding:0 12px 24px;}
+  .panel-izda,.panel-detalle,.panel{width:100%;}
+  .barra{padding:12px;}
+  .status{margin:0 12px 12px;}
+  .notas-wrap{margin:0 12px 24px !important;}
+}
+@media (max-width:500px){
+  #topbar{padding:12px 16px;}
+  .modal-box{width:calc(100vw - 40px);}
+}
 </style>
 </head>
 <body>
@@ -199,7 +217,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
   </div>
 </div>
 
-<div style="margin:0 24px 24px;">
+<div class="notas-wrap" style="margin:0 24px 24px;">
   <label>Notas de la plantilla</label>
   <textarea id="notas_plantilla" style="width:100%;min-height:90px;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;" oninput="guardarNotasDebounced()"></textarea>
 </div>
@@ -536,12 +554,12 @@ function renderTablero(filas) {
         <div class="avatar-nombre">${fila.nombre}</div>
         <div class="avatar-sub">${subTextoTarjeta(fila)}</div>
       </div>
-      <span class="quitar" onmousedown="event.stopPropagation()" onclick="quitarDelTablero(event, ${fila.id})">×</span>
+      <span class="quitar" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="quitarDelTablero(event, ${fila.id})">×</span>
       <div class="colores">
-        <span onmousedown="event.stopPropagation()" onclick="cambiarColor(event, ${fila.id}, 'blanco')" style="background:#fff"></span>
-        <span onmousedown="event.stopPropagation()" onclick="cambiarColor(event, ${fila.id}, 'azul')" style="background:#bfdbfe"></span>
-        <span onmousedown="event.stopPropagation()" onclick="cambiarColor(event, ${fila.id}, 'amarillo')" style="background:#fef08a"></span>
-        <span onmousedown="event.stopPropagation()" onclick="cambiarColor(event, ${fila.id}, 'verde')" style="background:#bbf7d0"></span>
+        <span onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="cambiarColor(event, ${fila.id}, 'blanco')" style="background:#fff"></span>
+        <span onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="cambiarColor(event, ${fila.id}, 'azul')" style="background:#bfdbfe"></span>
+        <span onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="cambiarColor(event, ${fila.id}, 'amarillo')" style="background:#fef08a"></span>
+        <span onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="cambiarColor(event, ${fila.id}, 'verde')" style="background:#bbf7d0"></span>
       </div>
     `;
     campo.appendChild(tarjeta);
@@ -550,6 +568,7 @@ function renderTablero(filas) {
     tarjeta.addEventListener("mousemove", posicionarTooltip);
     tarjeta.addEventListener("mouseleave", () => { ocultarTooltip(); ocultarControlesConRetraso(tarjeta); });
     tarjeta.addEventListener("mousedown", e => iniciarArrastre(e, tarjeta, fila));
+    tarjeta.addEventListener("touchstart", e => iniciarArrastre(e, tarjeta, fila), { passive: false });
     tarjeta.addEventListener("click", () => { if (!seDeslizoBastante) mostrarDetalle(fila); });
   });
 }
@@ -684,25 +703,37 @@ function ocultarTooltip() {
 let arrastreActivo = null;
 let seDeslizoBastante = false;
 
+function coordenadas(e) {
+  if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  if (e.changedTouches && e.changedTouches.length) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+  return { x: e.clientX, y: e.clientY };
+}
+
 function iniciarArrastre(e, tarjeta, fila) {
   e.preventDefault();
   ocultarTooltip();
   seDeslizoBastante = false;
-  arrastreActivo = { tarjeta, fila, startX: e.clientX, startY: e.clientY };
+  const { x, y } = coordenadas(e);
+  arrastreActivo = { tarjeta, fila, startX: x, startY: y };
   tarjeta.classList.add("arrastrando");
   document.addEventListener("mousemove", moverArrastre);
   document.addEventListener("mouseup", soltarArrastre);
+  document.addEventListener("touchmove", moverArrastre, { passive: false });
+  document.addEventListener("touchend", soltarArrastre);
+  document.addEventListener("touchcancel", soltarArrastre);
 }
 
 function moverArrastre(e) {
   if (!arrastreActivo) return;
-  if (Math.abs(e.clientX - arrastreActivo.startX) > 4 || Math.abs(e.clientY - arrastreActivo.startY) > 4) {
+  e.preventDefault();
+  const { x: cx, y: cy } = coordenadas(e);
+  if (Math.abs(cx - arrastreActivo.startX) > 4 || Math.abs(cy - arrastreActivo.startY) > 4) {
     seDeslizoBastante = true;
   }
   const campo = document.getElementById("campo");
   const rect = campo.getBoundingClientRect();
-  let x = ((e.clientX - rect.left) / rect.width) * 100;
-  let y = ((e.clientY - rect.top) / rect.height) * 100;
+  let x = ((cx - rect.left) / rect.width) * 100;
+  let y = ((cy - rect.top) / rect.height) * 100;
   x = Math.max(3, Math.min(97, x));
   y = Math.max(3, Math.min(97, y));
   arrastreActivo.tarjeta.style.left = x + "%";
@@ -714,6 +745,9 @@ function moverArrastre(e) {
 async function soltarArrastre() {
   document.removeEventListener("mousemove", moverArrastre);
   document.removeEventListener("mouseup", soltarArrastre);
+  document.removeEventListener("touchmove", moverArrastre);
+  document.removeEventListener("touchend", soltarArrastre);
+  document.removeEventListener("touchcancel", soltarArrastre);
   if (!arrastreActivo) return;
 
   arrastreActivo.tarjeta.classList.remove("arrastrando");
