@@ -69,9 +69,13 @@ input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-rad
     <input id="filtro_nombre" type="text" placeholder="Nombre..." oninput="aplicarFiltrosLocales()">
   </div>
   <div class="field">
+    <label>Año (varios)</label>
+    <select id="filtro_anio" multiple size="4" style="min-width:90px;" onchange="aplicarFiltrosLocales()"></select>
+  </div>
+  <div class="field">
     <label>&nbsp;</label>
     <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);">
-      <input id="filtro_solo_vistos" type="checkbox" onchange="aplicarFiltrosLocales()" style="width:auto;">
+      <input id="filtro_solo_vistos" type="checkbox" onchange="aplicarFiltrosLocales()" style="width:16px;min-width:16px;flex-shrink:0;">
       Solo vistos
     </label>
   </div>
@@ -250,6 +254,10 @@ function crearTabla() {
       layout: "fitColumns",
       height: "70vh",
       reactiveData: true,
+      pagination: true,
+      paginationSize: 60,
+      paginationSizeSelector: [30, 60, 100, 200],
+      paginationCounter: "rows",
       columns: [
       {
         title: "Jugador", field: "nombre", frozen: true,
@@ -269,7 +277,15 @@ function crearTabla() {
         editorParams: { values: NIVELES_FISICO }
       },
       { title: "Actitud", field: "actitud", editor: "number" },
-      { title: "Comentario", field: "comentario", editor: "textarea", formatter: "textarea" }
+      {
+        title: "Comentario", field: "comentario", editor: "textarea",
+        formatter: cell => {
+          const v = cell.getValue() || "";
+          const corto = v.length > 45 ? v.slice(0, 45) + "…" : v;
+          const esc = v.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+          return `<span title="${esc}">${corto}</span>`;
+        }
+      }
       ]
     });
 
@@ -286,17 +302,10 @@ function crearTabla() {
 
 async function cargarJugadores() {
   const aviso = document.getElementById("aviso");
-  const categoriaId = document.getElementById("filtro_categoria").value;
 
   if (!miClubId) {
     aviso.style.display = "block";
     aviso.textContent = "Tu cuenta no tiene un club asignado. Contacta con el administrador.";
-    tabla.setData([]);
-    return;
-  }
-  if (!categoriaId) {
-    aviso.style.display = "block";
-    aviso.textContent = "Selecciona al menos una categoría para ver jugadores.";
     tabla.setData([]);
     return;
   }
@@ -342,13 +351,22 @@ function tieneDatosClub(f) {
     f.tecnica || f.tactica || f.fisico || f.actitud || (f.comentario && String(f.comentario).trim()));
 }
 
+function poblarAnios() {
+  const sel = document.getElementById("filtro_anio");
+  const actual = new Date().getFullYear();
+  sel.innerHTML = "";
+  for (let y = actual; y >= actual - 25; y--) sel.innerHTML += `<option value="${y}">${y}</option>`;
+}
+
 function aplicarFiltrosLocales() {
   const nombreFiltro = document.getElementById("filtro_nombre").value.toLowerCase();
   const soloVistos = document.getElementById("filtro_solo_vistos").checked;
+  const anios = Array.from(document.getElementById("filtro_anio").selectedOptions).map(o => Number(o.value));
 
   let filas = basefilas;
   if (nombreFiltro) filas = filas.filter(f => f.nombre.toLowerCase().includes(nombreFiltro));
   if (soloVistos) filas = filas.filter(tieneDatosClub);
+  if (anios.length) filas = filas.filter(f => anios.includes(Number(f.anio_nacimiento)));
 
   tabla.setData(filas);
 }
@@ -403,6 +421,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   poblarLigas();
   poblarGrupos();
   poblarEquipos();
+  poblarAnios();
   await crearTabla();
   cargarJugadores();
 });
