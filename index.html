@@ -136,13 +136,10 @@ button:disabled{opacity:.6;cursor:default;}
       submitBtn.disabled = true;
       submitBtn.textContent = "Entrando...";
 
-      const { data: perfil, error: perfilError } = await client
-        .from("profiles")
-        .select("email")
-        .eq("username", username)
-        .single();
+      const { data: email, error: emailError } = await client
+        .rpc("get_email_by_username", { p_username: username });
 
-      if (perfilError || !perfil) {
+      if (emailError || !email) {
         mostrarError("Usuario no encontrado.");
         submitBtn.disabled = false;
         submitBtn.textContent = "Entrar";
@@ -150,7 +147,7 @@ button:disabled{opacity:.6;cursor:default;}
       }
 
       const { error } = await client.auth.signInWithPassword({
-        email: perfil.email,
+        email,
         password
       });
 
