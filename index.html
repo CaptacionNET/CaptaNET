@@ -179,21 +179,27 @@ button:disabled{opacity:.6;cursor:default;}
       }
 
       const slug = getClubSlug();
-      if (slug) {
-        const { data: { user } } = await client.auth.getUser();
-        const { data: perfil } = await client
-          .from("profiles").select("is_admin, club_id").eq("id", user.id).single();
+      const { data: { user } } = await client.auth.getUser();
+      const { data: perfil } = await client
+        .from("profiles").select("is_admin, club_id").eq("id", user.id).single();
 
-        if (!perfil?.is_admin) {
-          const { data: club } = await client.from("clubs").select("id").eq("slug", slug).single();
+      if (!perfil?.is_admin) {
+        if (!slug) {
+          await client.auth.signOut();
+          mostrarError("Entra desde la dirección de tu club (tuclub.captacion.net).");
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Entrar";
+          return;
+        }
 
-          if (!club || club.id !== perfil?.club_id) {
-            await client.auth.signOut();
-            mostrarError("Esta cuenta no pertenece a este club.");
-            submitBtn.disabled = false;
-            submitBtn.textContent = "Entrar";
-            return;
-          }
+        const { data: club } = await client.from("clubs").select("id").eq("slug", slug).single();
+
+        if (!club || club.id !== perfil?.club_id) {
+          await client.auth.signOut();
+          mostrarError("Esta cuenta no pertenece a este club.");
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Entrar";
+          return;
         }
       }
 
