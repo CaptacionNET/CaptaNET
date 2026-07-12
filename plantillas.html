@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CaptaNET - Plantillas</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <style>
 :root{--primary:#2563eb;--bg:#f5f6fa;--card:#fff;--border:#e2e4eb;--text:#1f2430;--muted:#6b7280;}
 *{box-sizing:border-box;}
@@ -117,7 +118,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 <div id="topbar">
   <div class="brand">CaptaNET · Plantillas</div>
   <div style="display:flex;gap:10px;">
-    <button class="secondary" onclick="window.location.href='visor.html'">Volver al visor</button>
+    <button class="secondary" onclick="window.location.href='visor.html'">Volver a base de datos</button>
     <button class="secondary" onclick="logout()">Cerrar sesión</button>
   </div>
 </div>
@@ -130,6 +131,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
   <span id="rango_label" style="color:var(--muted);font-size:13px;"></span>
   <button class="secondary" onclick="crearPlantilla()">+ Nueva plantilla</button>
   <button class="secondary" id="btn_editar_plantilla" style="display:none;" onclick="editarPlantilla()">Editar plantilla</button>
+  <button class="secondary" onclick="exportarPDF()">Exportar a PDF</button>
   <button class="danger" id="btn_eliminar_plantilla" style="display:none;" onclick="eliminarPlantilla()">Eliminar plantilla</button>
 </div>
 
@@ -534,6 +536,104 @@ async function cargarTablero() {
   });
 
   renderTablero(filasTablero);
+}
+
+const COLOR_RELLENO_PDF = { blanco: [255, 255, 255], azul: [219, 234, 254], amarillo: [254, 240, 138], verde: [187, 247, 208] };
+const COLOR_BORDE_ORIGEN_PDF = { manual: [245, 158, 11], club: [22, 163, 74], valorado: [37, 99, 235] };
+
+function truncar(texto, max) {
+  if (!texto) return "";
+  return texto.length > max ? texto.slice(0, max - 1) + "…" : texto;
+}
+
+function exportarPDF() {
+  if (!plantillaActual) { alert("Selecciona una plantilla primero."); return; }
+  if (!window.jspdf) { alert("No se pudo cargar el generador de PDF."); return; }
+
+  const doc = new window.jspdf.jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margen = 12;
+
+  doc.setFontSize(16);
+  doc.setTextColor(30);
+  doc.text(`Plantilla: ${plantillaActual.nombre}`, margen, margen);
+
+  let y = margen + 6;
+  if (plantillaActual.anio_min || plantillaActual.anio_max) {
+    doc.setFontSize(10);
+    doc.setTextColor(120);
+    doc.text(`Nacidos ${plantillaActual.anio_min || "?"}–${plantillaActual.anio_max || "?"}`, margen, y);
+    y += 5;
+  }
+
+  const campoY = y + 4;
+  const campoH = pageH - campoY - 55;
+  const campoW = pageW - margen * 2;
+  const campoX = margen;
+
+  doc.setDrawColor(200);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(campoX, campoY, campoW, campoH, 3, 3);
+  doc.line(campoX + campoW / 2, campoY, campoX + campoW / 2, campoY + campoH);
+  doc.circle(campoX + campoW / 2, campoY + campoH / 2, Math.min(campoW, campoH) * 0.11);
+
+  filasTablero.forEach(fila => {
+    const cx = campoX + (fila.pos_x / 100) * campoW;
+    const cy = campoY + (fila.pos_y / 100) * campoH;
+    const boxW = 34, boxH = 11;
+
+    doc.setFillColor(...(COLOR_RELLENO_PDF[fila.color] || COLOR_RELLENO_PDF.blanco));
+    doc.setDrawColor(...(COLOR_BORDE_ORIGEN_PDF[fila.origen] || COLOR_BORDE_ORIGEN_PDF.valorado));
+    doc.setLineWidth(0.5);
+    doc.roundedRect(cx - boxW / 2, cy - boxH / 2, boxW, boxH, 1.5, 1.5, "FD");
+
+    doc.setFontSize(8);
+    doc.setTextColor(30);
+    doc.text(truncar(fila.nombre, 20), cx, cy - 1, { align: "center" });
+
+    const sub = subTextoTarjeta(fila);
+    if (sub) {
+      doc.setFontSize(6.5);
+      doc.setTextColor(110);
+      doc.text(truncar(sub, 22), cx, cy + 3, { align: "center" });
+    }
+  });
+
+  let by = campoY + campoH + 8;
+  const leyendas = [
+    ["Blanco", plantillaActual.leyenda_blanco],
+    ["Azul", plantillaActual.leyenda_azul],
+    ["Amarillo", plantillaActual.leyenda_amarillo],
+    ["Verde", plantillaActual.leyenda_verde]
+  ].filter(([, texto]) => texto && texto.trim());
+
+  if (leyendas.length) {
+    doc.setFontSize(11);
+    doc.setTextColor(30);
+    doc.text("Leyenda de colores", margen, by);
+    by += 5;
+    doc.setFontSize(9);
+    doc.setTextColor(70);
+    leyendas.forEach(([color, texto]) => {
+      doc.text(`${color}: ${texto}`, margen, by);
+      by += 4.5;
+    });
+    by += 2;
+  }
+
+  if (plantillaActual.notas && plantillaActual.notas.trim()) {
+    doc.setFontSize(11);
+    doc.setTextColor(30);
+    doc.text("Notas", margen, by);
+    by += 5;
+    doc.setFontSize(9);
+    doc.setTextColor(70);
+    const lineas = doc.splitTextToSize(plantillaActual.notas, pageW - margen * 2);
+    doc.text(lineas, margen, by);
+  }
+
+  doc.save(`${plantillaActual.nombre.replace(/[^a-z0-9]/gi, "_")}.pdf`);
 }
 
 function subTextoTarjeta(fila) {

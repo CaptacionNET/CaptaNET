@@ -228,7 +228,9 @@ async function cargarInformes() {
 
   informesCache = (jugadores || []).map(j => {
     const equipo = (equipos || []).find(e => e.id === j.equipo_id);
-    return { id: j.id, nombre: j.nombre, equipo: equipo?.nombre || "" };
+    const priv = conDatos.find(p => p.jugador_id === j.id);
+    const anio = priv?.anio_nacimiento || (j.fecha_nacimiento ? new Date(j.fecha_nacimiento).getFullYear() : null);
+    return { id: j.id, nombre: j.nombre, equipo: equipo?.nombre || "", anio };
   }).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   renderListaInformes(informesCache);
@@ -242,7 +244,7 @@ function renderListaInformes(lista) {
     const div = document.createElement("div");
     div.className = "resultado";
     div.onclick = () => abrirJugador(j.id);
-    div.innerHTML = `<div class="nombre">${j.nombre}</div><div class="meta">${j.equipo}</div>`;
+    div.innerHTML = `<div class="nombre">${j.nombre}${j.anio ? " · " + j.anio : ""}</div><div class="meta">${j.equipo}</div>`;
     cont.appendChild(div);
   });
 }
