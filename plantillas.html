@@ -29,25 +29,25 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 .resultado button{width:100%;margin-top:6px;padding:5px;font-size:12px;}
 .campo-wrap{flex:1;display:flex;justify-content:center;}
 .campo{
-  position:relative;width:100%;max-width:820px;aspect-ratio:820/540;
+  position:relative;width:100%;max-width:1180px;aspect-ratio:1180/620;
   background:#fff;
   border:3px solid var(--border);border-radius:10px;overflow:visible;
   box-shadow:0 10px 30px -10px rgba(0,0,0,.15);
 }
 .campo .linea-medio{position:absolute;left:50%;top:0;bottom:0;width:2px;background:var(--border);}
-.campo .circulo{position:absolute;top:50%;left:50%;width:110px;height:110px;margin:-55px 0 0 -55px;border:2px solid var(--border);border-radius:50%;}
-.campo .area-arriba{position:absolute;left:0;top:20%;bottom:20%;width:80px;border:2px solid var(--border);border-left:none;}
-.campo .area-abajo{position:absolute;right:0;top:20%;bottom:20%;width:80px;border:2px solid var(--border);border-right:none;}
+.campo .circulo{position:absolute;top:50%;left:50%;width:130px;height:130px;margin:-65px 0 0 -65px;border:2px solid var(--border);border-radius:50%;}
+.campo .area-arriba{position:absolute;left:0;top:18%;bottom:18%;width:100px;border:2px solid var(--border);border-left:none;}
+.campo .area-abajo{position:absolute;right:0;top:18%;bottom:18%;width:100px;border:2px solid var(--border);border-right:none;}
 .tarjeta{
   position:absolute;transform:translate(-50%,-50%);
   cursor:grab;user-select:none;
 }
 .tarjeta.arrastrando{cursor:grabbing;z-index:20;}
 .tarjeta .avatar{
-  max-width:150px;padding:8px 14px;border-radius:8px;color:var(--text);
-  font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:190px;padding:11px 18px;border-radius:8px;color:var(--text);
+  font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   box-shadow:0 2px 6px rgba(0,0,0,.2);border:2px solid var(--primary);
-  position:relative;text-align:center;
+  text-align:center;
 }
 .tarjeta .avatar.origen-manual{border-color:#f59e0b;}
 .tarjeta .avatar.origen-club{border-color:#16a34a;}
@@ -56,18 +56,18 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 .tarjeta .avatar.color-amarillo{background:#fef9c3;}
 .tarjeta .avatar.color-verde{background:#dcfce7;}
 .tarjeta .quitar{
-  position:absolute;top:-8px;right:-8px;width:16px;height:16px;border-radius:50%;
-  background:#dc2626;color:#fff;font-size:10px;line-height:16px;text-align:center;
-  cursor:pointer;display:none;
+  position:absolute;top:-8px;right:-8px;width:18px;height:18px;border-radius:50%;
+  background:#dc2626;color:#fff;font-size:11px;line-height:18px;text-align:center;
+  cursor:pointer;display:none;z-index:10;
 }
 .tarjeta:hover .quitar{display:block;}
 .tarjeta .colores{
-  display:none;position:absolute;bottom:-26px;left:50%;transform:translateX(-50%);
+  display:none;position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);
   gap:4px;background:#fff;border:1px solid var(--border);border-radius:12px;
-  padding:4px 6px;box-shadow:0 2px 8px rgba(0,0,0,.2);white-space:nowrap;
+  padding:4px 6px;box-shadow:0 2px 8px rgba(0,0,0,.2);white-space:nowrap;z-index:10;
 }
 .tarjeta:hover .colores{display:flex;}
-.tarjeta .colores span{width:14px;height:14px;border-radius:50%;border:1px solid var(--border);cursor:pointer;display:inline-block;}
+.tarjeta .colores span{width:15px;height:15px;border-radius:50%;border:1px solid var(--border);cursor:pointer;display:inline-block;}
 .tooltip{
   position:fixed;z-index:100;background:#fff;border:1px solid var(--border);border-radius:8px;
   padding:12px 14px;font-size:12px;box-shadow:0 10px 25px rgba(0,0,0,.2);width:220px;
@@ -99,6 +99,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
   <select id="selector_plantilla" onchange="onPlantillaChange()" style="min-width:220px;"></select>
   <span id="rango_label" style="color:var(--muted);font-size:13px;"></span>
   <button class="secondary" onclick="crearPlantilla()">+ Nueva plantilla</button>
+  <button class="secondary" id="btn_editar_plantilla" style="display:none;" onclick="editarPlantilla()">Editar plantilla</button>
   <button class="danger" id="btn_eliminar_plantilla" style="display:none;" onclick="eliminarPlantilla()">Eliminar plantilla</button>
 </div>
 
@@ -157,7 +158,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 
 <div class="modal-overlay" id="modal_nueva_plantilla">
   <div class="modal-box">
-    <h3>Nueva plantilla</h3>
+    <h3 id="modal_plantilla_titulo">Nueva plantilla</h3>
     <label>Nombre</label>
     <input id="np_nombre" type="text" style="width:100%;margin-bottom:12px;">
     <div style="display:flex;gap:10px;">
@@ -173,7 +174,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
     <p style="font-size:12px;color:var(--muted);margin-top:8px;">Opcional: limita qué jugadores aparecen al buscar en esta plantilla.</p>
     <div style="display:flex;gap:10px;margin-top:16px;">
       <button class="secondary" style="flex:1;" onclick="cerrarModalPlantilla()">Cancelar</button>
-      <button style="flex:1;" onclick="confirmarNuevaPlantilla()">Crear</button>
+      <button style="flex:1;" id="modal_plantilla_confirmar" onclick="confirmarNuevaPlantilla()">Crear</button>
     </div>
   </div>
 </div>
@@ -262,12 +263,14 @@ async function cargarPlantillas() {
     plantillaActualId = plantillaActual.id;
     sel.value = plantillaActualId;
     document.getElementById("btn_eliminar_plantilla").style.display = "inline-block";
+    document.getElementById("btn_editar_plantilla").style.display = "inline-block";
     actualizarRangoLabel();
     cargarTablero();
   } else {
     plantillaActual = null;
     plantillaActualId = null;
     document.getElementById("btn_eliminar_plantilla").style.display = "none";
+    document.getElementById("btn_editar_plantilla").style.display = "none";
     actualizarRangoLabel();
     renderTablero([]);
   }
@@ -280,11 +283,27 @@ function onPlantillaChange() {
   cargarTablero();
 }
 
+let modoModalPlantilla = "crear";
+
 function crearPlantilla() {
   if (!miClubId) { alert("No hay un club seleccionado."); return; }
+  modoModalPlantilla = "crear";
+  document.getElementById("modal_plantilla_titulo").textContent = "Nueva plantilla";
+  document.getElementById("modal_plantilla_confirmar").textContent = "Crear";
   document.getElementById("np_nombre").value = "";
   document.getElementById("np_anio_min").value = "";
   document.getElementById("np_anio_max").value = "";
+  document.getElementById("modal_nueva_plantilla").style.display = "flex";
+}
+
+function editarPlantilla() {
+  if (!plantillaActual) return;
+  modoModalPlantilla = "editar";
+  document.getElementById("modal_plantilla_titulo").textContent = "Editar plantilla";
+  document.getElementById("modal_plantilla_confirmar").textContent = "Guardar";
+  document.getElementById("np_nombre").value = plantillaActual.nombre || "";
+  document.getElementById("np_anio_min").value = plantillaActual.anio_min || "";
+  document.getElementById("np_anio_max").value = plantillaActual.anio_max || "";
   document.getElementById("modal_nueva_plantilla").style.display = "flex";
 }
 
@@ -298,6 +317,21 @@ async function confirmarNuevaPlantilla() {
 
   const anio_min = document.getElementById("np_anio_min").value || null;
   const anio_max = document.getElementById("np_anio_max").value || null;
+
+  if (modoModalPlantilla === "editar") {
+    const { data, error } = await client.from("plantillas")
+      .update({ nombre, anio_min, anio_max }).eq("id", plantillaActualId).select("*").single();
+
+    if (error) { alert("Error guardando la plantilla: " + error.message); return; }
+
+    cerrarModalPlantilla();
+    await cargarPlantillas();
+    document.getElementById("selector_plantilla").value = data.id;
+    plantillaActualId = data.id;
+    plantillaActual = data;
+    actualizarRangoLabel();
+    return;
+  }
 
   const { data, error } = await client.from("plantillas")
     .insert({ club_id: miClubId, nombre, anio_min, anio_max }).select("*").single();
@@ -398,15 +432,13 @@ function renderTablero(filas) {
     tarjeta.style.left = fila.pos_x + "%";
     tarjeta.style.top = fila.pos_y + "%";
     tarjeta.innerHTML = `
-      <div class="avatar origen-${fila.origen} color-${fila.color || "blanco"}" title="${fila.nombre}">
-        ${fila.nombre}
-        <span class="quitar" onmousedown="event.stopPropagation()" onclick="quitarDelTablero(event, ${fila.id})">×</span>
-        <div class="colores">
-          <span onmousedown="event.stopPropagation()" onclick="cambiarColor(event, ${fila.id}, 'blanco')" style="background:#fff"></span>
-          <span onmousedown="event.stopPropagation()" onclick="cambiarColor(event, ${fila.id}, 'azul')" style="background:#bfdbfe"></span>
-          <span onmousedown="event.stopPropagation()" onclick="cambiarColor(event, ${fila.id}, 'amarillo')" style="background:#fef08a"></span>
-          <span onmousedown="event.stopPropagation()" onclick="cambiarColor(event, ${fila.id}, 'verde')" style="background:#bbf7d0"></span>
-        </div>
+      <div class="avatar origen-${fila.origen} color-${fila.color || "blanco"}" title="${fila.nombre}">${fila.nombre}</div>
+      <span class="quitar" onmousedown="event.stopPropagation()" onclick="quitarDelTablero(event, ${fila.id})">×</span>
+      <div class="colores">
+        <span onmousedown="event.stopPropagation()" onclick="cambiarColor(event, ${fila.id}, 'blanco')" style="background:#fff"></span>
+        <span onmousedown="event.stopPropagation()" onclick="cambiarColor(event, ${fila.id}, 'azul')" style="background:#bfdbfe"></span>
+        <span onmousedown="event.stopPropagation()" onclick="cambiarColor(event, ${fila.id}, 'amarillo')" style="background:#fef08a"></span>
+        <span onmousedown="event.stopPropagation()" onclick="cambiarColor(event, ${fila.id}, 'verde')" style="background:#bbf7d0"></span>
       </div>
     `;
     campo.appendChild(tarjeta);
@@ -446,8 +478,7 @@ function mostrarTooltip(e, fila) {
     tt.innerHTML = `
       <div class="t-nombre">${fila.nombre}</div>
       <div class="t-row"><span>Equipo</span><b>${fila.equipo || "-"}</b></div>
-      <div class="t-row"><span>Posición oficial</span><b>${fila.posicion_oficial || "-"}</b></div>
-      <div class="t-row"><span>Posición (mi club)</span><b>${fila.posicion || "-"}</b></div>
+      <div class="t-row"><span>Posición</span><b>${fila.posicion || "-"}</b></div>
       <div class="t-row"><span>Año</span><b>${fila.anio_nacimiento || fila.anio_oficial || "-"}</b></div>
       <div class="t-row"><span>Técnica</span><b>${fila.tecnica ?? "-"}</b></div>
       <div class="t-row"><span>Táctica</span><b>${fila.tactica ?? "-"}</b></div>
