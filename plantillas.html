@@ -44,11 +44,12 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 }
 .tarjeta.arrastrando{cursor:grabbing;z-index:20;}
 .tarjeta .avatar{
-  max-width:190px;padding:11px 18px;border-radius:8px;color:var(--text);
-  font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:190px;padding:9px 18px;border-radius:8px;color:var(--text);
   box-shadow:0 2px 6px rgba(0,0,0,.2);border:2px solid var(--primary);
   text-align:center;
 }
+.tarjeta .avatar-nombre{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tarjeta .avatar-sub{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
 .tarjeta .avatar.origen-manual{border-color:#f59e0b;}
 .tarjeta .avatar.origen-club{border-color:#16a34a;}
 .tarjeta .avatar.color-blanco{background:#fff;}
@@ -515,6 +516,12 @@ async function cargarTablero() {
   renderTablero(filasTablero);
 }
 
+function subTextoTarjeta(fila) {
+  if (fila.origen === "valorado") return fila.equipo || "";
+  if (fila.origen === "club") return "Mi club";
+  return fila.posicion || "";
+}
+
 function renderTablero(filas) {
   const campo = document.getElementById("campo");
   campo.querySelectorAll(".tarjeta").forEach(t => t.remove());
@@ -525,7 +532,10 @@ function renderTablero(filas) {
     tarjeta.style.left = fila.pos_x + "%";
     tarjeta.style.top = fila.pos_y + "%";
     tarjeta.innerHTML = `
-      <div class="avatar origen-${fila.origen} color-${fila.color || "blanco"}" title="${fila.nombre}">${fila.nombre}</div>
+      <div class="avatar origen-${fila.origen} color-${fila.color || "blanco"}" title="${fila.nombre}">
+        <div class="avatar-nombre">${fila.nombre}</div>
+        <div class="avatar-sub">${subTextoTarjeta(fila)}</div>
+      </div>
       <span class="quitar" onmousedown="event.stopPropagation()" onclick="quitarDelTablero(event, ${fila.id})">×</span>
       <div class="colores">
         <span onmousedown="event.stopPropagation()" onclick="cambiarColor(event, ${fila.id}, 'blanco')" style="background:#fff"></span>
