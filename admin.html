@@ -461,6 +461,17 @@ async function importarExcel() {
 let clubsCache = [];
 let tablaUsuarios = null;
 
+async function mensajeError(error) {
+  if (!error) return "";
+  if (error.context && typeof error.context.json === "function") {
+    try {
+      const body = await error.context.json();
+      if (body?.error) return typeof body.error === "string" ? body.error : JSON.stringify(body.error);
+    } catch (e) {}
+  }
+  return error.message || "Error desconocido";
+}
+
 async function cargarClubsCache() {
   const { data } = await client.from("clubs").select("id, nombre").order("nombre");
   clubsCache = data || [];
@@ -500,7 +511,7 @@ async function cargarUsuarios() {
           if (!row.id) { cell.getRow().delete(); return; }
           if (!confirm(`¿Eliminar a ${row.username || row.email}? No se puede deshacer.`)) return;
           const { error } = await client.functions.invoke("admin-delete-user", { body: { id: row.id } });
-          if (error) { alert("Error eliminando: " + error.message); return; }
+          if (error) { alert("Error eliminando: " + await mensajeError(error)); return; }
           cell.getRow().delete();
         }
       }
@@ -525,7 +536,7 @@ async function guardarUsuario(cell) {
     const { error } = await client.functions.invoke("admin-update-password", {
       body: { id: row.id, password: row.contrasena }
     });
-    if (error) { status.textContent = "Error cambiando contraseña: " + error.message; return; }
+    if (error) { status.textContent = "Error cambiando contraseña: " + await mensajeError(error); return; }
     row.contrasena = "";
     cell.getRow().update(row);
     status.textContent = "Contraseña actualizada.";
@@ -542,7 +553,7 @@ async function guardarUsuario(cell) {
   const { error } = await client.functions.invoke("admin-update-profile", {
     body: { id: row.id, email: row.email, username: row.username, nombre: row.nombre }
   });
-  status.textContent = error ? "Error actualizando: " + error.message : "Guardado.";
+  status.textContent = error ? "Error actualizando: " + await mensajeError(error) : "Guardado.";
 }
 
 async function crearUsuarioDesdeFila(row) {
@@ -556,7 +567,7 @@ async function crearUsuarioDesdeFila(row) {
     }
   });
 
-  if (error) { status.textContent = "Error creando usuario: " + error.message; return; }
+  if (error) { status.textContent = "Error creando usuario: " + await mensajeError(error); return; }
   status.textContent = "Usuario creado.";
   await cargarUsuarios();
 }
