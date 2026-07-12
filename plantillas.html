@@ -167,6 +167,8 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
       <div id="panel_manual" style="display:none;">
         <label>Nombre</label>
         <input id="manual_nombre" type="text" style="width:100%;margin-bottom:8px;">
+        <label>Club actual</label>
+        <input id="manual_club" type="text" style="width:100%;margin-bottom:8px;">
         <label>Posición (opcional)</label>
         <input id="manual_posicion" type="text" style="width:100%;margin-bottom:8px;">
         <label>Año (opcional)</label>
@@ -528,7 +530,7 @@ async function cargarTablero() {
       const cj = clubJugadores.find(x => x.id === f.club_jugador_id) || {};
       return { ...f, nombre: cj.nombre || "(jugador)", posicion: cj.posicion, anio_nacimiento: cj.anio_nacimiento, origen: "club" };
     }
-    return { ...f, nombre: f.nombre_manual, posicion: f.posicion_manual, anio_nacimiento: f.anio_manual, origen: "manual" };
+    return { ...f, nombre: f.nombre_manual, posicion: f.posicion_manual, anio_nacimiento: f.anio_manual, club_manual: f.club_manual, origen: "manual" };
   });
 
   renderTablero(filasTablero);
@@ -537,7 +539,7 @@ async function cargarTablero() {
 function subTextoTarjeta(fila) {
   if (fila.origen === "valorado") return fila.equipo || "";
   if (fila.origen === "club") return "Mi club";
-  return fila.posicion || "";
+  return fila.club_manual || fila.posicion || "";
 }
 
 function renderTablero(filas) {
@@ -628,7 +630,7 @@ function mostrarDetalle(fila) {
 
   if (fila.origen === "manual" || fila.origen === "club") {
     document.getElementById("det_sub").textContent =
-      [fila.origen === "club" ? "Jugador de mi club" : "Añadido manualmente", fila.posicion, fila.anio_nacimiento]
+      [fila.origen === "club" ? "Jugador de mi club" : "Añadido manualmente", fila.club_manual, fila.posicion, fila.anio_nacimiento]
         .filter(Boolean).join(" · ");
     barras.innerHTML = "";
     extra.innerHTML = "";
@@ -657,6 +659,7 @@ function mostrarTooltip(e, fila) {
   if (fila.origen === "manual") {
     tt.innerHTML = `
       <div class="t-nombre">${fila.nombre}</div>
+      <div class="t-row"><span>Club</span><b>${fila.club_manual || "-"}</b></div>
       <div class="t-row"><span>Posición</span><b>${fila.posicion || "-"}</b></div>
       <div class="t-row"><span>Año</span><b>${fila.anio_nacimiento || "-"}</b></div>
       <div class="t-row"><span>Origen</span><b>Añadido manualmente</b></div>
@@ -917,6 +920,7 @@ async function anadirClubJugador(clubJugadorId) {
 
 async function anadirManual() {
   const nombre = document.getElementById("manual_nombre").value.trim();
+  const club = document.getElementById("manual_club").value.trim();
   const posicion = document.getElementById("manual_posicion").value.trim();
   const anio = document.getElementById("manual_anio").value || null;
   if (!nombre) { alert("Escribe un nombre."); return; }
@@ -925,12 +929,13 @@ async function anadirManual() {
   const { pos_x, pos_y } = siguientePosicion();
 
   const { error } = await client.from("plantilla_jugadores").insert({
-    plantilla_id: plantillaActualId, nombre_manual: nombre, posicion_manual: posicion || null,
-    anio_manual: anio, pos_x, pos_y
+    plantilla_id: plantillaActualId, nombre_manual: nombre, club_manual: club || null,
+    posicion_manual: posicion || null, anio_manual: anio, pos_x, pos_y
   });
   if (error) { alert("Error añadiendo: " + error.message); return; }
 
   document.getElementById("manual_nombre").value = "";
+  document.getElementById("manual_club").value = "";
   document.getElementById("manual_posicion").value = "";
   document.getElementById("manual_anio").value = "";
   cargarTablero();
