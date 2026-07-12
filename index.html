@@ -1,20 +1,115 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>CaptaNET - Login</title>
-
-  <!-- Supabase JS v2 -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CaptaNET - Iniciar sesión</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#2563eb;--primary-dark:#1d4ed8;--bg:#f5f6fa;--card:#fff;--border:#e2e4eb;--text:#1f2430;--muted:#6b7280;}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  background:linear-gradient(160deg,#eef1fb 0%,var(--bg) 55%);
+  color:var(--text);
+}
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  box-shadow:0 20px 40px -20px rgba(30,41,59,.25);
+  padding:40px 36px;
+  width:100%;
+  max-width:380px;
+}
+.logo{
+  font-size:26px;
+  font-weight:800;
+  color:var(--primary);
+  text-align:center;
+  margin-bottom:4px;
+}
+.subtitle{
+  text-align:center;
+  color:var(--muted);
+  font-size:14px;
+  margin-bottom:28px;
+}
+label{
+  display:block;
+  font-size:13px;
+  color:var(--muted);
+  margin-bottom:6px;
+  font-weight:600;
+}
+.field{margin-bottom:16px;}
+input{
+  width:100%;
+  padding:11px 12px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  font-size:15px;
+  background:#fafbfe;
+  transition:border-color .15s, box-shadow .15s;
+}
+input:focus{
+  outline:none;
+  border-color:var(--primary);
+  box-shadow:0 0 0 3px rgba(37,99,235,.15);
+  background:#fff;
+}
+button{
+  width:100%;
+  padding:12px;
+  margin-top:8px;
+  border:none;
+  border-radius:8px;
+  background:var(--primary);
+  color:#fff;
+  font-size:15px;
+  font-weight:600;
+  cursor:pointer;
+  transition:background .15s;
+}
+button:hover{background:var(--primary-dark);}
+button:disabled{opacity:.6;cursor:default;}
+.error{
+  display:none;
+  background:#fef2f2;
+  color:#dc2626;
+  border:1px solid #fecaca;
+  border-radius:8px;
+  padding:10px 12px;
+  font-size:13px;
+  margin-bottom:16px;
+}
+</style>
 </head>
 
 <body>
-  <h2>CaptaNET</h2>
-  <h3>Iniciar sesión</h3>
+  <div class="card">
+    <div class="logo">CaptaNET</div>
+    <div class="subtitle">Plataforma de scouting</div>
 
-  <input id="username" type="text" placeholder="Usuario">
-  <input id="password" type="password" placeholder="Contraseña">
-  <button onclick="login()">Entrar</button>
+    <p id="error" class="error"></p>
+
+    <form id="loginForm">
+      <div class="field">
+        <label for="username">Usuario</label>
+        <input id="username" type="text" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="password">Contraseña</label>
+        <input id="password" type="password" autocomplete="current-password" required>
+      </div>
+      <button id="submitBtn" type="submit">Entrar</button>
+    </form>
+  </div>
 
   <script>
     const client = supabase.createClient(
@@ -22,11 +117,25 @@
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
     );
 
-    async function login() {
-      const username = document.getElementById("username").value;
+    const form = document.getElementById("loginForm");
+    const errorBox = document.getElementById("error");
+    const submitBtn = document.getElementById("submitBtn");
+
+    function mostrarError(msg) {
+      errorBox.textContent = msg;
+      errorBox.style.display = "block";
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorBox.style.display = "none";
+
+      const username = document.getElementById("username").value.trim();
       const password = document.getElementById("password").value;
 
-      // Buscar email por username
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Entrando...";
+
       const { data: perfil, error: perfilError } = await client
         .from("profiles")
         .select("email")
@@ -34,26 +143,26 @@
         .single();
 
       if (perfilError || !perfil) {
-        alert("Usuario no encontrado");
+        mostrarError("Usuario no encontrado.");
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Entrar";
         return;
       }
 
-      const email = perfil.email;
-
-      // Login con email real
-      const { data, error } = await client.auth.signInWithPassword({
-        email,
+      const { error } = await client.auth.signInWithPassword({
+        email: perfil.email,
         password
       });
 
       if (error) {
-        alert("Error: " + error.message);
+        mostrarError("Usuario o contraseña incorrectos.");
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Entrar";
         return;
       }
 
-      // Redirección directa al visor
       window.location.href = "visor.html";
-    }
+    });
   </script>
 </body>
 </html>
