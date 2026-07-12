@@ -240,7 +240,6 @@ function crearTabla() {
       layout: "fitColumns",
       height: "70vh",
       reactiveData: true,
-      tableBuilt: resolve,
       columns: [
       { title: "Jugador", field: "nombre", frozen: true },
       { title: "Equipo", field: "equipo" },
@@ -257,14 +256,15 @@ function crearTabla() {
       },
       { title: "Actitud", field: "actitud", editor: "number" },
       { title: "Comentario", field: "comentario", editor: "textarea", formatter: "textarea" }
-      ],
-      cellEdited: cell => {
-        console.log("[CaptaNET] cellEdited", cell.getField(), cell.getValue());
-        if (CAMPOS_PRIVADOS.includes(cell.getField())) {
-          guardarPrivado(cell.getRow().getData());
-        } else {
-          console.log("[CaptaNET] campo no está en CAMPOS_PRIVADOS, no se guarda:", cell.getField());
-        }
+      ]
+    });
+
+    // En Tabulator 5.x los eventos de tabla solo funcionan vía .on(),
+    // no como opciones del constructor (ahí se ignoran en silencio).
+    tabla.on("tableBuilt", resolve);
+    tabla.on("cellEdited", cell => {
+      if (CAMPOS_PRIVADOS.includes(cell.getField())) {
+        guardarPrivado(cell.getRow().getData());
       }
     });
   });
@@ -357,14 +357,10 @@ async function guardarPrivado(row) {
     comentario: row.comentario || null
   };
 
-  console.log("[CaptaNET] guardarPrivado payload:", payload);
-
   try {
-    const { data, error } = await client.from("jugadores_club")
+    const { error } = await client.from("jugadores_club")
       .upsert(payload, { onConflict: "jugador_id,club_id,temporada_id" })
       .select();
-
-    console.log("[CaptaNET] resultado upsert:", { data, error });
 
     aviso.style.display = "block";
     if (error) {
@@ -376,7 +372,6 @@ async function guardarPrivado(row) {
       setTimeout(() => { aviso.style.display = "none"; aviso.style.color = ""; }, 1500);
     }
   } catch (e) {
-    console.error("[CaptaNET] excepción guardando:", e);
     aviso.style.display = "block";
     aviso.style.color = "#dc2626";
     aviso.textContent = "Excepción al guardar: " + e.message;

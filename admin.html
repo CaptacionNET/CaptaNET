@@ -172,6 +172,8 @@ function mostrarTab(id) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
   document.getElementById(id).style.display = "block";
   document.getElementById("tab_" + id).classList.add("active");
+
+  if (id === "clubs" && !tablaClubs) cargarClubs();
 }
 
 async function cargarCaches() {
@@ -297,9 +299,12 @@ async function cargarNivel() {
     layout: "fitColumns",
     reactiveData: true,
     columns: columnasPara(nivel),
-    height: "520px",
-    cellEdited: cell => guardarFila(nivel, cell.getRow().getData())
+    height: "520px"
   });
+
+  // En Tabulator 5.x los eventos de tabla solo funcionan vía .on(),
+  // no como opciones del constructor (ahí se ignoran en silencio).
+  tablaNivel.on("cellEdited", cell => guardarFila(nivel, cell.getRow().getData()));
 }
 
 function anadirFila() {
@@ -342,17 +347,18 @@ async function cargarClubs() {
           cell.getRow().delete();
         }
       }
-    ],
-    cellEdited: async cell => {
-      const row = cell.getRow().getData();
-      const payload = { ...row };
-      delete payload.id;
-      if (row.id) {
-        await client.from("clubs").update(payload).eq("id", row.id);
-      } else {
-        const { data, error } = await client.from("clubs").insert(payload).select("id").single();
-        if (!error) { row.id = data.id; tablaClubs.updateData([row]); }
-      }
+    ]
+  });
+
+  tablaClubs.on("cellEdited", async cell => {
+    const row = cell.getRow().getData();
+    const payload = { ...row };
+    delete payload.id;
+    if (row.id) {
+      await client.from("clubs").update(payload).eq("id", row.id);
+    } else {
+      const { data, error } = await client.from("clubs").insert(payload).select("id").single();
+      if (!error) { row.id = data.id; tablaClubs.updateData([row]); }
     }
   });
 }
