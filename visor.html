@@ -60,7 +60,14 @@ input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-rad
   </div>
   <div class="field">
     <label>Buscar jugador</label>
-    <input id="filtro_nombre" type="text" placeholder="Nombre..." oninput="cargarJugadores()">
+    <input id="filtro_nombre" type="text" placeholder="Nombre..." oninput="aplicarFiltrosLocales()">
+  </div>
+  <div class="field">
+    <label>&nbsp;</label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);">
+      <input id="filtro_solo_vistos" type="checkbox" onchange="aplicarFiltrosLocales()" style="width:auto;">
+      Solo vistos
+    </label>
   </div>
 </div>
 
@@ -79,6 +86,7 @@ let esAdmin = false;
 let miClubId = null;
 let temporadasCache = [], categoriasCache = [], ligasCache = [], gruposCache = [], equiposCache = [];
 let tabla = null;
+let basefilas = [];
 
 async function protegerPagina() {
   const { data: session } = await client.auth.getSession();
@@ -261,9 +269,7 @@ async function cargarJugadores() {
     privados = data || [];
   }
 
-  const nombreFiltro = document.getElementById("filtro_nombre").value.toLowerCase();
-
-  let filas = (jugadores || []).map(j => {
+  basefilas = (jugadores || []).map(j => {
     const priv = privados.find(p => p.jugador_id === j.id) || {};
     const equipo = equiposCache.find(e => e.id === j.equipo_id);
     return {
@@ -285,13 +291,28 @@ async function cargarJugadores() {
     };
   });
 
+  aplicarFiltrosLocales();
+}
+
+function tieneDatosClub(f) {
+  return !!(f.anio_nacimiento || f.posicion || f.contacto || f.contactado ||
+    f.tecnica || f.tactica || f.fisico || f.actitud || (f.comentario && String(f.comentario).trim()));
+}
+
+function aplicarFiltrosLocales() {
+  const nombreFiltro = document.getElementById("filtro_nombre").value.toLowerCase();
+  const soloVistos = document.getElementById("filtro_solo_vistos").checked;
+
+  let filas = basefilas;
   if (nombreFiltro) filas = filas.filter(f => f.nombre.toLowerCase().includes(nombreFiltro));
+  if (soloVistos) filas = filas.filter(tieneDatosClub);
 
   tabla.setData(filas);
 }
 
 async function guardarPrivado(row) {
   const temporadaId = document.getElementById("filtro_temporada").value;
+  const aviso = document.getElementById("aviso");
   const payload = {
     jugador_id: row.jugador_id,
     club_id: miClubId,
@@ -307,7 +328,17 @@ async function guardarPrivado(row) {
     comentario: row.comentario || null
   };
 
-  await client.from("jugadores_club").upsert(payload, { onConflict: "jugador_id,club_id,temporada_id" });
+  const { error } = await client.from("jugadores_club").upsert(payload, { onConflict: "jugador_id,club_id,temporada_id" });
+
+  aviso.style.display = "block";
+  if (error) {
+    aviso.style.color = "#dc2626";
+    aviso.textContent = "No se pudo guardar: " + error.message;
+  } else {
+    aviso.style.color = "#16a34a";
+    aviso.textContent = "Guardado.";
+    setTimeout(() => { aviso.style.display = "none"; aviso.style.color = ""; }, 1500);
+  }
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
