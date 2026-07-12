@@ -233,12 +233,14 @@ function exportarPDF() {
 }
 
 function crearTabla() {
-  tabla = new Tabulator("#tabla", {
-    data: [],
-    layout: "fitColumns",
-    height: "70vh",
-    reactiveData: true,
-    columns: [
+  return new Promise(resolve => {
+    tabla = new Tabulator("#tabla", {
+      data: [],
+      layout: "fitColumns",
+      height: "70vh",
+      reactiveData: true,
+      tableBuilt: resolve,
+      columns: [
       { title: "Jugador", field: "nombre", frozen: true },
       { title: "Equipo", field: "equipo" },
       { title: "Dorsal", field: "dorsal" },
@@ -253,10 +255,11 @@ function crearTabla() {
       { title: "Físico", field: "fisico", editor: "number" },
       { title: "Actitud", field: "actitud", editor: "number" },
       { title: "Comentario", field: "comentario", editor: "textarea", formatter: "textarea" }
-    ],
-    cellEdited: cell => {
-      if (CAMPOS_PRIVADOS.includes(cell.getField())) guardarPrivado(cell.getRow().getData());
-    }
+      ],
+      cellEdited: cell => {
+        if (CAMPOS_PRIVADOS.includes(cell.getField())) guardarPrivado(cell.getRow().getData());
+      }
+    });
   });
 }
 
@@ -373,7 +376,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   poblarLigas();
   poblarGrupos();
   poblarEquipos();
-  crearTabla();
+  await crearTabla();
   cargarJugadores();
 });
 </script>
