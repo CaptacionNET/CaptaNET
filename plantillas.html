@@ -15,12 +15,13 @@ button:hover{opacity:.9;}
 button.secondary{background:#fff;color:var(--text);border:1px solid var(--border);}
 button.danger{background:#dc2626;}
 input,select{padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;}
+label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 .barra{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:16px 24px;}
 .layout{display:flex;gap:20px;padding:0 24px 24px;align-items:flex-start;}
 .panel{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;width:280px;flex-shrink:0;}
 .panel h3{margin:0 0 10px;font-size:15px;}
 .panel-tabs{display:flex;gap:6px;margin-bottom:12px;}
-.panel-tab{flex:1;padding:6px;border:1px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;font-size:12px;text-align:center;}
+.panel-tab{flex:1;padding:6px;border:1px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;font-size:11px;text-align:center;}
 .panel-tab.active{background:var(--primary);color:#fff;border-color:var(--primary);}
 .resultado{border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;font-size:13px;}
 .resultado .nombre{font-weight:600;}
@@ -30,7 +31,7 @@ input,select{padding:8px 10px;border:1px solid var(--border);border-radius:6px;f
 .campo{
   position:relative;width:100%;max-width:820px;aspect-ratio:820/540;
   background:#fff;
-  border:3px solid var(--border);border-radius:10px;overflow:hidden;
+  border:3px solid var(--border);border-radius:10px;overflow:visible;
   box-shadow:0 10px 30px -10px rgba(0,0,0,.15);
 }
 .campo .linea-medio{position:absolute;left:50%;top:0;bottom:0;width:2px;background:var(--border);}
@@ -43,18 +44,30 @@ input,select{padding:8px 10px;border:1px solid var(--border);border-radius:6px;f
 }
 .tarjeta.arrastrando{cursor:grabbing;z-index:20;}
 .tarjeta .avatar{
-  max-width:120px;padding:6px 12px;border-radius:6px;background:var(--card);color:var(--text);
-  font-weight:700;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:150px;padding:8px 14px;border-radius:8px;color:var(--text);
+  font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   box-shadow:0 2px 6px rgba(0,0,0,.2);border:2px solid var(--primary);
   position:relative;text-align:center;
 }
-.tarjeta .avatar.manual{border-color:#f59e0b;}
+.tarjeta .avatar.origen-manual{border-color:#f59e0b;}
+.tarjeta .avatar.origen-club{border-color:#16a34a;}
+.tarjeta .avatar.color-blanco{background:#fff;}
+.tarjeta .avatar.color-azul{background:#dbeafe;}
+.tarjeta .avatar.color-amarillo{background:#fef9c3;}
+.tarjeta .avatar.color-verde{background:#dcfce7;}
 .tarjeta .quitar{
   position:absolute;top:-8px;right:-8px;width:16px;height:16px;border-radius:50%;
   background:#dc2626;color:#fff;font-size:10px;line-height:16px;text-align:center;
   cursor:pointer;display:none;
 }
 .tarjeta:hover .quitar{display:block;}
+.tarjeta .colores{
+  display:none;position:absolute;bottom:-26px;left:50%;transform:translateX(-50%);
+  gap:4px;background:#fff;border:1px solid var(--border);border-radius:12px;
+  padding:4px 6px;box-shadow:0 2px 8px rgba(0,0,0,.2);white-space:nowrap;
+}
+.tarjeta:hover .colores{display:flex;}
+.tarjeta .colores span{width:14px;height:14px;border-radius:50%;border:1px solid var(--border);cursor:pointer;display:inline-block;}
 .tooltip{
   position:fixed;z-index:100;background:#fff;border:1px solid var(--border);border-radius:8px;
   padding:12px 14px;font-size:12px;box-shadow:0 10px 25px rgba(0,0,0,.2);width:220px;
@@ -64,6 +77,9 @@ input,select{padding:8px 10px;border:1px solid var(--border);border-radius:6px;f
 .tooltip .t-row{display:flex;justify-content:space-between;padding:2px 0;color:var(--muted);}
 .tooltip .t-row b{color:var(--text);}
 .status{font-weight:600;color:var(--muted);margin:0 24px 12px;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:200;}
+.modal-box{background:#fff;border-radius:10px;padding:24px;width:320px;box-shadow:0 20px 50px rgba(0,0,0,.3);}
+.modal-box h3{margin:0 0 14px;}
 </style>
 </head>
 <body>
@@ -81,6 +97,7 @@ input,select{padding:8px 10px;border:1px solid var(--border);border-radius:6px;f
     <select id="filtro_club" onchange="onClubChange()"></select>
   </div>
   <select id="selector_plantilla" onchange="onPlantillaChange()" style="min-width:220px;"></select>
+  <span id="rango_label" style="color:var(--muted);font-size:13px;"></span>
   <button class="secondary" onclick="crearPlantilla()">+ Nueva plantilla</button>
   <button class="danger" id="btn_eliminar_plantilla" style="display:none;" onclick="eliminarPlantilla()">Eliminar plantilla</button>
 </div>
@@ -92,6 +109,7 @@ input,select{padding:8px 10px;border:1px solid var(--border);border-radius:6px;f
     <h3>Añadir jugador</h3>
     <div class="panel-tabs">
       <div class="panel-tab active" id="tab_buscar" onclick="cambiarPanel('buscar')">Ya valorados</div>
+      <div class="panel-tab" id="tab_club" onclick="cambiarPanel('club')">Mi club</div>
       <div class="panel-tab" id="tab_manual" onclick="cambiarPanel('manual')">Manual</div>
     </div>
 
@@ -100,11 +118,27 @@ input,select{padding:8px 10px;border:1px solid var(--border);border-radius:6px;f
       <div id="resultados_busqueda"></div>
     </div>
 
+    <div id="panel_club" style="display:none;">
+      <input id="buscador_club" type="text" placeholder="Buscar en mi club..." style="width:100%;margin-bottom:10px;" oninput="buscarClub()">
+      <div id="resultados_club"></div>
+      <hr style="margin:14px 0;border:none;border-top:1px solid var(--border);">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">¿No está en la lista? Añádelo a tu club:</p>
+      <label>Nombre</label>
+      <input id="club_nombre" type="text" style="width:100%;margin-bottom:8px;">
+      <label>Posición</label>
+      <input id="club_posicion" type="text" style="width:100%;margin-bottom:8px;">
+      <label>Año de nacimiento</label>
+      <input id="club_anio" type="number" style="width:100%;margin-bottom:10px;">
+      <button style="width:100%;" onclick="crearJugadorClub()">+ Crear y añadir</button>
+    </div>
+
     <div id="panel_manual" style="display:none;">
-      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Nombre</label>
-      <input id="manual_nombre" type="text" style="width:100%;margin-bottom:10px;">
-      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Posición (opcional)</label>
-      <input id="manual_posicion" type="text" style="width:100%;margin-bottom:10px;">
+      <label>Nombre</label>
+      <input id="manual_nombre" type="text" style="width:100%;margin-bottom:8px;">
+      <label>Posición (opcional)</label>
+      <input id="manual_posicion" type="text" style="width:100%;margin-bottom:8px;">
+      <label>Año (opcional)</label>
+      <input id="manual_anio" type="number" style="width:100%;margin-bottom:10px;">
       <button style="width:100%;" onclick="anadirManual()">Añadir al campo</button>
     </div>
   </div>
@@ -121,6 +155,29 @@ input,select{padding:8px 10px;border:1px solid var(--border);border-radius:6px;f
 
 <div class="tooltip" id="tooltip"></div>
 
+<div class="modal-overlay" id="modal_nueva_plantilla">
+  <div class="modal-box">
+    <h3>Nueva plantilla</h3>
+    <label>Nombre</label>
+    <input id="np_nombre" type="text" style="width:100%;margin-bottom:12px;">
+    <div style="display:flex;gap:10px;">
+      <div style="flex:1;">
+        <label>Año mínimo</label>
+        <input id="np_anio_min" type="number" style="width:100%;">
+      </div>
+      <div style="flex:1;">
+        <label>Año máximo</label>
+        <input id="np_anio_max" type="number" style="width:100%;">
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-top:8px;">Opcional: limita qué jugadores aparecen al buscar en esta plantilla.</p>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="secondary" style="flex:1;" onclick="cerrarModalPlantilla()">Cancelar</button>
+      <button style="flex:1;" onclick="confirmarNuevaPlantilla()">Crear</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const client = supabase.createClient(
   "https://bnqoisjvboytiphiwosj.supabase.co",
@@ -130,6 +187,8 @@ const client = supabase.createClient(
 let esAdmin = false;
 let miClubId = null;
 let plantillaActualId = null;
+let plantillaActual = null;
+let plantillasCache = [];
 let filasTablero = [];
 
 async function protegerPagina() {
@@ -166,9 +225,27 @@ function onClubChange() {
 
 function cambiarPanel(nombre) {
   document.getElementById("panel_buscar").style.display = nombre === "buscar" ? "block" : "none";
+  document.getElementById("panel_club").style.display = nombre === "club" ? "block" : "none";
   document.getElementById("panel_manual").style.display = nombre === "manual" ? "block" : "none";
   document.getElementById("tab_buscar").classList.toggle("active", nombre === "buscar");
+  document.getElementById("tab_club").classList.toggle("active", nombre === "club");
   document.getElementById("tab_manual").classList.toggle("active", nombre === "manual");
+}
+
+function actualizarRangoLabel() {
+  const el = document.getElementById("rango_label");
+  if (plantillaActual && (plantillaActual.anio_min || plantillaActual.anio_max)) {
+    el.textContent = `(nacidos ${plantillaActual.anio_min || "?"}–${plantillaActual.anio_max || "?"})`;
+  } else {
+    el.textContent = "";
+  }
+}
+
+function rangoActual() {
+  if (!plantillaActual) return null;
+  const min = plantillaActual.anio_min, max = plantillaActual.anio_max;
+  if (!min && !max) return null;
+  return { min: min || 0, max: max || 9999 };
 }
 
 async function cargarPlantillas() {
@@ -176,38 +253,63 @@ async function cargarPlantillas() {
   if (!miClubId) { sel.innerHTML = "<option value=''>Sin club asignado</option>"; return; }
 
   const { data } = await client.from("plantillas").select("*").eq("club_id", miClubId).order("created_at");
+  plantillasCache = data || [];
   sel.innerHTML = "";
-  (data || []).forEach(p => sel.innerHTML += `<option value="${p.id}">${p.nombre}</option>`);
+  plantillasCache.forEach(p => sel.innerHTML += `<option value="${p.id}">${p.nombre}</option>`);
 
-  if (data && data.length) {
-    plantillaActualId = data[0].id;
+  if (plantillasCache.length) {
+    plantillaActual = plantillasCache[0];
+    plantillaActualId = plantillaActual.id;
     sel.value = plantillaActualId;
     document.getElementById("btn_eliminar_plantilla").style.display = "inline-block";
+    actualizarRangoLabel();
     cargarTablero();
   } else {
+    plantillaActual = null;
     plantillaActualId = null;
     document.getElementById("btn_eliminar_plantilla").style.display = "none";
+    actualizarRangoLabel();
     renderTablero([]);
   }
 }
 
 function onPlantillaChange() {
   plantillaActualId = document.getElementById("selector_plantilla").value;
+  plantillaActual = plantillasCache.find(p => p.id === plantillaActualId) || null;
+  actualizarRangoLabel();
   cargarTablero();
 }
 
-async function crearPlantilla() {
-  const nombre = prompt("Nombre de la nueva plantilla:");
-  if (!nombre) return;
+function crearPlantilla() {
   if (!miClubId) { alert("No hay un club seleccionado."); return; }
+  document.getElementById("np_nombre").value = "";
+  document.getElementById("np_anio_min").value = "";
+  document.getElementById("np_anio_max").value = "";
+  document.getElementById("modal_nueva_plantilla").style.display = "flex";
+}
+
+function cerrarModalPlantilla() {
+  document.getElementById("modal_nueva_plantilla").style.display = "none";
+}
+
+async function confirmarNuevaPlantilla() {
+  const nombre = document.getElementById("np_nombre").value.trim();
+  if (!nombre) { alert("Escribe un nombre."); return; }
+
+  const anio_min = document.getElementById("np_anio_min").value || null;
+  const anio_max = document.getElementById("np_anio_max").value || null;
 
   const { data, error } = await client.from("plantillas")
-    .insert({ club_id: miClubId, nombre }).select("id").single();
+    .insert({ club_id: miClubId, nombre, anio_min, anio_max }).select("*").single();
 
   if (error) { alert("Error creando la plantilla: " + error.message); return; }
+
+  cerrarModalPlantilla();
   await cargarPlantillas();
   document.getElementById("selector_plantilla").value = data.id;
   plantillaActualId = data.id;
+  plantillaActual = data;
+  actualizarRangoLabel();
   cargarTablero();
 }
 
@@ -229,8 +331,10 @@ async function cargarTablero() {
   status.textContent = "";
 
   const jugadorIds = (filas || []).filter(f => f.jugador_id).map(f => f.jugador_id);
+  const clubJugadorIds = (filas || []).filter(f => f.club_jugador_id).map(f => f.club_jugador_id);
 
-  let jugadores = [], equipos = [], privados = [];
+  let jugadores = [], equipos = [], privados = [], clubJugadores = [];
+
   if (jugadorIds.length) {
     const [j, p] = await Promise.all([
       client.from("jugadores").select("*").in("id", jugadorIds),
@@ -244,6 +348,11 @@ async function cargarTablero() {
       const e = await client.from("equipos").select("id, nombre").in("id", equipoIds);
       equipos = e.data || [];
     }
+  }
+
+  if (clubJugadorIds.length) {
+    const { data } = await client.from("club_jugadores").select("*").in("id", clubJugadorIds);
+    clubJugadores = data || [];
   }
 
   filasTablero = (filas || []).map(f => {
@@ -266,10 +375,14 @@ async function cargarTablero() {
         fisico: priv.fisico,
         actitud: priv.actitud,
         comentario: priv.comentario,
-        manual: false
+        origen: "valorado"
       };
     }
-    return { ...f, nombre: f.nombre_manual, posicion: f.posicion_manual, manual: true };
+    if (f.club_jugador_id) {
+      const cj = clubJugadores.find(x => x.id === f.club_jugador_id) || {};
+      return { ...f, nombre: cj.nombre || "(jugador)", posicion: cj.posicion, anio_nacimiento: cj.anio_nacimiento, origen: "club" };
+    }
+    return { ...f, nombre: f.nombre_manual, posicion: f.posicion_manual, anio_nacimiento: f.anio_manual, origen: "manual" };
   });
 
   renderTablero(filasTablero);
@@ -285,7 +398,16 @@ function renderTablero(filas) {
     tarjeta.style.left = fila.pos_x + "%";
     tarjeta.style.top = fila.pos_y + "%";
     tarjeta.innerHTML = `
-      <div class="avatar ${fila.manual ? "manual" : ""}" title="${fila.nombre}">${fila.nombre}<span class="quitar" onclick="quitarDelTablero(event, ${fila.id})">×</span></div>
+      <div class="avatar origen-${fila.origen} color-${fila.color || "blanco"}" title="${fila.nombre}">
+        ${fila.nombre}
+        <span class="quitar" onmousedown="event.stopPropagation()" onclick="quitarDelTablero(event, ${fila.id})">×</span>
+        <div class="colores">
+          <span onmousedown="event.stopPropagation()" onclick="cambiarColor(event, ${fila.id}, 'blanco')" style="background:#fff"></span>
+          <span onmousedown="event.stopPropagation()" onclick="cambiarColor(event, ${fila.id}, 'azul')" style="background:#bfdbfe"></span>
+          <span onmousedown="event.stopPropagation()" onclick="cambiarColor(event, ${fila.id}, 'amarillo')" style="background:#fef08a"></span>
+          <span onmousedown="event.stopPropagation()" onclick="cambiarColor(event, ${fila.id}, 'verde')" style="background:#bbf7d0"></span>
+        </div>
+      </div>
     `;
     campo.appendChild(tarjeta);
 
@@ -296,20 +418,36 @@ function renderTablero(filas) {
   });
 }
 
+async function cambiarColor(e, id, color) {
+  e.stopPropagation();
+  ocultarTooltip();
+  await client.from("plantilla_jugadores").update({ color }).eq("id", id);
+  cargarTablero();
+}
+
 function mostrarTooltip(e, fila) {
   const tt = document.getElementById("tooltip");
 
-  if (fila.manual) {
+  if (fila.origen === "manual") {
     tt.innerHTML = `
       <div class="t-nombre">${fila.nombre}</div>
       <div class="t-row"><span>Posición</span><b>${fila.posicion || "-"}</b></div>
+      <div class="t-row"><span>Año</span><b>${fila.anio_nacimiento || "-"}</b></div>
       <div class="t-row"><span>Origen</span><b>Añadido manualmente</b></div>
+    `;
+  } else if (fila.origen === "club") {
+    tt.innerHTML = `
+      <div class="t-nombre">${fila.nombre}</div>
+      <div class="t-row"><span>Posición</span><b>${fila.posicion || "-"}</b></div>
+      <div class="t-row"><span>Año</span><b>${fila.anio_nacimiento || "-"}</b></div>
+      <div class="t-row"><span>Origen</span><b>Jugador de mi club</b></div>
     `;
   } else {
     tt.innerHTML = `
       <div class="t-nombre">${fila.nombre}</div>
       <div class="t-row"><span>Equipo</span><b>${fila.equipo || "-"}</b></div>
       <div class="t-row"><span>Posición oficial</span><b>${fila.posicion_oficial || "-"}</b></div>
+      <div class="t-row"><span>Posición (mi club)</span><b>${fila.posicion || "-"}</b></div>
       <div class="t-row"><span>Año</span><b>${fila.anio_nacimiento || fila.anio_oficial || "-"}</b></div>
       <div class="t-row"><span>Técnica</span><b>${fila.tecnica ?? "-"}</b></div>
       <div class="t-row"><span>Táctica</span><b>${fila.tactica ?? "-"}</b></div>
@@ -383,6 +521,11 @@ async function quitarDelTablero(e, id) {
   cargarTablero();
 }
 
+function tieneDatosPrivado(p) {
+  return !!(p.anio_nacimiento || p.posicion || p.contacto || p.contactado ||
+    p.tecnica || p.tactica || p.fisico || p.actitud || (p.comentario && String(p.comentario).trim()));
+}
+
 let buscarTimeout = null;
 function buscarJugadores() {
   clearTimeout(buscarTimeout);
@@ -392,18 +535,42 @@ function buscarJugadores() {
 async function ejecutarBusqueda() {
   const q = document.getElementById("buscador").value.trim();
   const cont = document.getElementById("resultados_busqueda");
-  if (!q) { cont.innerHTML = ""; return; }
+  if (!miClubId) { cont.innerHTML = ""; return; }
 
-  const { data: jugadores } = await client.from("jugadores").select("*").ilike("nombre", `%${q}%`).limit(15);
-  if (!jugadores || !jugadores.length) { cont.innerHTML = "<p style='color:var(--muted);font-size:12px;'>Sin resultados.</p>"; return; }
+  const { data: privados } = await client.from("jugadores_club").select("*").eq("club_id", miClubId);
+  const conDatos = (privados || []).filter(tieneDatosPrivado);
 
-  const equipoIds = [...new Set(jugadores.map(j => j.equipo_id).filter(Boolean))];
+  if (!conDatos.length) {
+    cont.innerHTML = "<p style='color:var(--muted);font-size:12px;'>Aún no has valorado a ningún jugador.</p>";
+    return;
+  }
+
+  const ids = conDatos.map(p => p.jugador_id);
+  let query = client.from("jugadores").select("*").in("id", ids);
+  if (q) query = query.ilike("nombre", `%${q}%`);
+  const { data: jugadores } = await query.limit(30);
+
+  const rango = rangoActual();
+  const filtrados = (jugadores || []).filter(j => {
+    if (!rango) return true;
+    const priv = conDatos.find(p => p.jugador_id === j.id);
+    const anio = priv?.anio_nacimiento || (j.fecha_nacimiento ? new Date(j.fecha_nacimiento).getFullYear() : null);
+    if (!anio) return true;
+    return anio >= rango.min && anio <= rango.max;
+  });
+
+  if (!filtrados.length) {
+    cont.innerHTML = "<p style='color:var(--muted);font-size:12px;'>Sin resultados.</p>";
+    return;
+  }
+
+  const equipoIds = [...new Set(filtrados.map(j => j.equipo_id).filter(Boolean))];
   const { data: equipos } = equipoIds.length
     ? await client.from("equipos").select("id, nombre").in("id", equipoIds)
     : { data: [] };
 
   cont.innerHTML = "";
-  jugadores.forEach(j => {
+  filtrados.forEach(j => {
     const equipo = (equipos || []).find(e => e.id === j.equipo_id);
     const div = document.createElement("div");
     div.className = "resultado";
@@ -416,11 +583,74 @@ async function ejecutarBusqueda() {
   });
 }
 
+let buscarClubTimeout = null;
+function buscarClub() {
+  clearTimeout(buscarClubTimeout);
+  buscarClubTimeout = setTimeout(ejecutarBusquedaClub, 300);
+}
+
+async function ejecutarBusquedaClub() {
+  const q = document.getElementById("buscador_club").value.trim();
+  const cont = document.getElementById("resultados_club");
+  if (!miClubId) { cont.innerHTML = ""; return; }
+
+  let query = client.from("club_jugadores").select("*").eq("club_id", miClubId);
+  if (q) query = query.ilike("nombre", `%${q}%`);
+  const { data } = await query.order("nombre").limit(30);
+
+  const rango = rangoActual();
+  const filtrados = (data || []).filter(j => {
+    if (!rango || !j.anio_nacimiento) return true;
+    return j.anio_nacimiento >= rango.min && j.anio_nacimiento <= rango.max;
+  });
+
+  if (!filtrados.length) {
+    cont.innerHTML = "<p style='color:var(--muted);font-size:12px;'>Sin jugadores propios todavía.</p>";
+    return;
+  }
+
+  cont.innerHTML = "";
+  filtrados.forEach(j => {
+    const div = document.createElement("div");
+    div.className = "resultado";
+    div.innerHTML = `
+      <div class="nombre">${j.nombre}</div>
+      <div class="meta">${[j.posicion, j.anio_nacimiento].filter(Boolean).join(" · ")}</div>
+      <button onclick="anadirClubJugador('${j.id}')">+ Añadir al campo</button>
+    `;
+    cont.appendChild(div);
+  });
+}
+
+async function crearJugadorClub() {
+  const nombre = document.getElementById("club_nombre").value.trim();
+  const posicion = document.getElementById("club_posicion").value.trim();
+  const anio = document.getElementById("club_anio").value || null;
+  if (!nombre) { alert("Escribe un nombre."); return; }
+  if (!miClubId) { alert("No hay un club seleccionado."); return; }
+
+  const { data, error } = await client.from("club_jugadores")
+    .insert({ club_id: miClubId, nombre, posicion: posicion || null, anio_nacimiento: anio })
+    .select("id").single();
+
+  if (error) { alert("Error creando jugador: " + error.message); return; }
+
+  document.getElementById("club_nombre").value = "";
+  document.getElementById("club_posicion").value = "";
+  document.getElementById("club_anio").value = "";
+
+  await ejecutarBusquedaClub();
+  if (plantillaActualId) await anadirClubJugador(data.id);
+}
+
+function siguientePosicion() {
+  const n = filasTablero.length;
+  return { pos_x: 30 + (n % 3) * 20, pos_y: 15 + Math.floor(n / 3) * 18 };
+}
+
 async function anadirExistente(jugadorId) {
   if (!plantillaActualId) { alert("Crea o selecciona una plantilla primero."); return; }
-  const n = filasTablero.length;
-  const pos_x = 30 + (n % 3) * 20;
-  const pos_y = 15 + Math.floor(n / 3) * 18;
+  const { pos_x, pos_y } = siguientePosicion();
 
   const { error } = await client.from("plantilla_jugadores").insert({
     plantilla_id: plantillaActualId, jugador_id: jugadorId, pos_x, pos_y
@@ -429,23 +659,35 @@ async function anadirExistente(jugadorId) {
   cargarTablero();
 }
 
+async function anadirClubJugador(clubJugadorId) {
+  if (!plantillaActualId) { alert("Crea o selecciona una plantilla primero."); return; }
+  const { pos_x, pos_y } = siguientePosicion();
+
+  const { error } = await client.from("plantilla_jugadores").insert({
+    plantilla_id: plantillaActualId, club_jugador_id: clubJugadorId, pos_x, pos_y
+  });
+  if (error) { alert("Error añadiendo: " + error.message); return; }
+  cargarTablero();
+}
+
 async function anadirManual() {
   const nombre = document.getElementById("manual_nombre").value.trim();
   const posicion = document.getElementById("manual_posicion").value.trim();
+  const anio = document.getElementById("manual_anio").value || null;
   if (!nombre) { alert("Escribe un nombre."); return; }
   if (!plantillaActualId) { alert("Crea o selecciona una plantilla primero."); return; }
 
-  const n = filasTablero.length;
-  const pos_x = 30 + (n % 3) * 20;
-  const pos_y = 15 + Math.floor(n / 3) * 18;
+  const { pos_x, pos_y } = siguientePosicion();
 
   const { error } = await client.from("plantilla_jugadores").insert({
-    plantilla_id: plantillaActualId, nombre_manual: nombre, posicion_manual: posicion || null, pos_x, pos_y
+    plantilla_id: plantillaActualId, nombre_manual: nombre, posicion_manual: posicion || null,
+    anio_manual: anio, pos_x, pos_y
   });
   if (error) { alert("Error añadiendo: " + error.message); return; }
 
   document.getElementById("manual_nombre").value = "";
   document.getElementById("manual_posicion").value = "";
+  document.getElementById("manual_anio").value = "";
   cargarTablero();
 }
 
