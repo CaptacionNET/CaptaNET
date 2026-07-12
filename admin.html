@@ -1,202 +1,165 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>CaptaNET - Panel</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<meta charset="UTF-8">
+<title>CaptaNET - Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@5.6.2/dist/css/tabulator.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@5.6.2/dist/js/tabulator.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{--primary:#2563eb;--bg:#f5f6fa;--card:#fff;--border:#e2e4eb;--text:#1f2430;--muted:#6b7280;}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
+#topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;background:var(--card);border-bottom:1px solid var(--border);}
+#topbar .brand{font-weight:700;font-size:18px;color:var(--primary);}
+button{background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px;}
+button:hover{opacity:.9;}
+button.secondary{background:#fff;color:var(--text);border:1px solid var(--border);}
+button.danger{background:#dc2626;}
+input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;margin:16px 24px;max-width:480px;}
+.tabs{display:flex;gap:8px;padding:16px 24px 0;}
+.tab-btn{background:#fff;color:var(--text);border:1px solid var(--border);border-radius:8px 8px 0 0;padding:10px 18px;cursor:pointer;}
+.tab-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+.tab-content{display:none;padding:0 24px 24px;}
+.filtros{display:flex;gap:10px;flex-wrap:wrap;margin:16px 24px;align-items:center;}
+label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px;}
+.field{margin-bottom:12px;}
+.status{font-weight:600;margin-top:10px;color:var(--muted);}
+</style>
 </head>
-
-  <style>
-    .tab-btn {
-      padding: 10px 20px;
-      cursor: pointer;
-      border: 1px solid #ccc;
-      background: #f5f5f5;
-      margin-right: 10px;
-    }
-    .tab-btn.active {
-      background: #ddd;
-      font-weight: bold;
-    }
-    .tab-content {
-      display: none;
-      margin-top: 20px;
-    }
-    #universal-table {
-      margin-top: 20px;
-    }
-  </style>
-</head>
-
 <body>
-  <h2>CaptaNET</h2>
 
-  <div style="margin-bottom:20px;">
-    <button onclick="irVisor()">Visor de usuario</button>
-    <button onclick="logout()">Cerrar sesión</button>
+<div id="topbar">
+  <div class="brand">CaptaNET · Admin</div>
+  <div style="display:flex;gap:10px;">
+    <button class="secondary" onclick="window.location.href='visor.html'">Ir al visor</button>
+    <button class="secondary" onclick="logout()">Cerrar sesión</button>
   </div>
-
-  <div id="tabs" style="margin-bottom: 20px;">
-    <button id="tab_admin" class="tab-btn" onclick="mostrarTab('admin')">Panel Admin</button>
-    <button id="tab_contenido" class="tab-btn" onclick="mostrarTab('contenido')">Contenido</button>
-    <button id="tab_editor" class="tab-btn" onclick="mostrarTab('editor')">Editor de tablas (Excel Web)</button>
-  </div>
-
-  <div id="admin" class="tab-content">
-
-    <h3>Panel de Administración</h3>
-    <p>Bienvenido, administrador.</p>
-
-    <hr>
-
-    <h3>Usuarios registrados</h3>
-    <button onclick="cargarUsuarios()">Actualizar lista</button>
-    <ul id="lista_usuarios"></ul>
-
-    <hr>
-
-<div style="border: 1px solid #ccc; padding: 20px; max-width: 400px;">
-  <h3>Crear nuevo usuario</h3>
-
-  <label>Email</label>
-  <input id="new_email" type="email" style="width: 100%; margin-bottom: 10px;">
-
-  <label>Username</label>
-  <input id="new_username" type="text" style="width: 100%; margin-bottom: 10px;">
-
-  <label>Nombre</label>
-  <input id="new_nombre" type="text" style="width: 100%; margin-bottom: 10px;">
-
-  <label>Contraseña</label>
-  <input id="new_password_create" type="password" style="width: 100%; margin-bottom: 10px;">
-
-  <label>¿Es admin?</label>
-  <select id="new_is_admin" style="width: 100%; margin-bottom: 10px;">
-    <option value="false">No</option>
-    <option value="true">Sí</option>
-  </select>
-
-  <label>Club</label>
-  <select id="new_club_id" style="width: 100%; margin-bottom: 10px;">
-  </select>
-
-  <button onclick="crearUsuario()" style="width: 100%;">Crear usuario</button>
-  <p id="create_result" style="font-weight: bold;"></p>
 </div>
 
-    <hr>
+<div class="tabs">
+  <button id="tab_estructura" class="tab-btn" onclick="mostrarTab('estructura')">Estructura</button>
+  <button id="tab_excel" class="tab-btn" onclick="mostrarTab('excel')">Importar Excel</button>
+  <button id="tab_clubs" class="tab-btn" onclick="mostrarTab('clubs')">Clubs</button>
+  <button id="tab_usuarios" class="tab-btn" onclick="mostrarTab('usuarios')">Usuarios</button>
+</div>
 
-    <div style="border: 1px solid #ccc; padding: 20px; max-width: 400px;">
-      <h3>Editar usuario</h3>
-
-      <label>ID del usuario</label>
-      <input id="edit_id" type="text" style="width: 100%; margin-bottom: 10px;">
-
-      <label>Nuevo email</label>
-      <input id="edit_email" type="email" style="width: 100%; margin-bottom: 10px;">
-
-      <label>Nuevo username</label>
-      <input id="edit_username" type="text" style="width: 100%; margin-bottom: 10px;">
-
-      <button onclick="editarUsuario()" style="width: 100%;">Guardar cambios</button>
-      <p id="edit_result" style="font-weight: bold;"></p>
+<!-- ESTRUCTURA -->
+<div id="estructura" class="tab-content">
+  <div class="filtros">
+    <div>
+      <label>Nivel</label>
+      <select id="nivel_selector" onchange="cargarNivel()">
+        <option value="temporadas">Temporadas</option>
+        <option value="categorias">Categorías</option>
+        <option value="ligas">Ligas</option>
+        <option value="grupos">Grupos</option>
+        <option value="equipos">Equipos</option>
+        <option value="jugadores">Jugadores</option>
+      </select>
     </div>
-
-    <hr>
-
-    <div style="border: 1px solid #ccc; padding: 20px; max-width: 400px;">
-      <h3>Cambiar contraseña</h3>
-
-      <label>ID del usuario</label>
-      <input id="pw_id" type="text" style="width: 100%; margin-bottom: 10px;">
-
-      <label>Nueva contraseña</label>
-      <input id="pw_new" type="password" style="width: 100%; margin-bottom: 10px;">
-
-      <button onclick="changePassword()" style="width: 100%;">Cambiar contraseña</button>
-      <p id="pw_result" style="font-weight: bold;"></p>
+    <div style="align-self:end;">
+      <button onclick="anadirFila()">+ Añadir fila</button>
     </div>
+  </div>
+  <div id="tabla-nivel" style="margin:0 24px;"></div>
+</div>
 
-    <hr>
+<!-- IMPORTAR EXCEL -->
+<div id="excel" class="tab-content">
+  <div class="card">
+    <h3>Importar jugadores desde Excel</h3>
+    <p style="color:var(--muted);font-size:14px;">
+      El archivo debe tener las columnas: <b>TEMPORADA, CATEGORIA, LIGA, GRUPO, EQUIPO, JUGADOR</b>.
+      Si algo ya existe (misma temporada, categoría, liga, grupo o equipo) se reutiliza; solo se crea lo que falte.
+      Puedes importar el mismo archivo varias veces sin miedo a duplicar.
+    </p>
+    <input type="file" id="excel_input" accept=".xlsx,.xls">
+    <br><br>
+    <button onclick="importarExcel()">Importar</button>
+    <p id="excel_status" class="status"></p>
+  </div>
+</div>
 
-    <div style="border: 1px solid #ccc; padding: 20px; max-width: 400px;">
-      <h3>Eliminar usuario</h3>
+<!-- CLUBS -->
+<div id="clubs" class="tab-content">
+  <div style="margin:16px 24px;">
+    <button onclick="anadirFilaClub()">+ Añadir club</button>
+  </div>
+  <div id="tabla-clubs" style="margin:0 24px;"></div>
+</div>
 
-      <label>ID del usuario</label>
-      <input id="delete_id" type="text" style="width: 100%; margin-bottom: 10px;">
-
-      <button onclick="eliminarUsuario()" style="width: 100%;">Eliminar usuario</button>
-      <p id="delete_result" style="font-weight: bold;"></p>
-    </div>
-
+<!-- USUARIOS -->
+<div id="usuarios" class="tab-content">
+  <div class="card">
+    <h3>Usuarios registrados</h3>
+    <button class="secondary" onclick="cargarUsuarios()">Actualizar lista</button>
+    <ul id="lista_usuarios"></ul>
   </div>
 
-  <div id="contenido" class="tab-content">
-
-    <h3>Contenido público (requiere login)</h3>
-
-    <div style="border: 1px solid #ccc; padding: 20px; max-width: 500px;">
-      <h3>Seleccionar contenido</h3>
-
-      <label>Categoría</label>
-      <select id="categoria" style="width: 100%; margin-bottom: 10px;" onchange="cargarLigas()">
-        <option value="">Selecciona categoría</option>
-      </select>
-
-      <label>Competición</label>
-      <select id="liga" style="width: 100%; margin-bottom: 10px;" onchange="cargarGrupos()">
-        <option value="">Selecciona competición</option>
-      </select>
-
-      <label>Grupo</label>
-      <select id="grupo" style="width: 100%; margin-bottom: 10px;" onchange="cargarEquipos()">
-        <option value="">Selecciona grupo</option>
-      </select>
-
-      <label>Equipo</label>
-      <select id="equipo" style="width: 100%; margin-bottom: 10px;" onchange="cargarJugadores()">
-        <option value="">Selecciona equipo</option>
-      </select>
-
-      <label>Jugador</label>
-      <select id="jugador" style="width: 100%; margin-bottom: 10px;">
-        <option value="">Selecciona jugador</option>
+  <div class="card">
+    <h3>Crear nuevo usuario</h3>
+    <div class="field"><label>Email</label><input id="new_email" type="email" style="width:100%;"></div>
+    <div class="field"><label>Username</label><input id="new_username" type="text" style="width:100%;"></div>
+    <div class="field"><label>Nombre</label><input id="new_nombre" type="text" style="width:100%;"></div>
+    <div class="field"><label>Contraseña</label><input id="new_password_create" type="password" style="width:100%;"></div>
+    <div class="field">
+      <label>¿Es admin?</label>
+      <select id="new_is_admin" style="width:100%;">
+        <option value="false">No</option>
+        <option value="true">Sí</option>
       </select>
     </div>
-
+    <div class="field"><label>Club</label><select id="new_club_id" style="width:100%;"></select></div>
+    <button onclick="crearUsuario()" style="width:100%;">Crear usuario</button>
+    <p id="create_result" class="status"></p>
   </div>
 
-  <div id="editor" class="tab-content">
-    <h3>Editor universal de tablas (Excel Web)</h3>
-    <p>Puedes editar, crear y eliminar cualquier campo de cualquier tabla.</p>
-
-    <label>Selecciona tabla:</label>
-    <select id="tabla_selector" onchange="cargarTablaUniversal()" style="width:300px; margin-bottom:20px;">
-      <option value="">Selecciona una tabla</option>
-      <option value="categorias">categorias</option>
-      <option value="ligas">ligas</option>
-      <option value="equipos">equipos</option>
-      <option value="jugadores">jugadores</option>
-      <option value="profiles">profiles</option>
-      <option value="comentarios">comentarios</option>
-      <option value="valoraciones">valoraciones</option>
-    </select>
-
-    <div id="universal-table"></div>
-    <p id="universal_status" style="margin-top:10px; font-weight:bold;"></p>
+  <div class="card">
+    <h3>Editar usuario</h3>
+    <div class="field"><label>ID del usuario</label><input id="edit_id" type="text" style="width:100%;"></div>
+    <div class="field"><label>Nuevo email</label><input id="edit_email" type="email" style="width:100%;"></div>
+    <div class="field"><label>Nuevo username</label><input id="edit_username" type="text" style="width:100%;"></div>
+    <button onclick="editarUsuario()" style="width:100%;">Guardar cambios</button>
+    <p id="edit_result" class="status"></p>
   </div>
+
+  <div class="card">
+    <h3>Cambiar contraseña</h3>
+    <div class="field"><label>ID del usuario</label><input id="pw_id" type="text" style="width:100%;"></div>
+    <div class="field"><label>Nueva contraseña</label><input id="pw_new" type="password" style="width:100%;"></div>
+    <button onclick="changePassword()" style="width:100%;">Cambiar contraseña</button>
+    <p id="pw_result" class="status"></p>
+  </div>
+
+  <div class="card">
+    <h3>Eliminar usuario</h3>
+    <div class="field"><label>ID del usuario</label><input id="delete_id" type="text" style="width:100%;"></div>
+    <button class="danger" onclick="eliminarUsuario()" style="width:100%;">Eliminar usuario</button>
+    <p id="delete_result" class="status"></p>
+  </div>
+</div>
 
 <script>
-
-window.client = supabase.createClient(
+const client = supabase.createClient(
   "https://bnqoisjvboytiphiwosj.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MzYwODAxNywiZXhwIjoyMDk5MTg0MDE3fQ._9hvRbcrASM59Wav_AthABoOY3O-gj8XLrsz9zYyvEo"
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
 );
 
-function irVisor() {
-  window.location.href = "visor.html";
+let temporadasCache = [], categoriasCache = [], ligasCache = [], gruposCache = [], equiposCache = [];
+let tablaNivel = null, tablaClubs = null;
+
+async function protegerPagina() {
+  const { data: session } = await client.auth.getSession();
+  if (!session.session) { window.location.href = "index.html"; return false; }
+
+  const { data: perfil } = await client
+    .from("profiles").select("is_admin").eq("id", session.session.user.id).single();
+
+  if (!perfil || !perfil.is_admin) { window.location.href = "visor.html"; return false; }
+  return true;
 }
 
 async function logout() {
@@ -211,22 +174,347 @@ function mostrarTab(id) {
   document.getElementById("tab_" + id).classList.add("active");
 }
 
-mostrarTab("admin");
+async function cargarCaches() {
+  const [t, c, l, g, e] = await Promise.all([
+    client.from("temporadas").select("*").order("nombre"),
+    client.from("categorias").select("*").order("nombre"),
+    client.from("ligas").select("*").order("nombre"),
+    client.from("grupos").select("*").order("nombre"),
+    client.from("equipos").select("*").order("nombre"),
+  ]);
+  temporadasCache = t.data || [];
+  categoriasCache = c.data || [];
+  ligasCache = l.data || [];
+  gruposCache = g.data || [];
+  equiposCache = e.data || [];
+}
+
+const nombreTemporada = id => temporadasCache.find(x => x.id === id)?.nombre || "";
+const nombreCategoria = id => categoriasCache.find(x => x.id === id)?.nombre || "";
+const nombreLiga = id => ligasCache.find(x => x.id === id)?.nombre || "";
+const nombreGrupo = id => gruposCache.find(x => x.id === id)?.nombre || "";
+const nombreEquipo = id => equiposCache.find(x => x.id === id)?.nombre || "";
+
+function columnasPara(nivel) {
+  const base = {
+    temporadas: [
+      { title: "Nombre", field: "nombre", editor: "input" },
+      { title: "Inicio (AAAA-MM-DD)", field: "fecha_inicio", editor: "input" },
+      { title: "Fin (AAAA-MM-DD)", field: "fecha_fin", editor: "input" },
+      { title: "Activa", field: "activa", editor: "tickCross", formatter: "tickCross" }
+    ],
+    categorias: [
+      { title: "Nombre", field: "nombre", editor: "input" },
+      {
+        title: "Temporada", field: "temporada_id", editor: "list",
+        editorParams: { values: temporadasCache.map(t => ({ label: t.nombre, value: t.id })) },
+        formatter: cell => nombreTemporada(cell.getValue())
+      }
+    ],
+    ligas: [
+      { title: "Nombre", field: "nombre", editor: "input" },
+      {
+        title: "Categoría", field: "categoria_id", editor: "list",
+        editorParams: { values: categoriasCache.map(c => ({ label: `${c.nombre} (${nombreTemporada(c.temporada_id)})`, value: c.id })) },
+        formatter: cell => nombreCategoria(cell.getValue())
+      }
+    ],
+    grupos: [
+      { title: "Nombre", field: "nombre", editor: "input" },
+      {
+        title: "Liga", field: "liga_id", editor: "list",
+        editorParams: { values: ligasCache.map(l => ({ label: `${l.nombre} (${nombreCategoria(l.categoria_id)})`, value: l.id })) },
+        formatter: cell => nombreLiga(cell.getValue())
+      }
+    ],
+    equipos: [
+      { title: "Nombre", field: "nombre", editor: "input" },
+      { title: "Municipio", field: "municipio", editor: "input" },
+      {
+        title: "Grupo", field: "grupo_id", editor: "list",
+        editorParams: { values: gruposCache.map(g => ({ label: `${g.nombre} (${nombreLiga(g.liga_id)})`, value: g.id })) },
+        formatter: cell => nombreGrupo(cell.getValue())
+      }
+    ],
+    jugadores: [
+      { title: "Nombre", field: "nombre", editor: "input" },
+      { title: "Posición", field: "posicion", editor: "input" },
+      { title: "Dorsal", field: "dorsal", editor: "number" },
+      { title: "F. nacimiento (AAAA-MM-DD)", field: "fecha_nacimiento", editor: "input" },
+      {
+        title: "Equipo", field: "equipo_id", editor: "list",
+        editorParams: { values: equiposCache.map(e => ({ label: `${e.nombre} (${nombreGrupo(e.grupo_id)})`, value: e.id })) },
+        formatter: cell => nombreEquipo(cell.getValue())
+      }
+    ]
+  };
+
+  const cols = base[nivel].slice();
+  cols.push({
+    title: "Eliminar", formatter: "buttonCross", width: 90, align: "center",
+    cellClick: async (e, cell) => {
+      if (!confirm("¿Eliminar esta fila?")) return;
+      const row = cell.getRow().getData();
+      if (row.id) await client.from(nivel).delete().eq("id", row.id);
+      cell.getRow().delete();
+    }
+  });
+  return cols;
+}
+
+function derivarTemporada(nivel, payload) {
+  if (nivel === "ligas") payload.temporada_id = categoriasCache.find(c => c.id === payload.categoria_id)?.temporada_id || null;
+  if (nivel === "grupos") payload.temporada_id = ligasCache.find(l => l.id === payload.liga_id)?.temporada_id || null;
+  if (nivel === "equipos") payload.temporada_id = gruposCache.find(g => g.id === payload.grupo_id)?.temporada_id || null;
+  if (nivel === "jugadores") payload.temporada_id = equiposCache.find(e => e.id === payload.equipo_id)?.temporada_id || null;
+}
+
+async function guardarFila(nivel, row) {
+  const payload = { ...row };
+  delete payload.id;
+  derivarTemporada(nivel, payload);
+
+  if (row.id) {
+    await client.from(nivel).update(payload).eq("id", row.id);
+  } else {
+    const { data, error } = await client.from(nivel).insert(payload).select("id").single();
+    if (!error) {
+      row.id = data.id;
+      tablaNivel.updateData([row]);
+    }
+  }
+  await cargarCaches();
+}
+
+async function cargarNivel() {
+  const nivel = document.getElementById("nivel_selector").value;
+  await cargarCaches();
+
+  const { data } = await client.from(nivel).select("*");
+
+  tablaNivel = new Tabulator("#tabla-nivel", {
+    data: data || [],
+    layout: "fitColumns",
+    reactiveData: true,
+    columns: columnasPara(nivel),
+    height: "520px",
+    cellEdited: cell => guardarFila(nivel, cell.getRow().getData())
+  });
+}
+
+function anadirFila() {
+  const nivel = document.getElementById("nivel_selector").value;
+  const plantillas = {
+    temporadas: { nombre: "", fecha_inicio: "", fecha_fin: "", activa: false },
+    categorias: { nombre: "", temporada_id: null },
+    ligas: { nombre: "", categoria_id: null },
+    grupos: { nombre: "ÚNICO", liga_id: null },
+    equipos: { nombre: "", municipio: "", grupo_id: null },
+    jugadores: { nombre: "", posicion: "", dorsal: null, fecha_nacimiento: null, equipo_id: null }
+  };
+  tablaNivel.addRow(plantillas[nivel], true);
+}
+
+// ============ CLUBS ============
+async function cargarClubs() {
+  const { data } = await client.from("clubs").select("*");
+  await cargarCaches();
+
+  tablaClubs = new Tabulator("#tabla-clubs", {
+    data: data || [],
+    layout: "fitColumns",
+    reactiveData: true,
+    height: "520px",
+    columns: [
+      { title: "Nombre", field: "nombre", editor: "input" },
+      { title: "Slug (subdominio)", field: "slug", editor: "input" },
+      {
+        title: "Temporada", field: "temporada_id", editor: "list",
+        editorParams: { values: temporadasCache.map(t => ({ label: t.nombre, value: t.id })) },
+        formatter: cell => nombreTemporada(cell.getValue())
+      },
+      {
+        title: "Eliminar", formatter: "buttonCross", width: 90, align: "center",
+        cellClick: async (e, cell) => {
+          if (!confirm("¿Eliminar este club?")) return;
+          const row = cell.getRow().getData();
+          if (row.id) await client.from("clubs").delete().eq("id", row.id);
+          cell.getRow().delete();
+        }
+      }
+    ],
+    cellEdited: async cell => {
+      const row = cell.getRow().getData();
+      const payload = { ...row };
+      delete payload.id;
+      if (row.id) {
+        await client.from("clubs").update(payload).eq("id", row.id);
+      } else {
+        const { data, error } = await client.from("clubs").insert(payload).select("id").single();
+        if (!error) { row.id = data.id; tablaClubs.updateData([row]); }
+      }
+    }
+  });
+}
+
+function anadirFilaClub() {
+  tablaClubs.addRow({ nombre: "", slug: "", temporada_id: null }, true);
+}
+
+// ============ IMPORTAR EXCEL ============
+async function importarExcel() {
+  const file = document.getElementById("excel_input").files[0];
+  const estado = document.getElementById("excel_status");
+  if (!file) { estado.textContent = "Selecciona un archivo primero."; return; }
+
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf);
+  const filas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
+
+  estado.textContent = `Procesando ${filas.length} filas...`;
+  await cargarCaches();
+
+  const temporadaMap = new Map(), categoriaMap = new Map(), ligaMap = new Map(), grupoMap = new Map(), equipoMap = new Map();
+  const creados = { temporadas: 0, categorias: 0, ligas: 0, grupos: 0, equipos: 0, jugadores: 0 };
+  const errores = [];
+
+  for (let i = 0; i < filas.length; i++) {
+    const fila = filas[i];
+    try {
+      const temporadaNombre = String(fila.TEMPORADA || "").trim();
+      const categoriaNombre = String(fila.CATEGORIA || "").trim();
+      const ligaNombre = String(fila.LIGA || "").trim();
+      const grupoNombre = String(fila.GRUPO || "").trim() || "ÚNICO";
+      const equipoNombre = String(fila.EQUIPO || "").trim();
+      const jugadorNombre = String(fila.JUGADOR || "").trim();
+
+      if (!temporadaNombre || !categoriaNombre || !ligaNombre || !equipoNombre || !jugadorNombre) {
+        errores.push(`Fila ${i + 2}: faltan datos obligatorios`);
+        continue;
+      }
+
+      let temporadaId = temporadaMap.get(temporadaNombre);
+      if (!temporadaId) {
+        let existente = temporadasCache.find(t => t.nombre === temporadaNombre);
+        if (!existente) {
+          const { data, error } = await client.from("temporadas").insert({ nombre: temporadaNombre }).select("id").single();
+          if (error) throw error;
+          existente = { id: data.id, nombre: temporadaNombre };
+          temporadasCache.push(existente);
+          creados.temporadas++;
+        }
+        temporadaId = existente.id;
+        temporadaMap.set(temporadaNombre, temporadaId);
+      }
+
+      const catKey = temporadaId + "|" + categoriaNombre;
+      let categoriaId = categoriaMap.get(catKey);
+      if (!categoriaId) {
+        let existente = categoriasCache.find(c => c.nombre === categoriaNombre && c.temporada_id === temporadaId);
+        if (!existente) {
+          const { data, error } = await client.from("categorias").insert({ nombre: categoriaNombre, temporada_id: temporadaId }).select("id").single();
+          if (error) throw error;
+          existente = { id: data.id, nombre: categoriaNombre, temporada_id: temporadaId };
+          categoriasCache.push(existente);
+          creados.categorias++;
+        }
+        categoriaId = existente.id;
+        categoriaMap.set(catKey, categoriaId);
+      }
+
+      const ligaKey = categoriaId + "|" + ligaNombre;
+      let ligaId = ligaMap.get(ligaKey);
+      if (!ligaId) {
+        let existente = ligasCache.find(l => l.nombre === ligaNombre && l.categoria_id === categoriaId);
+        if (!existente) {
+          const { data, error } = await client.from("ligas").insert({ nombre: ligaNombre, categoria_id: categoriaId, temporada_id: temporadaId }).select("id").single();
+          if (error) throw error;
+          existente = { id: data.id, nombre: ligaNombre, categoria_id: categoriaId, temporada_id: temporadaId };
+          ligasCache.push(existente);
+          creados.ligas++;
+        }
+        ligaId = existente.id;
+        ligaMap.set(ligaKey, ligaId);
+      }
+
+      const grupoKey = ligaId + "|" + grupoNombre;
+      let grupoId = grupoMap.get(grupoKey);
+      if (!grupoId) {
+        let existente = gruposCache.find(g => g.nombre === grupoNombre && g.liga_id === ligaId);
+        if (!existente) {
+          const { data, error } = await client.from("grupos").insert({ nombre: grupoNombre, liga_id: ligaId, temporada_id: temporadaId }).select("id").single();
+          if (error) throw error;
+          existente = { id: data.id, nombre: grupoNombre, liga_id: ligaId, temporada_id: temporadaId };
+          gruposCache.push(existente);
+          creados.grupos++;
+        }
+        grupoId = existente.id;
+        grupoMap.set(grupoKey, grupoId);
+      }
+
+      const equipoKey = grupoId + "|" + equipoNombre;
+      let equipoId = equipoMap.get(equipoKey);
+      if (!equipoId) {
+        let existente = equiposCache.find(e => e.nombre === equipoNombre && e.grupo_id === grupoId);
+        if (!existente) {
+          const { data, error } = await client.from("equipos").insert({ nombre: equipoNombre, grupo_id: grupoId, temporada_id: temporadaId }).select("id").single();
+          if (error) throw error;
+          existente = { id: data.id, nombre: equipoNombre, grupo_id: grupoId, temporada_id: temporadaId };
+          equiposCache.push(existente);
+          creados.equipos++;
+        }
+        equipoId = existente.id;
+        equipoMap.set(equipoKey, equipoId);
+      }
+
+      const { data: jugadorExistente } = await client
+        .from("jugadores").select("id")
+        .eq("nombre", jugadorNombre).eq("equipo_id", equipoId).maybeSingle();
+
+      if (!jugadorExistente) {
+        const { error } = await client.from("jugadores").insert({ nombre: jugadorNombre, equipo_id: equipoId, temporada_id: temporadaId });
+        if (error) throw error;
+        creados.jugadores++;
+      }
+    } catch (e) {
+      errores.push(`Fila ${i + 2}: ${e.message}`);
+    }
+    estado.textContent = `Procesando... ${i + 1}/${filas.length}`;
+  }
+
+  estado.innerHTML =
+    `Importación terminada.<br>Temporadas nuevas: ${creados.temporadas} · Categorías nuevas: ${creados.categorias} · ` +
+    `Ligas nuevas: ${creados.ligas} · Grupos nuevos: ${creados.grupos} · Equipos nuevos: ${creados.equipos} · Jugadores nuevos: ${creados.jugadores}` +
+    (errores.length ? `<br><span style="color:#dc2626">${errores.length} filas con error:<br>${errores.join("<br>")}</span>` : "");
+}
+
+// ============ USUARIOS ============
+async function cargarListaDeClubs() {
+  const { data: clubs } = await client.from("clubs").select("id, nombre").order("nombre");
+  const select = document.getElementById("new_club_id");
+  select.innerHTML = "";
+  (clubs || []).forEach(club => {
+    const option = document.createElement("option");
+    option.value = club.id;
+    option.textContent = club.nombre;
+    select.appendChild(option);
+  });
+}
 
 async function cargarUsuarios() {
   const { data, error } = await client.functions.invoke("admin-list-users");
-
   const lista = document.getElementById("lista_usuarios");
   lista.innerHTML = "";
-
-  if (error) {
-    lista.innerHTML = "Error al cargar usuarios";
-    return;
-  }
-
+  if (error) { lista.innerHTML = "Error al cargar usuarios"; return; }
   data.users.forEach(u => {
     const li = document.createElement("li");
     li.textContent = `${u.id} - ${u.email} - ${u.user_metadata?.username || ""}`;
+    li.style.cursor = "pointer";
+    li.onclick = () => {
+      document.getElementById("edit_id").value = u.id;
+      document.getElementById("pw_id").value = u.id;
+      document.getElementById("delete_id").value = u.id;
+    };
     lista.appendChild(li);
   });
 }
@@ -239,12 +527,12 @@ async function crearUsuario() {
   const is_admin = document.getElementById("new_is_admin").value === "true";
   const club_id = document.getElementById("new_club_id").value;
 
-  const { data, error } = await client.functions.invoke("create-user", {
+  const { error } = await client.functions.invoke("create-user", {
     body: { email, password, username, nombre, club_id, is_admin }
   });
 
-  document.getElementById("create_result").innerText =
-    error ? "Error: " + error.message : "Usuario creado correctamente";
+  document.getElementById("create_result").innerText = error ? "Error: " + error.message : "Usuario creado correctamente";
+  if (!error) cargarUsuarios();
 }
 
 async function editarUsuario() {
@@ -252,364 +540,34 @@ async function editarUsuario() {
   const email = document.getElementById("edit_email").value;
   const username = document.getElementById("edit_username").value;
 
-  const { data, error } = await client.functions.invoke("admin-update-profile", {
-    body: { id, email, username }
-  });
-
-  document.getElementById("edit_result").textContent =
-    error ? "Error actualizando usuario" : "Usuario actualizado";
+  const { error } = await client.functions.invoke("admin-update-profile", { body: { id, email, username } });
+  document.getElementById("edit_result").textContent = error ? "Error actualizando usuario" : "Usuario actualizado";
 }
 
 async function changePassword() {
   const id = document.getElementById("pw_id").value;
   const password = document.getElementById("pw_new").value;
 
-  const { data, error } = await client.functions.invoke("admin-update-password", {
-    body: { id, password }
-  });
-
-  document.getElementById("pw_result").textContent =
-    error ? "Error cambiando contraseña" : "Contraseña cambiada";
+  const { error } = await client.functions.invoke("admin-update-password", { body: { id, password } });
+  document.getElementById("pw_result").textContent = error ? "Error cambiando contraseña" : "Contraseña cambiada";
 }
 
 async function eliminarUsuario() {
   const id = document.getElementById("delete_id").value;
-
-  const { data, error } = await client.functions.invoke("admin-delete-user", {
-    body: { id }
-  });
-
-  document.getElementById("delete_result").textContent =
-    error ? "Error eliminando usuario" : "Usuario eliminado";
+  const { error } = await client.functions.invoke("admin-delete-user", { body: { id } });
+  document.getElementById("delete_result").textContent = error ? "Error eliminando usuario" : "Usuario eliminado";
+  if (!error) cargarUsuarios();
 }
 
-async function cargarListaDeClubs() {
-  const { data: clubs } = await client
-    .from("clubs")
-    .select("id, nombre")
-    .order("nombre");
-
-  const select = document.getElementById("new_club_id");
-  select.innerHTML = "";
-
-  clubs.forEach(club => {
-    const option = document.createElement("option");
-    option.value = club.id;
-    option.textContent = club.nombre;
-    select.appendChild(option);
-  });
-}
-
-async function protegerPagina() {
-  const { data: session } = await client.auth.getSession();
-
-  if (!session.session) {
-    window.location.href = "index.html";
-    return;
-  }
-
-  const userId = session.session.user.id;
-
-  const { data: profile } = await client
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", userId)
-    .single();
-
-  if (profile && profile.is_admin) {
-    document.getElementById("tab_admin").style.display = "inline-block";
-    document.getElementById("tab_editor").style.display = "inline-block";
-    mostrarTab("admin");
-  } else {
-    document.getElementById("tab_admin").style.display = "none";
-    document.getElementById("tab_editor").style.display = "none";
-    mostrarTab("admin");
-  }
-
-  await cargarCachesBasicas();
-  cargarCategorias();
-}
-
-async function cargarPerfilUsuario() {
-  const { data: session } = await client.auth.getSession();
-
-  const { data: profile } = await client
-    .from("profiles")
-    .select("club_id, is_admin")
-    .eq("id", session.session.user.id)
-    .single();
-
-  window.USER_CLUB_ID = profile.club_id;
-  window.USER_IS_ADMIN = profile.is_admin;
-}
-
+// ============ INIT ============
 document.addEventListener("DOMContentLoaded", async () => {
-  await protegerPagina();
-  await cargarPerfilUsuario();
+  const ok = await protegerPagina();
+  if (!ok) return;
+
+  mostrarTab("estructura");
+  await cargarNivel();
   await cargarListaDeClubs();
 });
-
-async function cargarCachesBasicas() {
-  const { data: categorias } = await client.from("categorias").select("*").order("nombre");
-  categoriasCache = categorias || [];
-
-  const { data: ligas } = await client.from("ligas").select("*").order("nombre");
-  ligasCache = ligas || [];
-
-  const { data: equipos } = await client.from("equipos").select("*").order("nombre");
-  equiposCache = equipos || [];
-}
-
-async function cargarTablaUniversal() {
-  const tabla = document.getElementById("tabla_selector").value;
-  const status = document.getElementById("universal_status");
-
-  if (!tabla) {
-    status.textContent = "Selecciona una tabla.";
-    return;
-  }
-
-  status.textContent = "Cargando tabla...";
-
-  const { data } = await client.from(tabla).select("*");
-
-  const columnas = [];
-
-  if (tabla === "jugadores") {
-    columnas.push({
-      title: "Categoría",
-      field: "categoria_id",
-      editor: "select",
-      editorParams: { values: categoriasCache.map(c => ({ label: c.nombre, value: c.id })) },
-      formatter: cell => {
-        const c = categoriasCache.find(x => x.id === cell.getValue());
-        return c ? c.nombre : "";
-      }
-    });
-
-    columnas.push({
-      title: "Liga",
-      field: "liga_id",
-      editor: "select",
-      editorParams: cell => {
-        const categoriaId = cell.getRow().getData().categoria_id;
-        const ligasFiltradas = ligasCache.filter(l => l.categoria_id === categoriaId);
-        return { values: ligasFiltradas.map(l => ({ label: l.nombre, value: l.id })) };
-      },
-      formatter: cell => {
-        const l = ligasCache.find(x => x.id === cell.getValue());
-        return l ? l.nombre : "";
-      }
-    });
-
-    columnas.push({
-      title: "Equipo",
-      field: "equipo_id",
-      editor: "select",
-      editorParams: cell => {
-        const ligaId = cell.getRow().getData().liga_id;
-        const equiposFiltrados = equiposCache.filter(e => e.liga_id === ligaId);
-        return { values: equiposFiltrados.map(e => ({ label: e.nombre, value: e.id })) };
-      },
-      formatter: cell => {
-        const e = equiposCache.find(x => x.id === cell.getValue());
-        return e ? e.nombre : "";
-      }
-    });
-  }
-
-  if (data && data.length > 0) {
-    Object.keys(data[0]).forEach(col => {
-      if (["categoria_id", "liga_id", "equipo_id"].includes(col)) return;
-
-      columnas.push({
-        title: col,
-        field: col,
-        editor: "input"
-      });
-    });
-  }
-
-  columnas.push({
-    title: "Eliminar",
-    formatter: "buttonCross",
-    width: 80,
-    align: "center",
-    cellClick: async (e, cell) => {
-      const row = cell.getRow().getData();
-      if (row.id) {
-        await client.from(tabla).delete().eq("id", row.id);
-      }
-      cell.getRow().delete();
-      status.textContent = "Fila eliminada.";
-    }
-  });
-
-  universalTable = new Tabulator("#universal-table", {
-    data: data || [],
-    layout: "fitColumns",
-    reactiveData: true,
-    columns,
-    height: "500px",
-    addRowPos: "top",
-    tooltips: true,
-    cellEdited: async cell => {
-      const row = cell.getRow().getData();
-      await guardarUniversal(tabla, row);
-    }
-  });
-
-  status.textContent = "Tabla cargada.";
-}
-
-async function guardarUniversal(tabla, row) {
-  const status = document.getElementById("universal_status");
-
-  const payload = { ...row };
-  delete payload.id;
-
-  if (row.id) {
-    await client.from(tabla).update(payload).eq("id", row.id);
-    status.textContent = "Fila actualizada.";
-  } else {
-    const { data, error } = await client
-      .from(tabla)
-      .insert(payload)
-      .select("id")
-      .single();
-
-    if (!error) {
-      row.id = data.id;
-      universalTable.updateData([row]);
-      status.textContent = "Fila creada.";
-    } else {
-      status.textContent = "Error: " + error.message;
-    }
-  }
-}
-
-async function cargarCategorias() {
-  const { data } = await client.from("categorias").select("*").order("nombre");
-
-  const select = document.getElementById("categoria");
-  select.innerHTML = "<option value=''>Selecciona categoría</option>";
-
-  data.forEach(cat => {
-    const opt = document.createElement("option");
-    opt.value = cat.id;
-    opt.textContent = cat.nombre;
-    select.appendChild(opt);
-  });
-}
-
-async function cargarLigas() {
-  const categoriaId = document.getElementById("categoria").value;
-
-  const { data } = await client
-    .from("ligas")
-    .select("*")
-    .eq("categoria_id", categoriaId)
-    .order("nombre");
-
-  const select = document.getElementById("liga");
-  select.innerHTML = "<option value=''>Selecciona competición</option>";
-
-  data.forEach(liga => {
-    const opt = document.createElement("option");
-    opt.value = liga.id;
-    opt.textContent = liga.nombre;
-    select.appendChild(opt);
-  });
-}
-
-async function cargarGrupos() {
-  const ligaId = document.getElementById("liga").value;
-
-  const { data } = await client
-    .from("grupos")
-    .select("*")
-    .eq("liga_id", ligaId)
-    .order("nombre");
-
-  const select = document.getElementById("grupo");
-  select.innerHTML = "<option value=''>Selecciona grupo</option>";
-
-  data.forEach(grupo => {
-    const opt = document.createElement("option");
-    opt.value = grupo.id;
-    opt.textContent = grupo.nombre;
-    select.appendChild(opt);
-  });
-}
-
-async function cargarEquipos() {
-  const grupoId = document.getElementById("grupo").value;
-
-  const { data } = await client
-    .from("equipos")
-    .select("*")
-    .eq("grupo_id", grupoId)
-    .order("nombre");
-
-  const select = document.getElementById("equipo");
-  select.innerHTML = "<option value=''>Selecciona equipo</option>";
-
-  data.forEach(eq => {
-    const opt = document.createElement("option");
-    opt.value = eq.id;
-    opt.textContent = eq.nombre;
-    select.appendChild(opt);
-  });
-}
-
-async function cargarJugadores() {
-  const equipoId = document.getElementById("equipo").value;
-
-  const { data } = await client
-    .from("jugadores")
-    .select("*")
-    .eq("equipo_id", equipoId)
-    .order("nombre");
-
-  const select = document.getElementById("jugador");
-  select.innerHTML = "<option value=''>Selecciona jugador</option>";
-
-  data.forEach(j => {
-    const opt = document.createElement("option");
-    opt.value = j.id;
-    opt.textContent = j.nombre;
-    select.appendChild(opt);
-  });
-}
-
 </script>
-
-<input type="file" id="excel" />
-
-<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-
-<script>
-document.getElementById('excel').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  const data = await file.arrayBuffer();
-  const workbook = XLSX.read(data);
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const filas = XLSX.utils.sheet_to_json(sheet);
-
-  const { data: res, error } = await client
-    .from('clubs')
-    .insert(filas);
-
-  console.log(res, error);
-});
-  
-</script>
-
-<body>
-
-  <!-- tu HTML -->
-
-  <script src="admin.js"></script>
 </body>
 </html>
-

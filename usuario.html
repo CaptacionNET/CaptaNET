@@ -33,16 +33,18 @@
 
       const user = session.session.user;
 
-      const { data: perfil } = await supabase
+      const { data: perfil } = await client
         .from("profiles")
-        .select("*")
+        .select("*, clubs(nombre)")
         .eq("id", user.id)
         .single();
 
       document.getElementById("perfil").innerHTML =
         `<p>Usuario: ${perfil.username}</p>
-         <p>Nombre: ${perfil.nombre}</p>
-         <p>Club: ${perfil.club}</p>`;
+         <p>Nombre: ${perfil.nombre || ""}</p>
+         <p>Email: ${perfil.email || ""}</p>
+         <p>Club: ${perfil.clubs?.nombre || "(sin asignar)"}</p>
+         <p>Admin: ${perfil.is_admin ? "Sí" : "No"}</p>`;
     }
 
     function volver() {
