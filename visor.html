@@ -89,6 +89,7 @@ const client = supabase.createClient(
 );
 
 const CAMPOS_PRIVADOS = ["anio_nacimiento", "posicion", "contacto", "contactado", "tecnica", "tactica", "fisico", "actitud", "comentario"];
+const NIVELES_FISICO = ["BAJO", "MEDIO-BAJO", "MEDIO", "MEDIO-ALTO", "ALTO", "MUY ALTO"];
 
 let esAdmin = false;
 let miClubId = null;
@@ -244,15 +245,16 @@ function crearTabla() {
       { title: "Jugador", field: "nombre", frozen: true },
       { title: "Equipo", field: "equipo" },
       { title: "Dorsal", field: "dorsal" },
-      { title: "Posición oficial", field: "posicion_oficial" },
-      { title: "Año oficial", field: "anio_oficial" },
-      { title: "Año (mi estimación)", field: "anio_nacimiento", editor: "number" },
-      { title: "Posición (mi club)", field: "posicion", editor: "input" },
+      { title: "Año", field: "anio_nacimiento", editor: "number" },
+      { title: "Posición", field: "posicion", editor: "input" },
       { title: "Teléfono", field: "contacto", editor: "input" },
       { title: "Contactado", field: "contactado", editor: "tickCross", formatter: "tickCross" },
       { title: "Técnica", field: "tecnica", editor: "number" },
       { title: "Táctica", field: "tactica", editor: "number" },
-      { title: "Físico", field: "fisico", editor: "number" },
+      {
+        title: "Físico", field: "fisico", editor: "list",
+        editorParams: { values: NIVELES_FISICO }
+      },
       { title: "Actitud", field: "actitud", editor: "number" },
       { title: "Comentario", field: "comentario", editor: "textarea", formatter: "textarea" }
       ],
@@ -301,8 +303,6 @@ async function cargarJugadores() {
       nombre: j.nombre,
       equipo: equipo?.nombre || "",
       dorsal: j.dorsal,
-      posicion_oficial: j.posicion,
-      anio_oficial: j.fecha_nacimiento ? new Date(j.fecha_nacimiento).getFullYear() : "",
       anio_nacimiento: priv.anio_nacimiento ?? "",
       posicion: priv.posicion ?? "",
       contacto: priv.contacto ?? "",
