@@ -23,6 +23,10 @@ input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-rad
 .field label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 .field select,.field input{min-width:160px;}
 .aviso{margin:24px;color:var(--muted);}
+.anio-dropdown-btn{padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:#fff;cursor:pointer;min-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.anio-dropdown-panel{position:absolute;top:100%;left:0;z-index:50;background:#fff;border:1px solid var(--border);border-radius:6px;box-shadow:0 8px 20px rgba(0,0,0,.15);padding:8px;margin-top:4px;min-width:160px;}
+.anio-dropdown-panel label{display:flex;align-items:center;gap:6px;font-size:13px;padding:4px 2px;cursor:pointer;color:var(--text);}
+.anio-dropdown-panel input{width:auto;min-width:auto;}
 </style>
 </head>
 <body>
@@ -68,9 +72,10 @@ input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-rad
     <label>Buscar jugador</label>
     <input id="filtro_nombre" type="text" placeholder="Nombre..." oninput="aplicarFiltrosLocales()">
   </div>
-  <div class="field">
-    <label>Año (varios)</label>
-    <select id="filtro_anio" multiple size="4" style="min-width:90px;" onchange="aplicarFiltrosLocales()"></select>
+  <div class="field" style="position:relative;">
+    <label>Año</label>
+    <div id="anio_dropdown_btn" class="anio-dropdown-btn" onclick="toggleAnioDropdown()">Todos</div>
+    <div id="anio_dropdown_panel" class="anio-dropdown-panel" style="display:none;"></div>
   </div>
   <div class="field">
     <label>&nbsp;</label>
@@ -351,17 +356,43 @@ function tieneDatosClub(f) {
     f.tecnica || f.tactica || f.fisico || f.actitud || (f.comentario && String(f.comentario).trim()));
 }
 
+const ANIO_MIN = 2008, ANIO_MAX = 2015;
+
 function poblarAnios() {
-  const sel = document.getElementById("filtro_anio");
-  const actual = new Date().getFullYear();
-  sel.innerHTML = "";
-  for (let y = actual; y >= actual - 25; y--) sel.innerHTML += `<option value="${y}">${y}</option>`;
+  const panel = document.getElementById("anio_dropdown_panel");
+  panel.innerHTML = "";
+  for (let y = ANIO_MIN; y <= ANIO_MAX; y++) {
+    panel.innerHTML += `<label><input type="checkbox" value="${y}" onchange="onAnioCheckChange()"> ${y}</label>`;
+  }
+}
+
+function toggleAnioDropdown() {
+  const panel = document.getElementById("anio_dropdown_panel");
+  panel.style.display = panel.style.display === "none" ? "block" : "none";
+}
+
+document.addEventListener("click", e => {
+  const panel = document.getElementById("anio_dropdown_panel");
+  const btn = document.getElementById("anio_dropdown_btn");
+  if (panel && panel.style.display !== "none" && !panel.contains(e.target) && e.target !== btn) {
+    panel.style.display = "none";
+  }
+});
+
+function aniosSeleccionados() {
+  return Array.from(document.querySelectorAll("#anio_dropdown_panel input:checked")).map(i => Number(i.value));
+}
+
+function onAnioCheckChange() {
+  const sel = aniosSeleccionados().sort((a, b) => a - b);
+  document.getElementById("anio_dropdown_btn").textContent = sel.length ? sel.join(", ") : "Todos";
+  aplicarFiltrosLocales();
 }
 
 function aplicarFiltrosLocales() {
   const nombreFiltro = document.getElementById("filtro_nombre").value.toLowerCase();
   const soloVistos = document.getElementById("filtro_solo_vistos").checked;
-  const anios = Array.from(document.getElementById("filtro_anio").selectedOptions).map(o => Number(o.value));
+  const anios = aniosSeleccionados();
 
   let filas = basefilas;
   if (nombreFiltro) filas = filas.filter(f => f.nombre.toLowerCase().includes(nombreFiltro));
