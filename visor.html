@@ -72,11 +72,13 @@ input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-rad
       Solo vistos
     </label>
   </div>
-</div>
-
-<div style="margin:0 24px 12px;display:flex;gap:10px;">
-  <button class="secondary" onclick="exportarExcel()">Exportar a Excel</button>
-  <button class="secondary" onclick="exportarPDF()">Exportar a PDF</button>
+  <div class="field">
+    <label>&nbsp;</label>
+    <div style="display:flex;gap:10px;">
+      <button class="secondary" onclick="exportarExcel()">Exportar a Excel</button>
+      <button class="secondary" onclick="exportarPDF()">Exportar a PDF</button>
+    </div>
+  </div>
 </div>
 
 <p id="aviso" class="aviso" style="display:none;"></p>
