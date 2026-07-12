@@ -278,6 +278,9 @@ function crearTabla() {
         formatter: cell => `<span style="color:var(--primary);cursor:pointer;text-decoration:underline;">${cell.getValue()}</span>`,
         cellClick: (e, cell) => { window.location.href = "jugadores.html?jugador_id=" + cell.getRow().getData().jugador_id; }
       },
+      { title: "Categoría", field: "categoria" },
+      { title: "Liga", field: "liga" },
+      { title: "Grupo", field: "grupo" },
       { title: "Equipo", field: "equipo" },
       { title: "Dorsal", field: "dorsal" },
       { title: "Año", field: "anio_nacimiento", editor: "number" },
@@ -340,9 +343,13 @@ async function cargarJugadores() {
   basefilas = (jugadores || []).map(j => {
     const priv = privados.find(p => p.jugador_id === j.id) || {};
     const equipo = equiposCache.find(e => e.id === j.equipo_id);
+    const jer = jerarquiaDeEquipo(j.equipo_id);
     return {
       jugador_id: j.id,
       nombre: j.nombre,
+      categoria: jer.categoria,
+      liga: jer.liga,
+      grupo: jer.grupo,
       equipo: equipo?.nombre || "",
       dorsal: j.dorsal,
       anio_nacimiento: priv.anio_nacimiento ?? "",
@@ -358,6 +365,15 @@ async function cargarJugadores() {
   });
 
   aplicarFiltrosLocales();
+}
+
+function jerarquiaDeEquipo(equipoId) {
+  const e = equiposCache.find(x => x.id === equipoId);
+  if (!e) return { categoria: "", liga: "", grupo: "" };
+  const g = gruposCache.find(x => x.id === e.grupo_id);
+  const l = g ? ligasCache.find(x => x.id === g.liga_id) : null;
+  const c = l ? categoriasCache.find(x => x.id === l.categoria_id) : null;
+  return { categoria: c?.nombre || "", liga: l?.nombre || "", grupo: g?.nombre || "" };
 }
 
 function tieneDatosClub(f) {
