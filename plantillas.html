@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>CaptaNET - Plantillas</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#2563eb;--bg:#f5f6fa;--card:#fff;--border:#e2e4eb;--text:#1f2430;--muted:#6b7280;}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
+#topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;background:var(--card);border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px;}
+#topbar .brand{font-weight:700;font-size:18px;color:var(--primary);}
+button{background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px;}
+button:hover{opacity:.9;}
+button.secondary{background:#fff;color:var(--text);border:1px solid var(--border);}
+button.danger{background:#dc2626;}
+input,select{padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;}
+.barra{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:16px 24px;}
+.layout{display:flex;gap:20px;padding:0 24px 24px;align-items:flex-start;}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;width:280px;flex-shrink:0;}
+.panel h3{margin:0 0 10px;font-size:15px;}
+.panel-tabs{display:flex;gap:6px;margin-bottom:12px;}
+.panel-tab{flex:1;padding:6px;border:1px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;font-size:12px;text-align:center;}
+.panel-tab.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+.resultado{border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;font-size:13px;}
+.resultado .nombre{font-weight:600;}
+.resultado .meta{color:var(--muted);font-size:12px;}
+.resultado button{width:100%;margin-top:6px;padding:5px;font-size:12px;}
+.campo-wrap{flex:1;display:flex;justify-content:center;}
+.campo{
+  position:relative;width:100%;max-width:520px;aspect-ratio:520/760;
+  background:linear-gradient(to bottom,#3fa85a,#2f8542);
+  border:3px solid #fff;border-radius:10px;overflow:hidden;
+  box-shadow:0 10px 30px -10px rgba(0,0,0,.3);
+}
+.campo .linea-medio{position:absolute;top:50%;left:0;right:0;height:2px;background:rgba(255,255,255,.8);}
+.campo .circulo{position:absolute;top:50%;left:50%;width:110px;height:110px;margin:-55px 0 0 -55px;border:2px solid rgba(255,255,255,.8);border-radius:50%;}
+.campo .area-arriba{position:absolute;top:0;left:22%;right:22%;height:70px;border:2px solid rgba(255,255,255,.8);border-top:none;}
+.campo .area-abajo{position:absolute;bottom:0;left:22%;right:22%;height:70px;border:2px solid rgba(255,255,255,.8);border-bottom:none;}
+.tarjeta{
+  position:absolute;transform:translate(-50%,-50%);width:74px;text-align:center;
+  cursor:grab;user-select:none;
+}
+.tarjeta.arrastrando{cursor:grabbing;z-index:20;}
+.tarjeta .avatar{
+  width:42px;height:42px;border-radius:50%;background:#fff;color:var(--text);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;
+  margin:0 auto 3px;box-shadow:0 2px 6px rgba(0,0,0,.35);border:2px solid var(--primary);
+  position:relative;
+}
+.tarjeta .avatar.manual{border-color:#f59e0b;}
+.tarjeta .quitar{
+  position:absolute;top:-6px;right:6px;width:16px;height:16px;border-radius:50%;
+  background:#dc2626;color:#fff;font-size:10px;line-height:16px;text-align:center;
+  cursor:pointer;display:none;
+}
+.tarjeta:hover .quitar{display:block;}
+.tarjeta .nombre{font-size:10px;color:#fff;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tooltip{
+  position:fixed;z-index:100;background:#fff;border:1px solid var(--border);border-radius:8px;
+  padding:12px 14px;font-size:12px;box-shadow:0 10px 25px rgba(0,0,0,.2);width:220px;
+  display:none;pointer-events:none;
+}
+.tooltip .t-nombre{font-weight:700;font-size:14px;margin-bottom:6px;}
+.tooltip .t-row{display:flex;justify-content:space-between;padding:2px 0;color:var(--muted);}
+.tooltip .t-row b{color:var(--text);}
+.status{font-weight:600;color:var(--muted);margin:0 24px 12px;}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="brand">CaptaNET · Plantillas</div>
+  <div style="display:flex;gap:10px;">
+    <button class="secondary" onclick="window.location.href='visor.html'">Volver al visor</button>
+    <button class="secondary" onclick="logout()">Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="barra">
+  <div id="campo_club_wrap" style="display:none;">
+    <select id="filtro_club" onchange="onClubChange()"></select>
+  </div>
+  <select id="selector_plantilla" onchange="onPlantillaChange()" style="min-width:220px;"></select>
+  <button class="secondary" onclick="crearPlantilla()">+ Nueva plantilla</button>
+  <button class="danger" id="btn_eliminar_plantilla" style="display:none;" onclick="eliminarPlantilla()">Eliminar plantilla</button>
+</div>
+
+<p id="status" class="status"></p>
+
+<div class="layout">
+  <div class="panel">
+    <h3>Añadir jugador</h3>
+    <div class="panel-tabs">
+      <div class="panel-tab active" id="tab_buscar" onclick="cambiarPanel('buscar')">Ya valorados</div>
+      <div class="panel-tab" id="tab_manual" onclick="cambiarPanel('manual')">Manual</div>
+    </div>
+
+    <div id="panel_buscar">
+      <input id="buscador" type="text" placeholder="Buscar por nombre..." style="width:100%;margin-bottom:10px;" oninput="buscarJugadores()">
+      <div id="resultados_busqueda"></div>
+    </div>
+
+    <div id="panel_manual" style="display:none;">
+      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Nombre</label>
+      <input id="manual_nombre" type="text" style="width:100%;margin-bottom:10px;">
+      <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Posición (opcional)</label>
+      <input id="manual_posicion" type="text" style="width:100%;margin-bottom:10px;">
+      <button style="width:100%;" onclick="anadirManual()">Añadir al campo</button>
+    </div>
+  </div>
+
+  <div class="campo-wrap">
+    <div class="campo" id="campo">
+      <div class="linea-medio"></div>
+      <div class="circulo"></div>
+      <div class="area-arriba"></div>
+      <div class="area-abajo"></div>
+    </div>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+const client = supabase.createClient(
+  "https://bnqoisjvboytiphiwosj.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
+);
+
+let esAdmin = false;
+let miClubId = null;
+let plantillaActualId = null;
+let filasTablero = [];
+
+async function protegerPagina() {
+  const { data: session } = await client.auth.getSession();
+  if (!session.session) { window.location.href = "index.html"; return false; }
+
+  const { data: perfil } = await client
+    .from("profiles").select("is_admin, club_id").eq("id", session.session.user.id).single();
+
+  esAdmin = !!perfil?.is_admin;
+  miClubId = perfil?.club_id || null;
+  return true;
+}
+
+async function logout() {
+  await client.auth.signOut();
+  window.location.href = "index.html";
+}
+
+async function cargarClubsSiAdmin() {
+  if (!esAdmin) return;
+  document.getElementById("campo_club_wrap").style.display = "block";
+  const { data: clubs } = await client.from("clubs").select("id, nombre").order("nombre");
+  const sel = document.getElementById("filtro_club");
+  sel.innerHTML = "";
+  (clubs || []).forEach(c => sel.innerHTML += `<option value="${c.id}">${c.nombre}</option>`);
+  if (clubs && clubs.length) miClubId = clubs[0].id;
+}
+
+function onClubChange() {
+  miClubId = document.getElementById("filtro_club").value;
+  cargarPlantillas();
+}
+
+function cambiarPanel(nombre) {
+  document.getElementById("panel_buscar").style.display = nombre === "buscar" ? "block" : "none";
+  document.getElementById("panel_manual").style.display = nombre === "manual" ? "block" : "none";
+  document.getElementById("tab_buscar").classList.toggle("active", nombre === "buscar");
+  document.getElementById("tab_manual").classList.toggle("active", nombre === "manual");
+}
+
+async function cargarPlantillas() {
+  const sel = document.getElementById("selector_plantilla");
+  if (!miClubId) { sel.innerHTML = "<option value=''>Sin club asignado</option>"; return; }
+
+  const { data } = await client.from("plantillas").select("*").eq("club_id", miClubId).order("created_at");
+  sel.innerHTML = "";
+  (data || []).forEach(p => sel.innerHTML += `<option value="${p.id}">${p.nombre}</option>`);
+
+  if (data && data.length) {
+    plantillaActualId = data[0].id;
+    sel.value = plantillaActualId;
+    document.getElementById("btn_eliminar_plantilla").style.display = "inline-block";
+    cargarTablero();
+  } else {
+    plantillaActualId = null;
+    document.getElementById("btn_eliminar_plantilla").style.display = "none";
+    renderTablero([]);
+  }
+}
+
+function onPlantillaChange() {
+  plantillaActualId = document.getElementById("selector_plantilla").value;
+  cargarTablero();
+}
+
+async function crearPlantilla() {
+  const nombre = prompt("Nombre de la nueva plantilla:");
+  if (!nombre) return;
+  if (!miClubId) { alert("No hay un club seleccionado."); return; }
+
+  const { data, error } = await client.from("plantillas")
+    .insert({ club_id: miClubId, nombre }).select("id").single();
+
+  if (error) { alert("Error creando la plantilla: " + error.message); return; }
+  await cargarPlantillas();
+  document.getElementById("selector_plantilla").value = data.id;
+  plantillaActualId = data.id;
+  cargarTablero();
+}
+
+async function eliminarPlantilla() {
+  if (!plantillaActualId) return;
+  if (!confirm("¿Eliminar esta plantilla y todos sus jugadores del tablero? No se puede deshacer.")) return;
+  await client.from("plantillas").delete().eq("id", plantillaActualId);
+  await cargarPlantillas();
+}
+
+async function cargarTablero() {
+  const status = document.getElementById("status");
+  if (!plantillaActualId) { renderTablero([]); return; }
+
+  const { data: filas, error } = await client
+    .from("plantilla_jugadores").select("*").eq("plantilla_id", plantillaActualId);
+
+  if (error) { status.textContent = "Error cargando el tablero: " + error.message; return; }
+  status.textContent = "";
+
+  const jugadorIds = (filas || []).filter(f => f.jugador_id).map(f => f.jugador_id);
+
+  let jugadores = [], equipos = [], privados = [];
+  if (jugadorIds.length) {
+    const [j, p] = await Promise.all([
+      client.from("jugadores").select("*").in("id", jugadorIds),
+      client.from("jugadores_club").select("*").eq("club_id", miClubId).in("jugador_id", jugadorIds)
+    ]);
+    jugadores = j.data || [];
+    privados = p.data || [];
+
+    const equipoIds = [...new Set(jugadores.map(j => j.equipo_id).filter(Boolean))];
+    if (equipoIds.length) {
+      const e = await client.from("equipos").select("id, nombre").in("id", equipoIds);
+      equipos = e.data || [];
+    }
+  }
+
+  filasTablero = (filas || []).map(f => {
+    if (f.jugador_id) {
+      const j = jugadores.find(x => x.id === f.jugador_id) || {};
+      const priv = privados.find(x => x.jugador_id === f.jugador_id) || {};
+      const equipo = equipos.find(e => e.id === j.equipo_id);
+      return {
+        ...f,
+        nombre: j.nombre || "(jugador)",
+        equipo: equipo?.nombre || "",
+        posicion_oficial: j.posicion || "",
+        anio_oficial: j.fecha_nacimiento ? new Date(j.fecha_nacimiento).getFullYear() : "",
+        anio_nacimiento: priv.anio_nacimiento,
+        posicion: priv.posicion,
+        contacto: priv.contacto,
+        contactado: priv.contactado,
+        tecnica: priv.tecnica,
+        tactica: priv.tactica,
+        fisico: priv.fisico,
+        actitud: priv.actitud,
+        comentario: priv.comentario,
+        manual: false
+      };
+    }
+    return { ...f, nombre: f.nombre_manual, posicion: f.posicion_manual, manual: true };
+  });
+
+  renderTablero(filasTablero);
+}
+
+function iniciales(nombre) {
+  return (nombre || "?").trim().split(/\s+/).slice(0, 2).map(p => p[0]).join("").toUpperCase();
+}
+
+function renderTablero(filas) {
+  const campo = document.getElementById("campo");
+  campo.querySelectorAll(".tarjeta").forEach(t => t.remove());
+
+  filas.forEach(fila => {
+    const tarjeta = document.createElement("div");
+    tarjeta.className = "tarjeta";
+    tarjeta.style.left = fila.pos_x + "%";
+    tarjeta.style.top = fila.pos_y + "%";
+    tarjeta.innerHTML = `
+      <div class="avatar ${fila.manual ? "manual" : ""}">${iniciales(fila.nombre)}<span class="quitar" onclick="quitarDelTablero(event, ${fila.id})">×</span></div>
+      <div class="nombre">${fila.nombre}</div>
+    `;
+    campo.appendChild(tarjeta);
+
+    tarjeta.addEventListener("mouseenter", e => mostrarTooltip(e, fila));
+    tarjeta.addEventListener("mousemove", posicionarTooltip);
+    tarjeta.addEventListener("mouseleave", ocultarTooltip);
+    tarjeta.addEventListener("mousedown", e => iniciarArrastre(e, tarjeta, fila));
+  });
+}
+
+function mostrarTooltip(e, fila) {
+  const tt = document.getElementById("tooltip");
+
+  if (fila.manual) {
+    tt.innerHTML = `
+      <div class="t-nombre">${fila.nombre}</div>
+      <div class="t-row"><span>Posición</span><b>${fila.posicion || "-"}</b></div>
+      <div class="t-row"><span>Origen</span><b>Añadido manualmente</b></div>
+    `;
+  } else {
+    tt.innerHTML = `
+      <div class="t-nombre">${fila.nombre}</div>
+      <div class="t-row"><span>Equipo</span><b>${fila.equipo || "-"}</b></div>
+      <div class="t-row"><span>Posición oficial</span><b>${fila.posicion_oficial || "-"}</b></div>
+      <div class="t-row"><span>Año</span><b>${fila.anio_nacimiento || fila.anio_oficial || "-"}</b></div>
+      <div class="t-row"><span>Técnica</span><b>${fila.tecnica ?? "-"}</b></div>
+      <div class="t-row"><span>Táctica</span><b>${fila.tactica ?? "-"}</b></div>
+      <div class="t-row"><span>Físico</span><b>${fila.fisico || "-"}</b></div>
+      <div class="t-row"><span>Actitud</span><b>${fila.actitud ?? "-"}</b></div>
+      <div class="t-row"><span>Contactado</span><b>${fila.contactado ? "Sí" : "No"}</b></div>
+      ${fila.comentario ? `<div class="t-row" style="display:block;margin-top:6px;"><span>${fila.comentario}</span></div>` : ""}
+    `;
+  }
+
+  tt.style.display = "block";
+  posicionarTooltip(e);
+}
+
+function posicionarTooltip(e) {
+  const tt = document.getElementById("tooltip");
+  let x = e.clientX + 16, y = e.clientY + 16;
+  if (x + 230 > window.innerWidth) x = e.clientX - 236;
+  if (y + 180 > window.innerHeight) y = e.clientY - 190;
+  tt.style.left = x + "px";
+  tt.style.top = y + "px";
+}
+
+function ocultarTooltip() {
+  document.getElementById("tooltip").style.display = "none";
+}
+
+let arrastreActivo = null;
+
+function iniciarArrastre(e, tarjeta, fila) {
+  e.preventDefault();
+  ocultarTooltip();
+  arrastreActivo = { tarjeta, fila };
+  tarjeta.classList.add("arrastrando");
+  document.addEventListener("mousemove", moverArrastre);
+  document.addEventListener("mouseup", soltarArrastre);
+}
+
+function moverArrastre(e) {
+  if (!arrastreActivo) return;
+  const campo = document.getElementById("campo");
+  const rect = campo.getBoundingClientRect();
+  let x = ((e.clientX - rect.left) / rect.width) * 100;
+  let y = ((e.clientY - rect.top) / rect.height) * 100;
+  x = Math.max(3, Math.min(97, x));
+  y = Math.max(3, Math.min(97, y));
+  arrastreActivo.tarjeta.style.left = x + "%";
+  arrastreActivo.tarjeta.style.top = y + "%";
+  arrastreActivo.nuevaX = x;
+  arrastreActivo.nuevaY = y;
+}
+
+async function soltarArrastre() {
+  document.removeEventListener("mousemove", moverArrastre);
+  document.removeEventListener("mouseup", soltarArrastre);
+  if (!arrastreActivo) return;
+
+  arrastreActivo.tarjeta.classList.remove("arrastrando");
+  const { fila, nuevaX, nuevaY } = arrastreActivo;
+  arrastreActivo = null;
+
+  if (nuevaX === undefined) return;
+  fila.pos_x = nuevaX;
+  fila.pos_y = nuevaY;
+  await client.from("plantilla_jugadores").update({ pos_x: nuevaX, pos_y: nuevaY }).eq("id", fila.id);
+}
+
+async function quitarDelTablero(e, id) {
+  e.stopPropagation();
+  await client.from("plantilla_jugadores").delete().eq("id", id);
+  cargarTablero();
+}
+
+let buscarTimeout = null;
+function buscarJugadores() {
+  clearTimeout(buscarTimeout);
+  buscarTimeout = setTimeout(ejecutarBusqueda, 300);
+}
+
+async function ejecutarBusqueda() {
+  const q = document.getElementById("buscador").value.trim();
+  const cont = document.getElementById("resultados_busqueda");
+  if (!q) { cont.innerHTML = ""; return; }
+
+  const { data: jugadores } = await client.from("jugadores").select("*").ilike("nombre", `%${q}%`).limit(15);
+  if (!jugadores || !jugadores.length) { cont.innerHTML = "<p style='color:var(--muted);font-size:12px;'>Sin resultados.</p>"; return; }
+
+  const equipoIds = [...new Set(jugadores.map(j => j.equipo_id).filter(Boolean))];
+  const { data: equipos } = equipoIds.length
+    ? await client.from("equipos").select("id, nombre").in("id", equipoIds)
+    : { data: [] };
+
+  cont.innerHTML = "";
+  jugadores.forEach(j => {
+    const equipo = (equipos || []).find(e => e.id === j.equipo_id);
+    const div = document.createElement("div");
+    div.className = "resultado";
+    div.innerHTML = `
+      <div class="nombre">${j.nombre}</div>
+      <div class="meta">${equipo?.nombre || "Sin equipo"}</div>
+      <button onclick="anadirExistente('${j.id}')">+ Añadir al campo</button>
+    `;
+    cont.appendChild(div);
+  });
+}
+
+async function anadirExistente(jugadorId) {
+  if (!plantillaActualId) { alert("Crea o selecciona una plantilla primero."); return; }
+  const n = filasTablero.length;
+  const pos_x = 30 + (n % 3) * 20;
+  const pos_y = 15 + Math.floor(n / 3) * 18;
+
+  const { error } = await client.from("plantilla_jugadores").insert({
+    plantilla_id: plantillaActualId, jugador_id: jugadorId, pos_x, pos_y
+  });
+  if (error) { alert("Error añadiendo: " + error.message); return; }
+  cargarTablero();
+}
+
+async function anadirManual() {
+  const nombre = document.getElementById("manual_nombre").value.trim();
+  const posicion = document.getElementById("manual_posicion").value.trim();
+  if (!nombre) { alert("Escribe un nombre."); return; }
+  if (!plantillaActualId) { alert("Crea o selecciona una plantilla primero."); return; }
+
+  const n = filasTablero.length;
+  const pos_x = 30 + (n % 3) * 20;
+  const pos_y = 15 + Math.floor(n / 3) * 18;
+
+  const { error } = await client.from("plantilla_jugadores").insert({
+    plantilla_id: plantillaActualId, nombre_manual: nombre, posicion_manual: posicion || null, pos_x, pos_y
+  });
+  if (error) { alert("Error añadiendo: " + error.message); return; }
+
+  document.getElementById("manual_nombre").value = "";
+  document.getElementById("manual_posicion").value = "";
+  cargarTablero();
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const ok = await protegerPagina();
+  if (!ok) return;
+  await cargarClubsSiAdmin();
+  await cargarPlantillas();
+});
+</script>
+</body>
+</html>
