@@ -93,53 +93,15 @@ label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px;}
 
 <!-- USUARIOS -->
 <div id="usuarios" class="tab-content">
-  <div class="card">
-    <h3>Usuarios registrados</h3>
-    <button class="secondary" onclick="cargarUsuarios()">Actualizar lista</button>
-    <ul id="lista_usuarios"></ul>
+  <p style="color:var(--muted);font-size:14px;margin:0 0 12px;">
+    Para crear un usuario nuevo, añade una fila y rellena al menos Email y Nueva contraseña.
+    Para restablecer la contraseña de alguien, escribe la nueva en su fila — el campo se vacía solo al guardarse.
+  </p>
+  <div style="margin-bottom:16px;">
+    <button onclick="anadirFilaUsuario()">+ Añadir usuario</button>
   </div>
-
-  <div class="card">
-    <h3>Crear nuevo usuario</h3>
-    <div class="field"><label>Email</label><input id="new_email" type="email" style="width:100%;"></div>
-    <div class="field"><label>Username</label><input id="new_username" type="text" style="width:100%;"></div>
-    <div class="field"><label>Nombre</label><input id="new_nombre" type="text" style="width:100%;"></div>
-    <div class="field"><label>Contraseña</label><input id="new_password_create" type="password" style="width:100%;"></div>
-    <div class="field">
-      <label>¿Es admin?</label>
-      <select id="new_is_admin" style="width:100%;">
-        <option value="false">No</option>
-        <option value="true">Sí</option>
-      </select>
-    </div>
-    <div class="field"><label>Club</label><select id="new_club_id" style="width:100%;"></select></div>
-    <button onclick="crearUsuario()" style="width:100%;">Crear usuario</button>
-    <p id="create_result" class="status"></p>
-  </div>
-
-  <div class="card">
-    <h3>Editar usuario</h3>
-    <div class="field"><label>ID del usuario</label><input id="edit_id" type="text" style="width:100%;"></div>
-    <div class="field"><label>Nuevo email</label><input id="edit_email" type="email" style="width:100%;"></div>
-    <div class="field"><label>Nuevo username</label><input id="edit_username" type="text" style="width:100%;"></div>
-    <button onclick="editarUsuario()" style="width:100%;">Guardar cambios</button>
-    <p id="edit_result" class="status"></p>
-  </div>
-
-  <div class="card">
-    <h3>Cambiar contraseña</h3>
-    <div class="field"><label>ID del usuario</label><input id="pw_id" type="text" style="width:100%;"></div>
-    <div class="field"><label>Nueva contraseña</label><input id="pw_new" type="password" style="width:100%;"></div>
-    <button onclick="changePassword()" style="width:100%;">Cambiar contraseña</button>
-    <p id="pw_result" class="status"></p>
-  </div>
-
-  <div class="card">
-    <h3>Eliminar usuario</h3>
-    <div class="field"><label>ID del usuario</label><input id="delete_id" type="text" style="width:100%;"></div>
-    <button class="danger" onclick="eliminarUsuario()" style="width:100%;">Eliminar usuario</button>
-    <p id="delete_result" class="status"></p>
-  </div>
+  <div id="tabla-usuarios"></div>
+  <p id="usuarios_status" class="status"></p>
 </div>
 
 <script>
@@ -174,6 +136,7 @@ function mostrarTab(id) {
   document.getElementById("tab_" + id).classList.add("active");
 
   if (id === "clubs" && !tablaClubs) cargarClubs();
+  if (id === "usuarios" && !tablaUsuarios) cargarUsuarios();
 }
 
 async function cargarCaches() {
@@ -495,74 +458,111 @@ async function importarExcel() {
 }
 
 // ============ USUARIOS ============
-async function cargarListaDeClubs() {
-  const { data: clubs } = await client.from("clubs").select("id, nombre").order("nombre");
-  const select = document.getElementById("new_club_id");
-  select.innerHTML = "";
-  (clubs || []).forEach(club => {
-    const option = document.createElement("option");
-    option.value = club.id;
-    option.textContent = club.nombre;
-    select.appendChild(option);
-  });
+let clubsCache = [];
+let tablaUsuarios = null;
+
+async function cargarClubsCache() {
+  const { data } = await client.from("clubs").select("id, nombre").order("nombre");
+  clubsCache = data || [];
 }
 
 async function cargarUsuarios() {
-  const { data, error } = await client.functions.invoke("admin-list-users");
-  const lista = document.getElementById("lista_usuarios");
-  lista.innerHTML = "";
-  if (error) { lista.innerHTML = "Error al cargar usuarios"; return; }
-  data.users.forEach(u => {
-    const li = document.createElement("li");
-    li.textContent = `${u.id} - ${u.email} - ${u.user_metadata?.username || ""}`;
-    li.style.cursor = "pointer";
-    li.onclick = () => {
-      document.getElementById("edit_id").value = u.id;
-      document.getElementById("pw_id").value = u.id;
-      document.getElementById("delete_id").value = u.id;
-    };
-    lista.appendChild(li);
+  const status = document.getElementById("usuarios_status");
+  await cargarClubsCache();
+
+  const { data, error } = await client.from("profiles").select("*").order("username");
+  if (error) { status.textContent = "Error cargando usuarios: " + error.message; return; }
+  status.textContent = "";
+
+  tablaUsuarios = new Tabulator("#tabla-usuarios", {
+    data: (data || []).map(u => ({ ...u, contrasena: "" })),
+    layout: "fitColumns",
+    reactiveData: true,
+    height: "600px",
+    columns: [
+      { title: "Nombre", field: "nombre", editor: "input" },
+      { title: "Username", field: "username", editor: "input" },
+      { title: "Email", field: "email", editor: "input" },
+      {
+        title: "Club", field: "club_id", editor: "list",
+        editorParams: { values: clubsCache.map(c => ({ label: c.nombre, value: c.id })) },
+        formatter: cell => clubsCache.find(c => c.id === cell.getValue())?.nombre || ""
+      },
+      { title: "Admin", field: "is_admin", editor: "tickCross", formatter: "tickCross" },
+      {
+        title: "Nueva contraseña", field: "contrasena", editor: "input",
+        editorParams: { elementAttributes: { type: "password" } }
+      },
+      {
+        title: "Eliminar", formatter: "buttonCross", width: 90, align: "center",
+        cellClick: async (e, cell) => {
+          const row = cell.getRow().getData();
+          if (!row.id) { cell.getRow().delete(); return; }
+          if (!confirm(`¿Eliminar a ${row.username || row.email}? No se puede deshacer.`)) return;
+          const { error } = await client.functions.invoke("admin-delete-user", { body: { id: row.id } });
+          if (error) { alert("Error eliminando: " + error.message); return; }
+          cell.getRow().delete();
+        }
+      }
+    ]
   });
+
+  tablaUsuarios.on("cellEdited", cell => guardarUsuario(cell));
 }
 
-async function crearUsuario() {
-  const email = document.getElementById("new_email").value;
-  const username = document.getElementById("new_username").value;
-  const nombre = document.getElementById("new_nombre").value;
-  const password = document.getElementById("new_password_create").value;
-  const is_admin = document.getElementById("new_is_admin").value === "true";
-  const club_id = document.getElementById("new_club_id").value;
+async function guardarUsuario(cell) {
+  const row = cell.getRow().getData();
+  const campo = cell.getField();
+  const status = document.getElementById("usuarios_status");
+
+  if (!row.id) {
+    if (row.email && row.contrasena) await crearUsuarioDesdeFila(cell.getRow());
+    return;
+  }
+
+  if (campo === "contrasena") {
+    if (!row.contrasena) return;
+    const { error } = await client.functions.invoke("admin-update-password", {
+      body: { id: row.id, password: row.contrasena }
+    });
+    if (error) { status.textContent = "Error cambiando contraseña: " + error.message; return; }
+    row.contrasena = "";
+    cell.getRow().update(row);
+    status.textContent = "Contraseña actualizada.";
+    return;
+  }
+
+  if (campo === "club_id" || campo === "is_admin") {
+    const { error } = await client.from("profiles")
+      .update({ club_id: row.club_id, is_admin: row.is_admin }).eq("id", row.id);
+    status.textContent = error ? "Error: " + error.message : "Guardado.";
+    return;
+  }
+
+  const { error } = await client.functions.invoke("admin-update-profile", {
+    body: { id: row.id, email: row.email, username: row.username, nombre: row.nombre }
+  });
+  status.textContent = error ? "Error actualizando: " + error.message : "Guardado.";
+}
+
+async function crearUsuarioDesdeFila(row) {
+  const d = row.getData();
+  const status = document.getElementById("usuarios_status");
 
   const { error } = await client.functions.invoke("create-user", {
-    body: { email, password, username, nombre, club_id, is_admin }
+    body: {
+      email: d.email, password: d.contrasena, username: d.username || d.email,
+      nombre: d.nombre, club_id: d.club_id || null, is_admin: !!d.is_admin
+    }
   });
 
-  document.getElementById("create_result").innerText = error ? "Error: " + error.message : "Usuario creado correctamente";
-  if (!error) cargarUsuarios();
+  if (error) { status.textContent = "Error creando usuario: " + error.message; return; }
+  status.textContent = "Usuario creado.";
+  await cargarUsuarios();
 }
 
-async function editarUsuario() {
-  const id = document.getElementById("edit_id").value;
-  const email = document.getElementById("edit_email").value;
-  const username = document.getElementById("edit_username").value;
-
-  const { error } = await client.functions.invoke("admin-update-profile", { body: { id, email, username } });
-  document.getElementById("edit_result").textContent = error ? "Error actualizando usuario" : "Usuario actualizado";
-}
-
-async function changePassword() {
-  const id = document.getElementById("pw_id").value;
-  const password = document.getElementById("pw_new").value;
-
-  const { error } = await client.functions.invoke("admin-update-password", { body: { id, password } });
-  document.getElementById("pw_result").textContent = error ? "Error cambiando contraseña" : "Contraseña cambiada";
-}
-
-async function eliminarUsuario() {
-  const id = document.getElementById("delete_id").value;
-  const { error } = await client.functions.invoke("admin-delete-user", { body: { id } });
-  document.getElementById("delete_result").textContent = error ? "Error eliminando usuario" : "Usuario eliminado";
-  if (!error) cargarUsuarios();
+function anadirFilaUsuario() {
+  tablaUsuarios.addRow({ nombre: "", username: "", email: "", club_id: null, is_admin: false, contrasena: "" }, true);
 }
 
 // ============ INIT ============
@@ -572,7 +572,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   mostrarTab("estructura");
   await cargarNivel();
-  await cargarListaDeClubs();
 });
 </script>
 </body>
