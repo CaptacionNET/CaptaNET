@@ -137,6 +137,11 @@ function poblarTemporadas() {
   if (activa) sel.value = activa.id;
 }
 
+function selNum(id) {
+  const v = document.getElementById(id).value;
+  return v === "" ? "" : Number(v);
+}
+
 function poblarCategorias() {
   const temporadaId = document.getElementById("filtro_temporada").value;
   const sel = document.getElementById("filtro_categoria");
@@ -146,7 +151,7 @@ function poblarCategorias() {
 }
 
 function poblarLigas() {
-  const categoriaId = document.getElementById("filtro_categoria").value;
+  const categoriaId = selNum("filtro_categoria");
   const sel = document.getElementById("filtro_liga");
   sel.innerHTML = '<option value="">Todas</option>';
   ligasCache.filter(l => l.categoria_id === categoriaId)
@@ -154,7 +159,7 @@ function poblarLigas() {
 }
 
 function poblarGrupos() {
-  const ligaId = document.getElementById("filtro_liga").value;
+  const ligaId = selNum("filtro_liga");
   const sel = document.getElementById("filtro_grupo");
   sel.innerHTML = '<option value="">Todos</option>';
   gruposCache.filter(g => !ligaId || g.liga_id === ligaId)
@@ -162,8 +167,8 @@ function poblarGrupos() {
 }
 
 function poblarEquipos() {
-  const grupoId = document.getElementById("filtro_grupo").value;
-  const ligaId = document.getElementById("filtro_liga").value;
+  const grupoId = selNum("filtro_grupo");
+  const ligaId = selNum("filtro_liga");
   const sel = document.getElementById("filtro_equipo");
   sel.innerHTML = '<option value="">Todos</option>';
   equiposCache.filter(e => {
@@ -180,10 +185,10 @@ function onGrupoChange() { poblarEquipos(); cargarJugadores(); }
 
 function equiposFiltrados() {
   const temporadaId = document.getElementById("filtro_temporada").value;
-  const categoriaId = document.getElementById("filtro_categoria").value;
-  const ligaId = document.getElementById("filtro_liga").value;
-  const grupoId = document.getElementById("filtro_grupo").value;
-  const equipoId = document.getElementById("filtro_equipo").value;
+  const categoriaId = selNum("filtro_categoria");
+  const ligaId = selNum("filtro_liga");
+  const grupoId = selNum("filtro_grupo");
+  const equipoId = selNum("filtro_equipo");
 
   return equiposCache.filter(e => {
     if (equipoId) return e.id === equipoId;
