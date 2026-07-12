@@ -94,7 +94,7 @@ button:disabled{opacity:.6;cursor:default;}
 <body>
   <div class="card">
     <div class="logo">CaptaNET</div>
-    <div class="subtitle">Plataforma de scouting</div>
+    <div class="subtitle" id="subtitle">Plataforma de scouting</div>
 
     <p id="error" class="error"></p>
 
@@ -125,6 +125,25 @@ button:disabled{opacity:.6;cursor:default;}
       errorBox.textContent = msg;
       errorBox.style.display = "block";
     }
+
+    function getClubSlug() {
+      const partes = window.location.hostname.split(".");
+      if (partes.length >= 3 && partes[0] !== "www") return partes[0];
+      return null;
+    }
+
+    async function aplicarBrandingClub() {
+      const slug = getClubSlug();
+      if (!slug) return;
+
+      const { data: nombre } = await client.rpc("get_club_nombre_by_slug", { p_slug: slug });
+      if (nombre) {
+        document.getElementById("subtitle").textContent = nombre;
+        document.title = "CaptaNET - " + nombre;
+      }
+    }
+
+    aplicarBrandingClub();
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
