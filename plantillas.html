@@ -60,14 +60,21 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
   background:#dc2626;color:#fff;font-size:11px;line-height:18px;text-align:center;
   cursor:pointer;display:none;z-index:10;
 }
-.tarjeta:hover .quitar{display:block;}
 .tarjeta .colores{
   display:none;position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);
   gap:4px;background:#fff;border:1px solid var(--border);border-radius:12px;
   padding:4px 6px;box-shadow:0 2px 8px rgba(0,0,0,.2);white-space:nowrap;z-index:10;
 }
-.tarjeta:hover .colores{display:flex;}
 .tarjeta .colores span{width:15px;height:15px;border-radius:50%;border:1px solid var(--border);cursor:pointer;display:inline-block;}
+.panel-detalle{width:300px;flex-shrink:0;}
+.barra{margin-bottom:12px;}
+.barra .barra-cab{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px;}
+.barra .barra-cab b{color:var(--text);}
+.barra .barra-fondo{background:#eef0f5;border-radius:6px;height:9px;overflow:hidden;}
+.barra .barra-relleno{background:var(--primary);height:100%;}
+.det-fila{display:flex;justify-content:space-between;padding:5px 0;font-size:13px;border-top:1px solid var(--border);}
+.det-fila span{color:var(--muted);}
+.det-fila b{color:var(--text);}
 .tooltip{
   position:fixed;z-index:100;background:#fff;border:1px solid var(--border);border-radius:8px;
   padding:12px 14px;font-size:12px;box-shadow:0 10px 25px rgba(0,0,0,.2);width:220px;
@@ -150,6 +157,17 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
       <div class="circulo"></div>
       <div class="area-arriba"></div>
       <div class="area-abajo"></div>
+    </div>
+  </div>
+
+  <div class="panel panel-detalle">
+    <h3>Ficha</h3>
+    <div id="detalle_vacio" style="color:var(--muted);font-size:13px;padding:20px 4px;">Haz clic en un jugador del campo para ver su ficha aquí.</div>
+    <div id="detalle_contenido" style="display:none;">
+      <h2 id="det_nombre" style="margin:0 0 4px;font-size:20px;"></h2>
+      <p id="det_sub" style="margin:0 0 16px;color:var(--muted);font-size:13px;"></p>
+      <div id="det_barras"></div>
+      <div id="det_extra"></div>
     </div>
   </div>
 </div>
@@ -443,11 +461,27 @@ function renderTablero(filas) {
     `;
     campo.appendChild(tarjeta);
 
-    tarjeta.addEventListener("mouseenter", e => mostrarTooltip(e, fila));
+    tarjeta.addEventListener("mouseenter", e => { mostrarTooltip(e, fila); mostrarControles(tarjeta); });
     tarjeta.addEventListener("mousemove", posicionarTooltip);
-    tarjeta.addEventListener("mouseleave", ocultarTooltip);
+    tarjeta.addEventListener("mouseleave", () => { ocultarTooltip(); ocultarControlesConRetraso(tarjeta); });
     tarjeta.addEventListener("mousedown", e => iniciarArrastre(e, tarjeta, fila));
+    tarjeta.addEventListener("click", () => { if (!seDeslizoBastante) mostrarDetalle(fila); });
   });
+}
+
+let ocultarControlesTimeout = null;
+
+function mostrarControles(tarjeta) {
+  clearTimeout(ocultarControlesTimeout);
+  tarjeta.querySelector(".quitar").style.display = "block";
+  tarjeta.querySelector(".colores").style.display = "flex";
+}
+
+function ocultarControlesConRetraso(tarjeta) {
+  ocultarControlesTimeout = setTimeout(() => {
+    tarjeta.querySelector(".quitar").style.display = "none";
+    tarjeta.querySelector(".colores").style.display = "none";
+  }, 500);
 }
 
 async function cambiarColor(e, id, color) {
@@ -455,6 +489,62 @@ async function cambiarColor(e, id, color) {
   ocultarTooltip();
   await client.from("plantilla_jugadores").update({ color }).eq("id", id);
   cargarTablero();
+}
+
+const NIVELES_FISICO_MAP = { "BAJO": 1, "MEDIO-BAJO": 2, "MEDIO": 3, "MEDIO-ALTO": 4, "ALTO": 5, "MUY ALTO": 6 };
+
+function barraHtml(etiqueta, valor, max = 10) {
+  const pct = valor ? Math.min(100, (valor / max) * 100) : 0;
+  return `
+    <div class="barra">
+      <div class="barra-cab"><span>${etiqueta}</span><b>${valor ?? "-"}</b></div>
+      <div class="barra-fondo"><div class="barra-relleno" style="width:${pct}%;"></div></div>
+    </div>
+  `;
+}
+
+function barraFisicoHtml(valor) {
+  const nivel = NIVELES_FISICO_MAP[valor] || 0;
+  const pct = (nivel / 6) * 100;
+  return `
+    <div class="barra">
+      <div class="barra-cab"><span>Físico</span><b>${valor || "-"}</b></div>
+      <div class="barra-fondo"><div class="barra-relleno" style="width:${pct}%;"></div></div>
+    </div>
+  `;
+}
+
+function mostrarDetalle(fila) {
+  document.getElementById("detalle_vacio").style.display = "none";
+  document.getElementById("detalle_contenido").style.display = "block";
+  document.getElementById("det_nombre").textContent = fila.nombre;
+
+  const barras = document.getElementById("det_barras");
+  const extra = document.getElementById("det_extra");
+
+  if (fila.origen === "manual" || fila.origen === "club") {
+    document.getElementById("det_sub").textContent =
+      [fila.origen === "club" ? "Jugador de mi club" : "Añadido manualmente", fila.posicion, fila.anio_nacimiento]
+        .filter(Boolean).join(" · ");
+    barras.innerHTML = "";
+    extra.innerHTML = "";
+    return;
+  }
+
+  document.getElementById("det_sub").textContent =
+    [fila.equipo, fila.posicion, fila.anio_nacimiento || fila.anio_oficial].filter(Boolean).join(" · ");
+
+  barras.innerHTML =
+    barraHtml("Técnica", fila.tecnica) +
+    barraHtml("Táctica", fila.tactica) +
+    barraFisicoHtml(fila.fisico) +
+    barraHtml("Actitud", fila.actitud);
+
+  extra.innerHTML = `
+    <div class="det-fila"><span>Contactado</span><b>${fila.contactado ? "Sí" : "No"}</b></div>
+    ${fila.contacto ? `<div class="det-fila"><span>Teléfono</span><b>${fila.contacto}</b></div>` : ""}
+    ${fila.comentario ? `<p style="margin-top:12px;font-size:13px;">${fila.comentario}</p>` : ""}
+  `;
 }
 
 function mostrarTooltip(e, fila) {
@@ -507,11 +597,13 @@ function ocultarTooltip() {
 }
 
 let arrastreActivo = null;
+let seDeslizoBastante = false;
 
 function iniciarArrastre(e, tarjeta, fila) {
   e.preventDefault();
   ocultarTooltip();
-  arrastreActivo = { tarjeta, fila };
+  seDeslizoBastante = false;
+  arrastreActivo = { tarjeta, fila, startX: e.clientX, startY: e.clientY };
   tarjeta.classList.add("arrastrando");
   document.addEventListener("mousemove", moverArrastre);
   document.addEventListener("mouseup", soltarArrastre);
@@ -519,6 +611,9 @@ function iniciarArrastre(e, tarjeta, fila) {
 
 function moverArrastre(e) {
   if (!arrastreActivo) return;
+  if (Math.abs(e.clientX - arrastreActivo.startX) > 4 || Math.abs(e.clientY - arrastreActivo.startY) > 4) {
+    seDeslizoBastante = true;
+  }
   const campo = document.getElementById("campo");
   const rect = campo.getBoundingClientRect();
   let x = ((e.clientX - rect.left) / rect.width) * 100;
