@@ -509,7 +509,10 @@ async function cargarUsuarios() {
       { title: "Email", field: "email", editor: "input" },
       {
         title: "Club", field: "club_id", editor: "list",
-        editorParams: { values: clubsCache.map(c => ({ label: c.nombre, value: c.id })) },
+        editorParams: {
+          values: [{ label: "(Sin club)", value: null }, ...clubsCache.map(c => ({ label: c.nombre, value: c.id }))],
+          clearable: true
+        },
         formatter: cell => clubsCache.find(c => c.id === cell.getValue())?.nombre || ""
       },
       { title: "Admin", field: "is_admin", editor: "tickCross", formatter: "tickCross" },

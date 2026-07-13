@@ -102,7 +102,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 
 @media (max-width:900px){
   .layout{flex-direction:column;padding:0 12px 24px;}
-  .panel-izda,.panel-detalle,.panel{width:100%;}
+  .panel-izda,.panel-detalle,.panel,.campo-wrap{width:100%;}
   .barra{padding:12px;}
   .status{margin:0 12px 12px;}
   .notas-wrap{margin:0 12px 24px !important;}
@@ -259,6 +259,7 @@ const client = supabase.createClient(
 
 let esAdmin = false;
 let miClubId = null;
+let miClubNombre = null;
 let plantillaActualId = null;
 let plantillaActual = null;
 let plantillasCache = [];
@@ -269,10 +270,11 @@ async function protegerPagina() {
   if (!session.session) { window.location.href = "index.html"; return false; }
 
   const { data: perfil } = await client
-    .from("profiles").select("is_admin, club_id").eq("id", session.session.user.id).single();
+    .from("profiles").select("is_admin, club_id, clubs(nombre)").eq("id", session.session.user.id).single();
 
   esAdmin = !!perfil?.is_admin;
   miClubId = perfil?.club_id || null;
+  miClubNombre = perfil?.clubs?.nombre || null;
   return true;
 }
 
@@ -281,18 +283,22 @@ async function logout() {
   window.location.href = "index.html";
 }
 
+let clubsCache = [];
+
 async function cargarClubsSiAdmin() {
   if (!esAdmin) return;
   document.getElementById("campo_club_wrap").style.display = "block";
   const { data: clubs } = await client.from("clubs").select("id, nombre").order("nombre");
+  clubsCache = clubs || [];
   const sel = document.getElementById("filtro_club");
   sel.innerHTML = "";
-  (clubs || []).forEach(c => sel.innerHTML += `<option value="${c.id}">${c.nombre}</option>`);
-  if (clubs && clubs.length) miClubId = clubs[0].id;
+  clubsCache.forEach(c => sel.innerHTML += `<option value="${c.id}">${c.nombre}</option>`);
+  if (clubsCache.length) { miClubId = clubsCache[0].id; miClubNombre = clubsCache[0].nombre; }
 }
 
 function onClubChange() {
   miClubId = document.getElementById("filtro_club").value;
+  miClubNombre = clubsCache.find(c => c.id === miClubId)?.nombre || null;
   cargarPlantillas();
 }
 
@@ -638,7 +644,7 @@ function exportarPDF() {
 
 function subTextoTarjeta(fila) {
   if (fila.origen === "valorado") return fila.equipo || "";
-  if (fila.origen === "club") return "Mi club";
+  if (fila.origen === "club") return miClubNombre || "Mi club";
   return fila.club_manual || fila.posicion || "";
 }
 
