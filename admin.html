@@ -113,7 +113,7 @@ label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px;}
     </p>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
       <button onclick="ffcvDescubrir()">1 · Catalogar grupos e iniciar</button>
-      <button class="secondary" onclick="ffcvProcesarLote()">2 · Procesar un lote ahora</button>
+      <button class="secondary" id="btn_ffcv_procesar" onclick="ffcvToggleProcesar()">2 · Procesar todo ahora</button>
       <button class="secondary" onclick="ffcvEstado()">Actualizar estado</button>
     </div>
     <p id="ffcv_status" class="status"></p>
@@ -184,19 +184,56 @@ async function ffcvDescubrir() {
   s.textContent = "Catalogando grupos en la FFCV… (puede tardar un minuto)";
   try {
     const d = await ffcvLlamar("descubrir");
-    s.textContent = `Listo. Temporada ${d.temporada}: ${d.grupos_encolados} grupos en cola. Pulsa "Procesar un lote" o espera al proceso automático del fin de semana.`;
+    s.textContent = `Listo. Temporada ${d.temporada}: ${d.grupos_encolados} grupos en cola. Pulsa "Procesar todo ahora" o espera al proceso automático del fin de semana.`;
     ffcvEstado();
   } catch (e) { s.textContent = "Error: " + e.message; }
 }
 
-async function ffcvProcesarLote() {
+let ffcvProcesando = false;
+let ffcvAcumulado = { equipos: 0, nuevos: 0, actualizados: 0 };
+
+function ffcvToggleProcesar() {
+  if (ffcvProcesando) { ffcvProcesando = false; return; }
+  ffcvProcesando = true;
+  ffcvAcumulado = { equipos: 0, nuevos: 0, actualizados: 0 };
+  document.getElementById("btn_ffcv_procesar").textContent = "Detener";
+  ffcvBucleProcesar();
+}
+
+async function ffcvBucleProcesar() {
   const s = document.getElementById("ffcv_status");
-  s.textContent = "Procesando un lote…";
-  try {
-    const d = await ffcvLlamar("procesar", { lote: 40 });
-    s.textContent = `Lote hecho: ${d.equipos_nuevos} equipos, ${d.jugadores_nuevos} jugadores nuevos, ${d.jugadores_actualizados} actualizados. Quedan ${d.pendientes} pendientes.`;
-    ffcvEstado();
-  } catch (e) { s.textContent = "Error: " + e.message; }
+  const btn = document.getElementById("btn_ffcv_procesar");
+  let fallosSeguidos = 0;
+
+  while (ffcvProcesando) {
+    try {
+      s.textContent = `Procesando… (${ffcvAcumulado.equipos} equipos, ${ffcvAcumulado.nuevos} jugadores nuevos, ${ffcvAcumulado.actualizados} actualizados hasta ahora)`;
+      const d = await ffcvLlamar("procesar", { lote: 25 });
+      fallosSeguidos = 0;
+      ffcvAcumulado.equipos += d.equipos_nuevos;
+      ffcvAcumulado.nuevos += d.jugadores_nuevos;
+      ffcvAcumulado.actualizados += d.jugadores_actualizados;
+
+      if (d.pendientes === 0) {
+        s.textContent = `Importación completa: ${ffcvAcumulado.equipos} equipos, ${ffcvAcumulado.nuevos} jugadores nuevos, ${ffcvAcumulado.actualizados} actualizados.`;
+        ffcvProcesando = false;
+        break;
+      }
+      s.textContent = `Procesando… quedan ${d.pendientes} pendientes (${ffcvAcumulado.equipos} equipos, ${ffcvAcumulado.nuevos} jugadores nuevos, ${ffcvAcumulado.actualizados} actualizados).`;
+      ffcvEstado();
+    } catch (e) {
+      fallosSeguidos++;
+      s.textContent = `Aviso: ${e.message} — reintentando… (fallo ${fallosSeguidos})`;
+      if (fallosSeguidos >= 5) {
+        s.textContent = "Se paró tras varios fallos seguidos: " + e.message + ". Pulsa otra vez para reanudar.";
+        ffcvProcesando = false;
+        break;
+      }
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  }
+  btn.textContent = "2 · Procesar todo ahora";
+  ffcvEstado();
 }
 
 async function ffcvEstado() {

@@ -27,7 +27,7 @@ const json = (body: unknown, status = 200) =>
 
 const FFCV = "https://ffcv.es/competiciones/api";
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15";
-const PRESUPUESTO_MS = 110_000;           // parar antes del límite de la función
+const PRESUPUESTO_MS = 25_000;            // corto a propósito: el navegador vuelve a llamar en bucle
 const PAUSA_MS = 350;                     // pausa entre llamadas a FFCV (ritmo suave)
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -129,15 +129,14 @@ Deno.serve(async (req) => {
       }
       if (!elegida) return json({ error: "No se encontró temporada con competiciones" }, 500);
 
-      // limpiar cola anterior y catálogo
-      await admin.from("ffcv_cola").delete().neq("id", 0);
-
-      let nGrupos = 0;
+      // recoger todos los grupos en memoria (una llamada por competición)
+      const filasGrupos: any[] = [];
+      const filasCola: any[] = [];
       for (const comp of competiciones) {
         const modalidad = limpiar(comp.nombre_grupo_categoria) || "Sin modalidad";
         const grupos = (await ffcvGet(`filtros/grupos_fetch.php?cod_competicion=${comp.codigo}`)).grupos || [];
         for (const g of grupos) {
-          await admin.from("ffcv_grupos").upsert({
+          filasGrupos.push({
             cod_grupo: g.codigo,
             nombre_grupo: limpiar(g.nombre),
             cod_competicion: comp.codigo,
@@ -147,17 +146,20 @@ Deno.serve(async (req) => {
             modalidad,
             activo: comp.Activa === "1",
             ultima_jornada: Number(g.total_jornadas) || null,
-          }, { onConflict: "cod_grupo" });
-          await admin.from("ffcv_cola").upsert(
-            { tipo: "grupo", referencia: g.codigo, estado: "pendiente" },
-            { onConflict: "tipo,referencia" },
-          );
-          nGrupos++;
+          });
+          filasCola.push({ tipo: "grupo", referencia: g.codigo, estado: "pendiente" });
         }
       }
 
-      await admin.from("ffcv_ejecuciones").insert({ grupos_total: nGrupos, estado: "en_curso" });
-      return json({ ok: true, temporada: elegida.nombre, grupos_encolados: nGrupos });
+      // escribir en bloque (pocas llamadas -> evita agotar el tiempo)
+      await admin.from("ffcv_cola").delete().neq("id", 0);
+      for (let i = 0; i < filasGrupos.length; i += 500)
+        await admin.from("ffcv_grupos").upsert(filasGrupos.slice(i, i + 500), { onConflict: "cod_grupo" });
+      for (let i = 0; i < filasCola.length; i += 500)
+        await admin.from("ffcv_cola").upsert(filasCola.slice(i, i + 500), { onConflict: "tipo,referencia" });
+
+      await admin.from("ffcv_ejecuciones").insert({ grupos_total: filasGrupos.length, estado: "en_curso" });
+      return json({ ok: true, temporada: elegida.nombre, grupos_encolados: filasGrupos.length });
     }
 
     // ========================================================

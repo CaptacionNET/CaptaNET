@@ -15,7 +15,7 @@ alter table jugadores add column if not exists ffcv_actualizado timestamptz; -- 
 
 -- Un jugador de FFCV no debe duplicarse: índice único por código de licencia
 create unique index if not exists jugadores_cod_ffcv_key
-  on jugadores (cod_ffcv) where cod_ffcv is not null;
+  on jugadores (cod_ffcv);
 
 -- Para encajar la jerarquía de FFCV sin duplicar, guardamos su código en cada nivel.
 -- categoria = modalidad FFCV · liga = competición FFCV · grupo = grupo FFCV
@@ -24,10 +24,13 @@ alter table ligas      add column if not exists cod_ffcv text;
 alter table grupos     add column if not exists cod_ffcv text;
 alter table equipos    add column if not exists cod_ffcv text;
 
-create unique index if not exists categorias_cod_ffcv_key on categorias (cod_ffcv) where cod_ffcv is not null;
-create unique index if not exists ligas_cod_ffcv_key      on ligas (cod_ffcv)      where cod_ffcv is not null;
-create unique index if not exists grupos_cod_ffcv_key     on grupos (cod_ffcv)     where cod_ffcv is not null;
-create unique index if not exists equipos_cod_ffcv_key    on equipos (cod_ffcv)    where cod_ffcv is not null;
+-- Índices únicos NO parciales (los parciales no valen para el upsert onConflict).
+-- Postgres permite varios NULL en un índice único, así que las filas manuales
+-- (sin cod_ffcv) conviven sin problema.
+create unique index if not exists categorias_cod_ffcv_key on categorias (cod_ffcv);
+create unique index if not exists ligas_cod_ffcv_key      on ligas (cod_ffcv);
+create unique index if not exists grupos_cod_ffcv_key     on grupos (cod_ffcv);
+create unique index if not exists equipos_cod_ffcv_key    on equipos (cod_ffcv);
 
 -- 2) Catálogo de grupos de FFCV (lo rellena el descubridor automático)
 create table if not exists ffcv_grupos (
