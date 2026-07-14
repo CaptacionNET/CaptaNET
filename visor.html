@@ -118,7 +118,7 @@ const ANIO_MIN = 2004, ANIO_MAX = 2021;
 
 let esAdmin = false;
 let miClubId = null;
-let temporadasCache = [], categoriasCache = [], ligasCache = [], gruposCache = [], equiposCache = [];
+let temporadasCache = [];
 let tabla = null;
 let basefilas = [];
 
@@ -146,14 +146,21 @@ async function logout() {
   window.location.href = "index.html";
 }
 
-// Supabase solo devuelve 1000 filas por consulta si no se pide más explícitamente.
-// Con miles de equipos importados de FFCV, hay que traerlos todos en bloques.
-async function fetchTodo(tabla) {
+// Con miles de equipos importados de FFCV, cargarlos TODOS de golpe en cada
+// visita es lento (y Supabase igualmente corta en 1000 filas por defecto).
+// En vez de precargar todo, cada nivel se pide a la base de datos ya filtrado
+// por el nivel anterior (Temporada -> Categoría -> Liga -> Grupo -> Equipo),
+// así cada consulta es pequeña y rápida sin importar cuántos datos haya en total.
+
+// Trae TODas las filas de una consulta paginando de 1000 en 1000 (para los
+// pocos casos donde sí puede haber más de 1000 resultados, como los jugadores
+// de una selección muy amplia).
+async function fetchPaginado(construirConsulta) {
   const filas = [];
   const TAMANO = 1000;
   let desde = 0;
   while (true) {
-    const { data, error } = await client.from(tabla).select("*").order("nombre").range(desde, desde + TAMANO - 1);
+    const { data, error } = await construirConsulta(desde, desde + TAMANO - 1);
     if (error || !data) break;
     filas.push(...data);
     if (data.length < TAMANO) break;
@@ -163,18 +170,14 @@ async function fetchTodo(tabla) {
 }
 
 async function cargarCaches() {
-  const [t, c, l, g, e] = await Promise.all([
-    fetchTodo("temporadas"),
-    fetchTodo("categorias"),
-    fetchTodo("ligas"),
-    fetchTodo("grupos"),
-    fetchTodo("equipos"),
-  ]);
-  temporadasCache = t;
-  categoriasCache = c;
-  ligasCache = l;
-  gruposCache = g;
-  equiposCache = e;
+  // Las temporadas sí se cargan enteras (son pocas, una por año).
+  const { data } = await client.from("temporadas").select("*").order("nombre");
+  temporadasCache = data || [];
+}
+
+async function gruposDeLiga(ligaId) {
+  const { data } = await client.from("grupos").select("id").eq("liga_id", ligaId);
+  return (data || []).map(g => g.id);
 }
 
 async function cargarClubsSiAdmin() {
@@ -205,65 +208,97 @@ function selNum(id) {
   return v === "" ? "" : Number(v);
 }
 
-function poblarCategorias() {
+async function poblarCategorias() {
   const temporadaId = document.getElementById("filtro_temporada").value; // temporadas.id es uuid, no número
   const sel = document.getElementById("filtro_categoria");
   sel.innerHTML = '<option value="">Selecciona categoría</option>';
-  categoriasCache.filter(c => c.temporada_id === temporadaId)
-    .forEach(c => sel.innerHTML += `<option value="${c.id}">${c.nombre}</option>`);
+  if (!temporadaId) return;
+  const { data } = await client.from("categorias").select("id,nombre").eq("temporada_id", temporadaId).order("nombre");
+  (data || []).forEach(c => sel.innerHTML += `<option value="${c.id}">${c.nombre}</option>`);
 }
 
-function poblarLigas() {
+async function poblarLigas() {
   const categoriaId = selNum("filtro_categoria");
   const sel = document.getElementById("filtro_liga");
   sel.innerHTML = '<option value="">Todas</option>';
-  ligasCache.filter(l => l.categoria_id === categoriaId)
-    .forEach(l => sel.innerHTML += `<option value="${l.id}">${l.nombre}</option>`);
+  if (!categoriaId) return;
+  const { data } = await client.from("ligas").select("id,nombre").eq("categoria_id", categoriaId).order("nombre");
+  (data || []).forEach(l => sel.innerHTML += `<option value="${l.id}">${l.nombre}</option>`);
 }
 
-function poblarGrupos() {
+async function poblarGrupos() {
   const ligaId = selNum("filtro_liga");
   const sel = document.getElementById("filtro_grupo");
   sel.innerHTML = '<option value="">Todos</option>';
-  gruposCache.filter(g => !ligaId || g.liga_id === ligaId)
-    .forEach(g => sel.innerHTML += `<option value="${g.id}">${g.nombre}</option>`);
+  if (!ligaId) return;
+  const { data } = await client.from("grupos").select("id,nombre").eq("liga_id", ligaId).order("nombre");
+  (data || []).forEach(g => sel.innerHTML += `<option value="${g.id}">${g.nombre}</option>`);
 }
 
-function poblarEquipos() {
+async function poblarEquipos() {
   const grupoId = selNum("filtro_grupo");
   const ligaId = selNum("filtro_liga");
   const sel = document.getElementById("filtro_equipo");
   sel.innerHTML = '<option value="">Todos</option>';
-  equiposCache.filter(e => {
-    if (grupoId) return e.grupo_id === grupoId;
-    if (ligaId) { const g = gruposCache.find(x => x.id === e.grupo_id); return g && g.liga_id === ligaId; }
-    return true;
-  }).forEach(e => sel.innerHTML += `<option value="${e.id}">${e.nombre}</option>`);
+
+  let equipos = [];
+  if (grupoId) {
+    const { data } = await client.from("equipos").select("id,nombre").eq("grupo_id", grupoId).order("nombre");
+    equipos = data || [];
+  } else if (ligaId) {
+    const grupoIds = await gruposDeLiga(ligaId);
+    if (grupoIds.length) {
+      const { data } = await client.from("equipos").select("id,nombre").in("grupo_id", grupoIds).order("nombre");
+      equipos = data || [];
+    }
+  }
+  equipos.forEach(e => sel.innerHTML += `<option value="${e.id}">${e.nombre}</option>`);
 }
 
-function onTemporadaChange() { poblarCategorias(); poblarLigas(); poblarGrupos(); poblarEquipos(); cargarJugadores(); }
-function onCategoriaChange() { poblarLigas(); poblarGrupos(); poblarEquipos(); cargarJugadores(); }
-function onLigaChange() { poblarGrupos(); poblarEquipos(); cargarJugadores(); }
-function onGrupoChange() { poblarEquipos(); cargarJugadores(); }
+async function onTemporadaChange() { await poblarCategorias(); await poblarLigas(); await poblarGrupos(); await poblarEquipos(); cargarJugadores(); }
+async function onCategoriaChange() { await poblarLigas(); await poblarGrupos(); await poblarEquipos(); cargarJugadores(); }
+async function onLigaChange() { await poblarGrupos(); await poblarEquipos(); cargarJugadores(); }
+async function onGrupoChange() { await poblarEquipos(); cargarJugadores(); }
 
-function equiposFiltrados() {
-  const temporadaId = document.getElementById("filtro_temporada").value; // temporadas.id es uuid, no número
+// Determina qué equipos entran en la selección actual, pidiendo cada paso
+// a la base de datos en vez de filtrar en el navegador sobre miles de filas.
+async function equipoIdsFiltrados() {
+  const temporadaId = document.getElementById("filtro_temporada").value;
   const categoriaId = selNum("filtro_categoria");
   const ligaId = selNum("filtro_liga");
   const grupoId = selNum("filtro_grupo");
   const equipoId = selNum("filtro_equipo");
 
-  return equiposCache.filter(e => {
-    if (equipoId) return e.id === equipoId;
-    if (grupoId) return e.grupo_id === grupoId;
-    const g = gruposCache.find(x => x.id === e.grupo_id);
-    if (!g) return false;
-    if (ligaId) return g.liga_id === ligaId;
-    const l = ligasCache.find(x => x.id === g.liga_id);
-    if (!l) return false;
-    if (categoriaId) return l.categoria_id === categoriaId;
-    return e.temporada_id === temporadaId;
-  });
+  if (equipoId) return [equipoId];
+
+  if (grupoId) {
+    const { data } = await client.from("equipos").select("id").eq("grupo_id", grupoId);
+    return (data || []).map(e => e.id);
+  }
+
+  let grupoIds = null;
+  if (ligaId) {
+    grupoIds = await gruposDeLiga(ligaId);
+  } else if (categoriaId) {
+    const { data: ligas } = await client.from("ligas").select("id").eq("categoria_id", categoriaId);
+    const ligaIds = (ligas || []).map(l => l.id);
+    if (!ligaIds.length) return [];
+    const { data: grupos } = await client.from("grupos").select("id").in("liga_id", ligaIds);
+    grupoIds = (grupos || []).map(g => g.id);
+  }
+
+  if (grupoIds !== null) {
+    if (!grupoIds.length) return [];
+    const { data } = await client.from("equipos").select("id").in("grupo_id", grupoIds);
+    return (data || []).map(e => e.id);
+  }
+
+  if (temporadaId) {
+    const { data } = await client.from("equipos").select("id").eq("temporada_id", temporadaId);
+    return (data || []).map(e => e.id);
+  }
+
+  return [];
 }
 
 if (window.jspdf) window.jsPDF = window.jspdf.jsPDF;
@@ -325,11 +360,17 @@ async function cargarJugadores() {
   }
   aviso.style.display = "none";
 
-  const equipoIds = equiposFiltrados().map(e => e.id);
+  const equipoIds = await equipoIdsFiltrados();
   if (equipoIds.length === 0) { tabla.setData([]); return; }
 
-  const { data: jugadores } = await client.from("jugadores").select("*").in("equipo_id", equipoIds);
-  const jugadorIds = (jugadores || []).map(j => j.id);
+  // Se trae la jerarquía (equipo->grupo->liga->categoría) en la misma consulta,
+  // así no hace falta tener todo el árbol cargado en el navegador.
+  const jugadores = await fetchPaginado((desde, hasta) => client
+    .from("jugadores")
+    .select("*, equipos(nombre, grupos(nombre, ligas(nombre, categorias(nombre))))")
+    .in("equipo_id", equipoIds)
+    .range(desde, hasta));
+  const jugadorIds = jugadores.map(j => j.id);
 
   let privados = [];
   if (jugadorIds.length) {
@@ -337,16 +378,18 @@ async function cargarJugadores() {
     privados = data || [];
   }
 
-  basefilas = (jugadores || []).map(j => {
+  basefilas = jugadores.map(j => {
     const priv = privados.find(p => p.jugador_id === j.id) || {};
-    const equipo = equiposCache.find(e => e.id === j.equipo_id);
-    const jer = jerarquiaDeEquipo(j.equipo_id);
+    const equipo = j.equipos;
+    const grupo = equipo?.grupos;
+    const liga = grupo?.ligas;
+    const categoria = liga?.categorias;
     return {
       jugador_id: j.id,
       nombre: j.nombre,
-      categoria: jer.categoria,
-      liga: jer.liga,
-      grupo: jer.grupo,
+      categoria: categoria?.nombre || "",
+      liga: liga?.nombre || "",
+      grupo: grupo?.nombre || "",
       equipo: equipo?.nombre || "",
       dorsal: j.dorsal,
       anio_nacimiento: j.fecha_nacimiento ? new Date(j.fecha_nacimiento).getFullYear() : (priv.anio_nacimiento || ""),
@@ -356,15 +399,6 @@ async function cargarJugadores() {
   });
 
   aplicarFiltrosLocales();
-}
-
-function jerarquiaDeEquipo(equipoId) {
-  const e = equiposCache.find(x => x.id === equipoId);
-  if (!e) return { categoria: "", liga: "", grupo: "" };
-  const g = gruposCache.find(x => x.id === e.grupo_id);
-  const l = g ? ligasCache.find(x => x.id === g.liga_id) : null;
-  const c = l ? categoriasCache.find(x => x.id === l.categoria_id) : null;
-  return { categoria: c?.nombre || "", liga: l?.nombre || "", grupo: g?.nombre || "" };
 }
 
 function tieneInforme(p) {
@@ -405,10 +439,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   await cargarCaches();
   await cargarClubsSiAdmin();
   poblarTemporadas();
-  poblarCategorias();
-  poblarLigas();
-  poblarGrupos();
-  poblarEquipos();
+  await poblarCategorias();
+  await poblarLigas();
+  await poblarGrupos();
+  await poblarEquipos();
   poblarAniosRango();
   await crearTabla();
   cargarJugadores();
