@@ -13,6 +13,22 @@ alter table jugadores add column if not exists foto_url       text;      -- foto
 alter table jugadores add column if not exists historial      jsonb;     -- historial de temporadas (equipo + categoría)
 alter table jugadores add column if not exists ffcv_actualizado timestamptz; -- última vez que se refrescó desde FFCV
 
+-- Estadísticas de la temporada importada (partidos, goles, tarjetas, minutos)
+alter table jugadores add column if not exists minutos_jugados      int;
+alter table jugadores add column if not exists partidos_convocados  int;
+alter table jugadores add column if not exists partidos_titular     int;
+alter table jugadores add column if not exists partidos_suplente    int;
+alter table jugadores add column if not exists partidos_jugados     int;
+alter table jugadores add column if not exists goles                int;
+alter table jugadores add column if not exists tarjetas_amarillas   int;
+alter table jugadores add column if not exists tarjetas_rojas       int;
+alter table jugadores add column if not exists tarjetas_doble_amarilla int;
+alter table jugadores add column if not exists tarjetas_verde       int;
+alter table jugadores add column if not exists es_portero           boolean;
+
+-- Para poder pedir las estadísticas necesitamos saber la temporada FFCV (no la nuestra) de cada equipo
+alter table equipos add column if not exists ffcv_cod_temporada text;
+
 -- Un jugador de FFCV no debe duplicarse: índice único por código de licencia
 create unique index if not exists jugadores_cod_ffcv_key
   on jugadores (cod_ffcv);

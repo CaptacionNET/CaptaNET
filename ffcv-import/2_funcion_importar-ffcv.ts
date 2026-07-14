@@ -291,7 +291,9 @@ async function procesarGrupo(admin: any, codGrupo: string): Promise<{ equipos: n
   let n = 0;
   for (const [cod, nombre] of codes) {
     await db("upsert equipo",
-      admin.from("equipos").upsert({ cod_ffcv: cod, nombre, grupo_id: grupoId, temporada_id: temporadaId }, { onConflict: "cod_ffcv" }));
+      admin.from("equipos").upsert(
+        { cod_ffcv: cod, nombre, grupo_id: grupoId, temporada_id: temporadaId, ffcv_cod_temporada: g.cod_temporada },
+        { onConflict: "cod_ffcv" }));
     await db("encolar equipo",
       admin.from("ffcv_cola").upsert({ tipo: "equipo", referencia: cod, estado: "pendiente" }, { onConflict: "tipo,referencia" }));
     n++;
@@ -303,7 +305,8 @@ async function procesarGrupo(admin: any, codGrupo: string): Promise<{ equipos: n
 // Procesa un EQUIPO: descarga plantilla + ficha de cada jugador
 // ------------------------------------------------------------
 async function procesarEquipo(admin: any, codEquipo: string): Promise<{ nuevos: number; actualizados: number }> {
-  const equipo = await db("leer equipo", admin.from("equipos").select("id, temporada_id").eq("cod_ffcv", codEquipo).single());
+  const equipo = await db("leer equipo",
+    admin.from("equipos").select("id, temporada_id, ffcv_cod_temporada").eq("cod_ffcv", codEquipo).single());
 
   const pl = await ffcvGet(`equipos/plantilla_home.php?cod_equipo=${codEquipo}`);
   const jugadores = pl.jugadores_equipo || [];
@@ -323,6 +326,15 @@ async function procesarEquipo(admin: any, codEquipo: string): Promise<{ nuevos: 
       }));
     } catch { /* si falla la ficha, seguimos con lo básico de la plantilla */ }
 
+    // Estadísticas de la temporada (partidos, goles, tarjetas, minutos)
+    let stats: Record<string, unknown> = {};
+    if (equipo.ffcv_cod_temporada) {
+      try {
+        const s = await ffcvGet(`jugadores/jugador_api.php?codigo=${codLic}&cod_temporada=${equipo.ffcv_cod_temporada}`);
+        stats = extraerStatsJugador(s);
+      } catch { /* si falla, seguimos sin estadísticas para este jugador */ }
+    }
+
     const existente = await db("buscar jugador existente",
       admin.from("jugadores").select("id, foto_url").eq("cod_ffcv", codLic).maybeSingle());
     let fotoUrl = existente?.foto_url || null;
@@ -341,11 +353,34 @@ async function procesarEquipo(admin: any, codEquipo: string): Promise<{ nuevos: 
       foto_url: fotoUrl,
       historial,
       ffcv_actualizado: new Date().toISOString(),
+      ...stats,
     };
     await db("upsert jugador", admin.from("jugadores").upsert(registro, { onConflict: "cod_ffcv" }));
     if (existente) actualizados++; else nuevos++;
   }
   return { nuevos, actualizados };
+}
+
+// Convierte la respuesta de jugador_api.php (arrays "partidos"/"tarjetas") en columnas planas
+function extraerStatsJugador(j: any): Record<string, unknown> {
+  const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
+  const partidos: Record<string, string> = {};
+  for (const p of (j.partidos || [])) partidos[p.nombre] = p.valor;
+  const tarjetas: Record<string, string> = {};
+  for (const t of (j.tarjetas || [])) tarjetas[t.nombre] = t.valor;
+  return {
+    minutos_jugados: num(j.minutos_totales_jugados),
+    partidos_convocados: num(partidos["Convocados"]),
+    partidos_titular: num(partidos["Titular"]),
+    partidos_suplente: num(partidos["Suplente"]),
+    partidos_jugados: num(partidos["Jugados"]),
+    goles: num(partidos["Total Goles"]),
+    tarjetas_amarillas: num(tarjetas["Amarillas"]),
+    tarjetas_rojas: num(tarjetas["Rojas"]),
+    tarjetas_doble_amarilla: num(tarjetas["Doble Amarilla"]),
+    tarjetas_verde: num(tarjetas["Tarjeta verde"]),
+    es_portero: j.es_portero === "1",
+  };
 }
 
 // upsert por cod_ffcv devolviendo el id; extra = campos padre (categoria_id, etc.)

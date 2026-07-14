@@ -152,6 +152,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
         </div>
       </div>
 
+      <div id="f_stats" style="display:none;"></div>
       <div id="f_historial" style="display:none;"></div>
 
       <p id="status" class="status"></p>
@@ -320,6 +321,28 @@ async function abrirJugador(jugadorId) {
 
   // Foto: la del club si la subió; si no, la de FFCV como imagen por defecto
   actualizarFotoUI(priv?.foto_url || j.foto_url || null, !!priv?.foto_url);
+
+  // Estadísticas de la última temporada importada (viene de FFCV)
+  const contStats = document.getElementById("f_stats");
+  const hayStats = j.partidos_jugados != null || j.goles != null;
+  if (hayStats) {
+    const tarjeta = (valor, label) => `<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 4px;text-align:center;"><div style="font-size:18px;font-weight:700;">${valor ?? "-"}</div><div style="font-size:11px;color:var(--muted);">${label}</div></div>`;
+    contStats.style.display = "block";
+    contStats.innerHTML =
+      "<h3 style='font-size:14px;margin:18px 0 8px;'>Estadísticas (última temporada)</h3>" +
+      "<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:8px;'>" +
+      tarjeta(j.partidos_jugados, "Jugados") +
+      tarjeta(j.partidos_titular, "Titular") +
+      tarjeta(j.partidos_suplente, "Suplente") +
+      tarjeta(j.goles, "Goles") +
+      tarjeta(j.minutos_jugados, "Minutos") +
+      tarjeta(j.tarjetas_amarillas, "Amarillas") +
+      tarjeta(j.tarjetas_rojas, "Rojas") +
+      "</div>";
+  } else {
+    contStats.style.display = "none";
+    contStats.innerHTML = "";
+  }
 
   // Historial de clubes/categorías (viene de FFCV)
   const hist = Array.isArray(j.historial) ? j.historial.slice().reverse() : [];
