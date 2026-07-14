@@ -158,6 +158,17 @@ const client = supabase.createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
 );
 
+// Búsqueda por nombre sin distinguir acentos ni el orden de las palabras:
+// "MARCOS VERA" debe encontrar a "VERA PEREZ, MARCOS".
+function normalizarTexto(s) {
+  return (s || "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+function coincideNombre(nombre, consulta) {
+  const nombreNorm = normalizarTexto(nombre);
+  const palabras = normalizarTexto(consulta).trim().split(/\s+/).filter(Boolean);
+  return palabras.every(p => nombreNorm.includes(p));
+}
+
 let esAdmin = false;
 let miClubId = null;
 let informesCache = [];
@@ -245,8 +256,8 @@ function renderListaInformes(lista) {
 }
 
 function filtrarInformes() {
-  const q = document.getElementById("buscador_informes").value.trim().toLowerCase();
-  renderListaInformes(q ? informesCache.filter(j => j.nombre.toLowerCase().includes(q)) : informesCache);
+  const q = document.getElementById("buscador_informes").value.trim();
+  renderListaInformes(q ? informesCache.filter(j => coincideNombre(j.nombre, q)) : informesCache);
 }
 
 let buscarNuevoTimeout = null;
@@ -260,7 +271,11 @@ async function ejecutarBusquedaNueva() {
   const cont = document.getElementById("resultados_nuevo");
   if (!q) { cont.innerHTML = ""; return; }
 
-  const { data: jugadores } = await client.from("jugadores").select("*").ilike("nombre", `%${q}%`).limit(20);
+  // Cada palabra debe aparecer (en cualquier orden, sin acentos) en el nombre.
+  const palabras = normalizarTexto(q).split(/\s+/).filter(Boolean);
+  let consulta = client.from("jugadores").select("*").limit(20);
+  palabras.forEach(p => { consulta = consulta.ilike("nombre_normalizado", `%${p}%`); });
+  const { data: jugadores } = await consulta;
   if (!jugadores || !jugadores.length) { cont.innerHTML = "<p style='color:var(--muted);font-size:12px;'>Sin resultados.</p>"; return; }
 
   const equipoIds = [...new Set(jugadores.map(j => j.equipo_id).filter(Boolean))];

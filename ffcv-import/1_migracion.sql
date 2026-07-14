@@ -125,3 +125,40 @@ create policy ffcv_ejec_admin_read on ffcv_ejecuciones
 drop policy if exists ffcv_cola_admin_read on ffcv_cola;
 create policy ffcv_cola_admin_read on ffcv_cola
   for select using (is_admin());
+
+-- 6) Búsqueda de jugadores sin distinguir acentos ("jose" debe encontrar "José").
+--    Guardamos una copia del nombre sin acentos y en minúsculas, mantenida al
+--    día automáticamente por un trigger (así funciona tanto para los informes
+--    creados a mano como para los jugadores que trae el importador de la FFCV).
+create or replace function normalizar_texto(txt text) returns text as $$
+  select lower(
+    translate(
+      coalesce(txt, ''),
+      'ÁÀÄÂÃáàäâãÉÈËÊéèëêÍÌÏÎíìïîÓÒÖÔÕóòöôõÚÙÜÛúùüûÑñÇç',
+      'AAAAAaaaaaEEEEeeeeIIIIiiiiOOOOOoooooUUUUuuuuNnCc'
+    )
+  );
+$$ language sql immutable;
+
+alter table jugadores add column if not exists nombre_normalizado text;
+
+create or replace function jugadores_actualizar_nombre_normalizado() returns trigger as $$
+begin
+  new.nombre_normalizado := normalizar_texto(new.nombre);
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_jugadores_nombre_normalizado on jugadores;
+create trigger trg_jugadores_nombre_normalizado
+  before insert or update of nombre on jugadores
+  for each row execute function jugadores_actualizar_nombre_normalizado();
+
+-- Rellena la columna para los jugadores que ya existían antes de crear el trigger.
+update jugadores set nombre_normalizado = normalizar_texto(nombre)
+  where nombre_normalizado is distinct from normalizar_texto(nombre);
+
+-- Para que la búsqueda ("%palabra%") no se haga lenta con miles de jugadores.
+create extension if not exists pg_trgm;
+create index if not exists jugadores_nombre_normalizado_idx
+  on jugadores using gin (nombre_normalizado gin_trgm_ops);

@@ -116,6 +116,17 @@ const client = supabase.createClient(
 
 const ANIO_MIN = 2004, ANIO_MAX = 2021;
 
+// Búsqueda por nombre sin distinguir acentos ni el orden de las palabras:
+// "MARCOS VERA" debe encontrar a "VERA PEREZ, MARCOS".
+function normalizarTexto(s) {
+  return (s || "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+function coincideNombre(nombre, consulta) {
+  const nombreNorm = normalizarTexto(nombre);
+  const palabras = normalizarTexto(consulta).trim().split(/\s+/).filter(Boolean);
+  return palabras.every(p => nombreNorm.includes(p));
+}
+
 let esAdmin = false;
 let miClubId = null;
 let temporadasCache = [];
@@ -455,14 +466,14 @@ function poblarAniosRango() {
 }
 
 async function aplicarFiltrosLocales() {
-  const nombreFiltro = document.getElementById("filtro_nombre").value.toLowerCase();
+  const nombreFiltro = document.getElementById("filtro_nombre").value;
   const conInforme = document.getElementById("filtro_con_informe").checked;
   const anioDesde = document.getElementById("filtro_anio_desde").value;
   const anioHasta = document.getElementById("filtro_anio_hasta").value;
   const minGoles = document.getElementById("filtro_min_goles").value;
 
   let filas = basefilas;
-  if (nombreFiltro) filas = filas.filter(f => f.nombre.toLowerCase().includes(nombreFiltro));
+  if (nombreFiltro) filas = filas.filter(f => coincideNombre(f.nombre, nombreFiltro));
   if (conInforme) filas = filas.filter(f => f.tiene_informe);
   if (anioDesde) filas = filas.filter(f => f.anio_nacimiento && Number(f.anio_nacimiento) >= Number(anioDesde));
   if (anioHasta) filas = filas.filter(f => f.anio_nacimiento && Number(f.anio_nacimiento) <= Number(anioHasta));
