@@ -121,6 +121,12 @@ label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px;}
       <button class="secondary" onclick="ffcvEstado()">Actualizar estado</button>
     </div>
     <p id="ffcv_status" class="status"></p>
+    <div id="ffcv_barra_wrap" style="display:none;margin-top:6px;">
+      <div style="background:#eef0f5;border-radius:6px;height:10px;overflow:hidden;">
+        <div id="ffcv_barra" style="background:var(--primary);height:100%;width:0%;transition:width .3s;"></div>
+      </div>
+      <p id="ffcv_barra_texto" style="font-size:12px;color:var(--muted);margin:4px 0 0;"></p>
+    </div>
     <div id="ffcv_panel" style="display:none;margin-top:8px;font-size:14px;color:var(--text);"></div>
   </div>
 </div>
@@ -246,6 +252,9 @@ async function ffcvBucleProcesar() {
 
 async function ffcvEstado() {
   const panel = document.getElementById("ffcv_panel");
+  const barraWrap = document.getElementById("ffcv_barra_wrap");
+  const barra = document.getElementById("ffcv_barra");
+  const barraTexto = document.getElementById("ffcv_barra_texto");
   try {
     const d = await ffcvLlamar("estado");
     const ej = d.ultima_ejecucion;
@@ -258,6 +267,16 @@ async function ffcvEstado() {
             (ej.finalizado ? ` · terminó ${new Date(ej.finalizado).toLocaleString()}` : "")
           : "Aún no se ha ejecutado ninguna pasada.") +
       (d.ultimo_error ? `<br><b style="color:#dc2626;">Último error</b> (${d.ultimo_error.tipo} ${d.ultimo_error.referencia}): ${d.ultimo_error.error_msg || ""}` : "");
+
+    if (d.total_cola > 0) {
+      const hechos = d.total_cola - d.pendientes;
+      const pct = Math.round((hechos / d.total_cola) * 100);
+      barraWrap.style.display = "block";
+      barra.style.width = pct + "%";
+      barraTexto.textContent = `${pct}% completado (${hechos} de ${d.total_cola})`;
+    } else {
+      barraWrap.style.display = "none";
+    }
   } catch (e) { panel.style.display = "block"; panel.textContent = "Error consultando estado: " + e.message; }
 }
 
