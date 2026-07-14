@@ -152,6 +152,8 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
         </div>
       </div>
 
+      <div id="f_historial" style="display:none;"></div>
+
       <p id="status" class="status"></p>
     </div>
   </div>
@@ -316,7 +318,24 @@ async function abrirJugador(jugadorId) {
   document.getElementById("f_actitud").value = priv?.actitud ?? "";
   document.getElementById("f_comentario").value = priv?.comentario || "";
 
-  actualizarFotoUI(priv?.foto_url);
+  // Foto: la del club si la subió; si no, la de FFCV como imagen por defecto
+  actualizarFotoUI(priv?.foto_url || j.foto_url || null, !!priv?.foto_url);
+
+  // Historial de clubes/categorías (viene de FFCV)
+  const hist = Array.isArray(j.historial) ? j.historial.slice().reverse() : [];
+  const contHist = document.getElementById("f_historial");
+  if (hist.length) {
+    contHist.style.display = "block";
+    contHist.innerHTML =
+      "<h3 style='font-size:14px;margin:18px 0 8px;'>Historial</h3>" +
+      "<div style='overflow-x:auto;'><table style='width:100%;border-collapse:collapse;font-size:13px;'>" +
+      "<tr style='text-align:left;color:var(--muted);'><th style='padding:5px 8px;'>Temporada</th><th style='padding:5px 8px;'>Equipo</th><th style='padding:5px 8px;'>Categoría</th></tr>" +
+      hist.map(h => `<tr style='border-top:1px solid var(--border);'><td style='padding:5px 8px;'>${h.temporada || ""}</td><td style='padding:5px 8px;'>${h.equipo || ""}</td><td style='padding:5px 8px;'>${h.categoria || ""}</td></tr>`).join("") +
+      "</table></div>";
+  } else {
+    contHist.style.display = "none";
+    contHist.innerHTML = "";
+  }
 
   document.getElementById("status").textContent = "";
 }
@@ -418,7 +437,7 @@ async function onFotoSeleccionada() {
   }
 }
 
-function actualizarFotoUI(url) {
+function actualizarFotoUI(url, esPropia = true) {
   const fotoImg = document.getElementById("foto_img");
   const fotoPlaceholder = document.getElementById("foto_placeholder");
   const btnEliminar = document.getElementById("btn_eliminar_foto");
@@ -427,7 +446,8 @@ function actualizarFotoUI(url) {
     fotoImg.src = url;
     fotoImg.style.display = "block";
     fotoPlaceholder.style.display = "none";
-    btnEliminar.style.display = "block";
+    // Solo se puede "eliminar" la foto que el propio club subió, no la de FFCV
+    btnEliminar.style.display = esPropia ? "block" : "none";
   } else {
     fotoImg.style.display = "none";
     fotoPlaceholder.style.display = "flex";
