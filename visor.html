@@ -265,7 +265,7 @@ function crearTabla() {
   return new Promise(resolve => {
     tabla = new Tabulator("#tabla", {
       data: [],
-      layout: "fitColumns",
+      layout: window.matchMedia("(max-width:700px)").matches ? "fitData" : "fitColumns",
       responsiveLayout: "collapse",
       height: "70vh",
       reactiveData: true,

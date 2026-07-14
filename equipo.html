@@ -90,7 +90,7 @@ async function cargarUsuarios() {
 
   tablaUsuarios = new Tabulator("#tabla-usuarios", {
     data: (data || []).map(u => ({ ...u, contrasena: "" })),
-    layout: "fitColumns",
+    layout: window.matchMedia("(max-width:700px)").matches ? "fitData" : "fitColumns",
     responsiveLayout: "collapse",
     reactiveData: true,
     height: "600px",
