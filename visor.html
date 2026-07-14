@@ -128,6 +128,33 @@ function coincideNombre(nombre, consulta) {
   return palabras.every(p => nombreNorm.includes(p));
 }
 
+// Orden de las ligas en el desplegable: primero por categoría de edad (de
+// mayor a menor), y dentro de cada una, alfabético. La categoría de edad se
+// detecta por el nombre de la liga (p.ej. "Liga Nacional Juvenil" -> Juvenil);
+// si no menciona ninguna, se considera Amateur.
+// Las claves están recortadas a la raíz común entre castellano y valenciano
+// (la FFCV nombra algunas ligas en valenciano: "Cadet", "Benjamí", "Querubí",
+// sin la "e"/"n" final del castellano "Cadete", "Benjamín", "Querubín").
+const ORDEN_EDAD_LIGAS = ["AMATEUR", "JUVENIL", "CADETE", "INFANTIL", "ALEVIN", "BENJAMIN", "PREBENJAMIN", "QUERUBIN"];
+function edadDeLiga(nombreLiga) {
+  const n = normalizarTexto(nombreLiga);
+  if (n.includes("querubi")) return "QUERUBIN";
+  if (n.includes("prebenjami")) return "PREBENJAMIN";
+  if (n.includes("benjami")) return "BENJAMIN";
+  if (n.includes("alevi")) return "ALEVIN";
+  if (n.includes("infantil")) return "INFANTIL";
+  if (n.includes("cadet")) return "CADETE";
+  if (n.includes("juvenil")) return "JUVENIL";
+  return "AMATEUR";
+}
+function ordenarLigasPorEdad(ligas) {
+  return [...ligas].sort((a, b) => {
+    const rangoA = ORDEN_EDAD_LIGAS.indexOf(edadDeLiga(a.nombre));
+    const rangoB = ORDEN_EDAD_LIGAS.indexOf(edadDeLiga(b.nombre));
+    return rangoA !== rangoB ? rangoA - rangoB : a.nombre.localeCompare(b.nombre);
+  });
+}
+
 let esAdmin = false;
 let miClubId = null;
 let temporadasCache = [];
@@ -269,13 +296,8 @@ async function poblarLigas() {
   const sel = document.getElementById("filtro_liga");
   sel.innerHTML = '<option value="">Todas</option>';
   if (!categoriaId) return;
-  // Mismo orden que en la web de la FFCV (su propio campo "orden"), no alfabético.
-  // Las ligas sin ese dato (creadas a mano) van al final, ordenadas por nombre.
-  const { data } = await client.from("ligas").select("id,nombre")
-    .eq("categoria_id", categoriaId)
-    .order("orden", { ascending: true, nullsFirst: false })
-    .order("nombre");
-  (data || []).forEach(l => sel.innerHTML += `<option value="${l.id}">${l.nombre}</option>`);
+  const { data } = await client.from("ligas").select("id,nombre").eq("categoria_id", categoriaId);
+  ordenarLigasPorEdad(data || []).forEach(l => sel.innerHTML += `<option value="${l.id}">${l.nombre}</option>`);
 }
 
 async function poblarGrupos() {
