@@ -502,11 +502,6 @@ async function cargarClubs() {
       { title: "Nombre", field: "nombre", editor: "input" },
       { title: "Slug (subdominio)", field: "slug", editor: "input" },
       {
-        title: "Temporada", field: "temporada_id", editor: "list",
-        editorParams: { values: temporadasCache.map(t => ({ label: t.nombre, value: t.id })) },
-        formatter: cell => nombreTemporada(cell.getValue())
-      },
-      {
         title: "Eliminar", formatter: "buttonCross", width: 90, hozAlign: "center",
         cellClick: async (e, cell) => {
           if (!confirm("¿Eliminar este club?")) return;
@@ -532,7 +527,7 @@ async function cargarClubs() {
 }
 
 function anadirFilaClub() {
-  tablaClubs.addRow({ nombre: "", slug: "", temporada_id: null }, true);
+  tablaClubs.addRow({ nombre: "", slug: "" }, true);
 }
 
 // ============ IMPORTAR EXCEL ============

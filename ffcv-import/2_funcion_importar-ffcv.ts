@@ -220,6 +220,7 @@ Deno.serve(async (req) => {
             modalidad,
             activo: comp.Activa === "1",
             ultima_jornada: Number(g.total_jornadas) || null,
+            orden_liga: comp.Orden != null ? Number(comp.Orden) : null, // orden de la competición según la FFCV
           });
           filasCola.push({ tipo: "grupo", referencia: g.codigo, estado: "pendiente" });
         }
@@ -316,7 +317,7 @@ async function procesarGrupo(admin: any, codGrupo: string): Promise<{ equipos: n
   const catId = await upsertNivel(admin, "categorias",
     { cod_ffcv: `${g.cod_temporada_destino}_${g.modalidad}`, nombre: g.modalidad, temporada_id: temporadaId }, {});
   const ligaId = await upsertNivel(admin, "ligas",
-    { cod_ffcv: g.cod_competicion, nombre: g.nombre_competicion, temporada_id: temporadaId }, { categoria_id: catId });
+    { cod_ffcv: g.cod_competicion, nombre: g.nombre_competicion, temporada_id: temporadaId, orden: g.orden_liga }, { categoria_id: catId });
   const grupoId = await upsertNivel(admin, "grupos",
     { cod_ffcv: g.cod_grupo, nombre: g.nombre_grupo, temporada_id: temporadaId }, { liga_id: ligaId });
 

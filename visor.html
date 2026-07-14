@@ -257,7 +257,12 @@ async function poblarLigas() {
   const sel = document.getElementById("filtro_liga");
   sel.innerHTML = '<option value="">Todas</option>';
   if (!categoriaId) return;
-  const { data } = await client.from("ligas").select("id,nombre").eq("categoria_id", categoriaId).order("nombre");
+  // Mismo orden que en la web de la FFCV (su propio campo "orden"), no alfabético.
+  // Las ligas sin ese dato (creadas a mano) van al final, ordenadas por nombre.
+  const { data } = await client.from("ligas").select("id,nombre")
+    .eq("categoria_id", categoriaId)
+    .order("orden", { ascending: true, nullsFirst: false })
+    .order("nombre");
   (data || []).forEach(l => sel.innerHTML += `<option value="${l.id}">${l.nombre}</option>`);
 }
 

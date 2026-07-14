@@ -41,6 +41,10 @@ alter table ligas      add column if not exists cod_ffcv text;
 alter table grupos     add column if not exists cod_ffcv text;
 alter table equipos    add column if not exists cod_ffcv text;
 
+-- Orden propio de la FFCV para las ligas (así el desplegable del visor las
+-- muestra en el mismo orden que en su web, no alfabético).
+alter table ligas add column if not exists orden int;
+
 -- Índices únicos NO parciales (los parciales no valen para el upsert onConflict).
 -- Postgres permite varios NULL en un índice único, así que las filas manuales
 -- (sin cod_ffcv) conviven sin problema.
@@ -73,6 +77,7 @@ alter table ffcv_grupos add column if not exists fecha_fin date;
 -- nueva, importamos con la estructura de la anterior pero etiquetado como la actual.
 alter table ffcv_grupos add column if not exists cod_temporada_destino text;
 alter table ffcv_grupos add column if not exists nombre_temporada_destino text;
+alter table ffcv_grupos add column if not exists orden_liga int; -- orden de la competición según la FFCV
 
 -- 3) Cola / progreso de importación (permite reanudar entre ejecuciones)
 create table if not exists ffcv_cola (
