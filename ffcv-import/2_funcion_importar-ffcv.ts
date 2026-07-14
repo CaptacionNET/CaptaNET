@@ -131,6 +131,14 @@ Deno.serve(async (req) => {
       const temps = (await ffcvGet("filtros/temporadas_fetch.php")).temporadas || [];
       temps.sort((a: any, b: any) => Number(b.cod_temporada) - Number(a.cod_temporada));
 
+      // temporadaActual = la real por calendario (donde queremos que "vivan" los jugadores).
+      // elegida = la más reciente que SÍ tiene ligas/grupos publicados (de donde sacamos
+      // la estructura). Mientras la FFCV no publique las ligas de temporadaActual, ambas
+      // no coinciden y usamos la estructura de la anterior como referencia temporal;
+      // en cuanto la FFCV las publique, elegida === temporadaActual automáticamente.
+      const temporadaActual = temps[0];
+      if (!temporadaActual) return json({ error: "No hay temporadas en FFCV" }, 500);
+
       let elegida: any = null;
       let competiciones: any[] = [];
       for (const t of temps.slice(0, 3)) {
@@ -147,16 +155,23 @@ Deno.serve(async (req) => {
       }
       if (!elegida) return json({ error: "No se encontró temporada con competiciones (revisa el filtro)" }, 500);
 
-      // Temporada propia de CaptaNET enlazada a esta temporada FFCV (se reutiliza en cada pasada)
+      // Temporada propia de CaptaNET donde se guardan los datos: SIEMPRE la actual por
+      // calendario, no la de la estructura (se reutiliza en cada pasada).
       const temporadaRow = await db("upsert temporadas",
         admin.from("temporadas")
           .upsert({
-            cod_ffcv: elegida.cod_temporada,
-            nombre: `FFCV ${limpiar(elegida.nombre)}`,
-            fecha_inicio: elegida.fecha_inicio || null,
-            fecha_fin: elegida.fecha_fin || null,
+            cod_ffcv: temporadaActual.cod_temporada,
+            nombre: `FFCV ${limpiar(temporadaActual.nombre)}`,
+            fecha_inicio: temporadaActual.fecha_inicio || null,
+            fecha_fin: temporadaActual.fecha_fin || null,
           }, { onConflict: "cod_ffcv" })
           .select("id").single());
+
+      // Esta es la temporada con datos reales de verdad: que sea la que el visor
+      // muestra por defecto (si no, la app abre en la temporada "activa" del calendario,
+      // que puede estar recién empezada y sin jugadores importados todavía).
+      await db("desactivar otras temporadas", admin.from("temporadas").update({ activa: false }).neq("id", temporadaRow.id));
+      await db("activar temporada importada", admin.from("temporadas").update({ activa: true }).eq("id", temporadaRow.id));
 
       const filasGrupos: any[] = [];
       const filasCola: any[] = [];
@@ -169,10 +184,12 @@ Deno.serve(async (req) => {
             nombre_grupo: limpiar(g.nombre),
             cod_competicion: comp.codigo,
             nombre_competicion: limpiar(comp.nombre),
-            cod_temporada: elegida.cod_temporada,
+            cod_temporada: elegida.cod_temporada,               // estructura (para partidos/jornadas)
             nombre_temporada: limpiar(elegida.nombre),
-            fecha_inicio: elegida.fecha_inicio || null,
-            fecha_fin: elegida.fecha_fin || null,
+            cod_temporada_destino: temporadaActual.cod_temporada, // donde se guarda de verdad
+            nombre_temporada_destino: limpiar(temporadaActual.nombre),
+            fecha_inicio: temporadaActual.fecha_inicio || null,
+            fecha_fin: temporadaActual.fecha_fin || null,
             modalidad,
             activo: comp.Activa === "1",
             ultima_jornada: Number(g.total_jornadas) || null,
@@ -188,7 +205,13 @@ Deno.serve(async (req) => {
         await db("encolar grupos", admin.from("ffcv_cola").upsert(filasCola.slice(i, i + 500), { onConflict: "tipo,referencia" }));
 
       await db("registrar ejecución", admin.from("ffcv_ejecuciones").insert({ grupos_total: filasGrupos.length, estado: "en_curso" }));
-      return json({ ok: true, temporada: elegida.nombre, temporada_id: temporadaRow.id, grupos_encolados: filasGrupos.length });
+      return json({
+        ok: true,
+        temporada: temporadaActual.nombre,
+        temporada_estructura: elegida.nombre !== temporadaActual.nombre ? elegida.nombre : null,
+        temporada_id: temporadaRow.id,
+        grupos_encolados: filasGrupos.length,
+      });
     }
 
     // ========================================================
@@ -252,17 +275,18 @@ Deno.serve(async (req) => {
 async function procesarGrupo(admin: any, codGrupo: string): Promise<{ equipos: number }> {
   const g = await db("leer ffcv_grupos", admin.from("ffcv_grupos").select("*").eq("cod_grupo", codGrupo).single());
 
+  // Se guarda bajo la temporada DESTINO (la actual por calendario), no la de estructura.
   const temporadaRow = await db("upsert temporada del grupo",
     admin.from("temporadas").upsert({
-      cod_ffcv: g.cod_temporada,
-      nombre: `FFCV ${g.nombre_temporada}`,
+      cod_ffcv: g.cod_temporada_destino,
+      nombre: `FFCV ${g.nombre_temporada_destino}`,
       fecha_inicio: g.fecha_inicio || null,
       fecha_fin: g.fecha_fin || null,
     }, { onConflict: "cod_ffcv" }).select("id").single());
   const temporadaId = temporadaRow.id;
 
   const catId = await upsertNivel(admin, "categorias",
-    { cod_ffcv: `${g.cod_temporada}_${g.modalidad}`, nombre: g.modalidad, temporada_id: temporadaId }, {});
+    { cod_ffcv: `${g.cod_temporada_destino}_${g.modalidad}`, nombre: g.modalidad, temporada_id: temporadaId }, {});
   const ligaId = await upsertNivel(admin, "ligas",
     { cod_ffcv: g.cod_competicion, nombre: g.nombre_competicion, temporada_id: temporadaId }, { categoria_id: catId });
   const grupoId = await upsertNivel(admin, "grupos",

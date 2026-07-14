@@ -67,6 +67,12 @@ create table if not exists ffcv_grupos (
 );
 alter table ffcv_grupos add column if not exists fecha_inicio date;
 alter table ffcv_grupos add column if not exists fecha_fin date;
+-- La temporada donde de verdad se GUARDAN los datos (la actual por calendario),
+-- separada de cod_temporada (la que SÍ tiene ligas/grupos publicados y usamos para
+-- descubrir los equipos). Mientras la FFCV no publique las ligas de la temporada
+-- nueva, importamos con la estructura de la anterior pero etiquetado como la actual.
+alter table ffcv_grupos add column if not exists cod_temporada_destino text;
+alter table ffcv_grupos add column if not exists nombre_temporada_destino text;
 
 -- 3) Cola / progreso de importación (permite reanudar entre ejecuciones)
 create table if not exists ffcv_cola (
