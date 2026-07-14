@@ -162,3 +162,25 @@ update jugadores set nombre_normalizado = normalizar_texto(nombre)
 create extension if not exists pg_trgm;
 create index if not exists jugadores_nombre_normalizado_idx
   on jugadores using gin (nombre_normalizado gin_trgm_ops);
+
+-- 7) Buscador de EQUIPOS (nueva sección): mismo tratamiento de acentos que
+--    en jugadores, reutilizando la función normalizar_texto ya creada arriba.
+alter table equipos add column if not exists nombre_normalizado text;
+
+create or replace function equipos_actualizar_nombre_normalizado() returns trigger as $$
+begin
+  new.nombre_normalizado := normalizar_texto(new.nombre);
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_equipos_nombre_normalizado on equipos;
+create trigger trg_equipos_nombre_normalizado
+  before insert or update of nombre on equipos
+  for each row execute function equipos_actualizar_nombre_normalizado();
+
+update equipos set nombre_normalizado = normalizar_texto(nombre)
+  where nombre_normalizado is distinct from normalizar_texto(nombre);
+
+create index if not exists equipos_nombre_normalizado_idx
+  on equipos using gin (nombre_normalizado gin_trgm_ops);

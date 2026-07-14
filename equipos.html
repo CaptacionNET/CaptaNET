@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CaptaNET - Equipos</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://cdn.jsdelivr.net/npm/tabulator-tables@5.6.1/dist/css/tabulator.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tabulator-tables@5.6.1/dist/js/tabulator.min.js"></script>
+<style>
+:root{--primary:#2563eb;--bg:#f5f6fa;--card:#fff;--border:#e2e4eb;--text:#1f2430;--muted:#6b7280;}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
+#topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;background:var(--card);border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px;}
+#topbar .brand{font-weight:700;font-size:18px;color:var(--primary);}
+button{background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px;}
+button:hover{opacity:.9;}
+button.secondary{background:#fff;color:var(--text);border:1px solid var(--border);}
+input,select{padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;}
+.barra{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:16px 24px;}
+.barra input{flex:1;min-width:220px;max-width:420px;}
+.resultados{margin:0 24px 24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;}
+.resultado{border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--card);cursor:pointer;}
+.resultado:hover{border-color:var(--primary);}
+.resultado .nombre{font-weight:600;font-size:14px;}
+.resultado .meta{color:var(--muted);font-size:12px;margin-top:2px;}
+.aviso{margin:24px;color:var(--muted);font-size:14px;}
+.detalle-cab{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin:16px 24px;}
+.detalle-cab h2{margin:0 0 4px;font-size:20px;}
+.detalle-cab p{margin:0;color:var(--muted);font-size:13px;}
+.tabla-scroll{margin:0 24px 24px;overflow-x:auto;}
+@media (max-width:700px){
+  #topbar{padding:12px 16px;}
+  .barra{padding:12px;}
+  .resultados{margin:0 12px 16px;}
+  .detalle-cab,.tabla-scroll{margin-left:12px;margin-right:12px;}
+}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="brand">CaptaNET · Equipos</div>
+  <div style="display:flex;gap:10px;">
+    <button class="secondary" onclick="window.location.href='visor.html'">Volver al visor</button>
+    <button class="secondary" onclick="window.location.href='jugadores.html'">Jugadores</button>
+    <button class="secondary" onclick="logout()">Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="barra">
+  <div id="campo_club_wrap" style="display:none;">
+    <select id="filtro_club" onchange="onClubChange()"></select>
+  </div>
+  <input id="buscador_equipos" type="text" placeholder="Buscar equipo por nombre..." oninput="buscarEquipos()">
+  <button class="secondary" id="btn_volver_busqueda" style="display:none;" onclick="volverABusqueda()">‹ Volver a la búsqueda</button>
+</div>
+
+<p id="aviso_busqueda" class="aviso">Escribe el nombre de un equipo para empezar a buscar.</p>
+<div id="resultados_equipos" class="resultados"></div>
+
+<div id="vista_detalle" style="display:none;">
+  <div class="detalle-cab">
+    <div>
+      <h2 id="d_nombre"></h2>
+      <p id="d_meta"></p>
+    </div>
+  </div>
+  <div class="tabla-scroll"><div id="tabla_roster"></div></div>
+</div>
+
+<script>
+const client = supabase.createClient(
+  "https://bnqoisjvboytiphiwosj.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
+);
+
+// Búsqueda sin distinguir acentos ni orden de palabras (igual que en visor/jugadores).
+function normalizarTexto(s) {
+  return (s || "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+let esAdmin = false;
+let miClubId = null;
+let tablaRoster = null;
+
+async function protegerPagina() {
+  const { data: session } = await client.auth.getSession();
+  if (!session.session) { window.location.href = "index.html"; return false; }
+
+  const { data: perfil } = await client
+    .from("profiles").select("is_admin, club_id").eq("id", session.session.user.id).single();
+
+  esAdmin = !!perfil?.is_admin;
+  miClubId = perfil?.club_id || null;
+  return true;
+}
+
+async function logout() {
+  await client.auth.signOut();
+  window.location.href = "index.html";
+}
+
+async function cargarClubsSiAdmin() {
+  if (!esAdmin) return;
+  document.getElementById("campo_club_wrap").style.display = "block";
+  const { data: clubs } = await client.from("clubs").select("id, nombre").order("nombre");
+  const sel = document.getElementById("filtro_club");
+  sel.innerHTML = "";
+  (clubs || []).forEach(c => sel.innerHTML += `<option value="${c.id}">${c.nombre}</option>`);
+  if (clubs && clubs.length) miClubId = clubs[0].id;
+}
+
+function onClubChange() {
+  miClubId = document.getElementById("filtro_club").value;
+  const equipoId = new URLSearchParams(window.location.search).get("equipo_id");
+  if (equipoId) abrirEquipo(equipoId);
+}
+
+function jerarquiaTexto(equipo) {
+  const grupo = equipo?.grupos;
+  const liga = grupo?.ligas;
+  const categoria = liga?.categorias;
+  return [categoria?.nombre, liga?.nombre, grupo?.nombre].filter(Boolean).join(" · ");
+}
+
+let buscarTimeout = null;
+function buscarEquipos() {
+  clearTimeout(buscarTimeout);
+  buscarTimeout = setTimeout(ejecutarBusquedaEquipos, 300);
+}
+
+async function ejecutarBusquedaEquipos() {
+  const q = document.getElementById("buscador_equipos").value.trim();
+  const aviso = document.getElementById("aviso_busqueda");
+  const cont = document.getElementById("resultados_equipos");
+
+  if (!q) {
+    cont.innerHTML = "";
+    aviso.style.display = "block";
+    aviso.textContent = "Escribe el nombre de un equipo para empezar a buscar.";
+    return;
+  }
+
+  const palabras = normalizarTexto(q).split(/\s+/).filter(Boolean);
+  let consulta = client.from("equipos")
+    .select("id, nombre, grupos(nombre, ligas(nombre, categorias(nombre)))")
+    .limit(50);
+  palabras.forEach(p => { consulta = consulta.ilike("nombre_normalizado", `%${p}%`); });
+  const { data: equipos, error } = await consulta;
+
+  if (error) { aviso.style.display = "block"; aviso.textContent = "Error al buscar: " + error.message; cont.innerHTML = ""; return; }
+
+  if (!equipos || !equipos.length) {
+    aviso.style.display = "block";
+    aviso.textContent = "Sin resultados.";
+    cont.innerHTML = "";
+    return;
+  }
+
+  equipos.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  aviso.style.display = "none";
+  cont.innerHTML = "";
+  equipos.forEach(e => {
+    const div = document.createElement("div");
+    div.className = "resultado";
+    div.onclick = () => abrirEquipo(e.id);
+    div.innerHTML = `<div class="nombre">${e.nombre}</div><div class="meta">${jerarquiaTexto(e) || "Sin categoría asignada"}</div>`;
+    cont.appendChild(div);
+  });
+
+  if (equipos.length === 50) {
+    const nota = document.createElement("p");
+    nota.style.cssText = "color:var(--muted);font-size:12px;grid-column:1/-1;margin:0;";
+    nota.textContent = "Hay más de 50 resultados, afina la búsqueda para verlos todos.";
+    cont.appendChild(nota);
+  }
+}
+
+function tieneInforme(p) {
+  return !!(p.posicion || p.contacto || p.contactado ||
+    p.tecnica || p.tactica || p.fisico || p.actitud || (p.comentario && String(p.comentario).trim()));
+}
+
+async function crearTablaRoster() {
+  return new Promise(resolve => {
+    tablaRoster = new Tabulator("#tabla_roster", {
+      data: [],
+      layout: "fitData",
+      height: "65vh",
+      pagination: true,
+      paginationSize: 60,
+      paginationSizeSelector: [30, 60, 100, 200],
+      paginationCounter: "rows",
+      columns: [
+        {
+          title: "Jugador", field: "nombre", frozen: !window.matchMedia("(max-width:700px)").matches, minWidth: 160,
+          formatter: cell => `<span style="color:var(--primary);cursor:pointer;text-decoration:underline;white-space:nowrap;">${cell.getValue()}</span>`,
+          cellClick: (e, cell) => { window.location.href = "jugadores.html?jugador_id=" + cell.getRow().getData().jugador_id; }
+        },
+        { title: "Dorsal", field: "dorsal", width: 85, hozAlign: "center" },
+        { title: "Posición", field: "posicion" },
+        { title: "Año", field: "anio_nacimiento", sorter: "number", width: 70, hozAlign: "center" },
+        { title: "Convocados", field: "partidos_convocados", sorter: "number", width: 110, hozAlign: "center" },
+        { title: "Titular", field: "partidos_titular", sorter: "number", width: 90, hozAlign: "center" },
+        { title: "Suplente", field: "partidos_suplente", sorter: "number", width: 95, hozAlign: "center" },
+        { title: "Jugados", field: "partidos_jugados", sorter: "number", width: 90, hozAlign: "center" },
+        { title: "Goles", field: "goles", sorter: "number", width: 85, hozAlign: "center" },
+        { title: "Amarillas", field: "tarjetas_amarillas", sorter: "number", width: 100, hozAlign: "center" },
+        { title: "Rojas", field: "tarjetas_rojas", sorter: "number", width: 80, hozAlign: "center" },
+        { title: "2ª Amarilla", field: "tarjetas_doble_amarilla", sorter: "number", width: 110, hozAlign: "center" },
+        { title: "Verde", field: "tarjetas_verde", sorter: "number", width: 85, hozAlign: "center" },
+        { title: "Minutos", field: "minutos_jugados", sorter: "number", width: 95, hozAlign: "center" },
+        { title: "Portero", field: "es_portero", formatter: "tickCross", width: 90, hozAlign: "center" },
+        { title: "Con informe", field: "tiene_informe", formatter: "tickCross", width: 130, hozAlign: "center" }
+      ]
+    });
+    tablaRoster.on("tableBuilt", resolve);
+  });
+}
+
+async function fetchPaginado(construirConsulta) {
+  const filas = [];
+  const TAMANO = 1000;
+  let desde = 0;
+  while (true) {
+    const { data, error } = await construirConsulta(desde, desde + TAMANO - 1);
+    if (error) { console.error("fetchPaginado:", error); break; }
+    if (!data) break;
+    filas.push(...data);
+    if (data.length < TAMANO) break;
+    desde += TAMANO;
+  }
+  return filas;
+}
+
+async function abrirEquipo(equipoId) {
+  const { data: equipo } = await client.from("equipos")
+    .select("id, nombre, grupos(nombre, ligas(nombre, categorias(nombre)))")
+    .eq("id", equipoId).single();
+  if (!equipo) {
+    document.getElementById("aviso_busqueda").style.display = "block";
+    document.getElementById("aviso_busqueda").textContent = "No se ha encontrado ese equipo.";
+    return;
+  }
+
+  const url = new URL(window.location.href);
+  url.searchParams.set("equipo_id", equipoId);
+  history.replaceState(null, "", url);
+
+  document.getElementById("resultados_equipos").style.display = "none";
+  document.getElementById("aviso_busqueda").style.display = "none";
+  document.getElementById("buscador_equipos").style.display = "none";
+  document.getElementById("btn_volver_busqueda").style.display = "inline-block";
+  document.getElementById("vista_detalle").style.display = "block";
+  document.getElementById("d_nombre").textContent = equipo.nombre;
+  document.getElementById("d_meta").textContent = jerarquiaTexto(equipo) || "Sin categoría asignada";
+
+  const jugadores = await fetchPaginado((desde, hasta) => client
+    .from("jugadores").select("*").eq("equipo_id", equipoId).range(desde, hasta));
+
+  let privados = [];
+  if (miClubId && jugadores.length) {
+    const jugadorIds = jugadores.map(j => j.id);
+    const { data } = await client.from("jugadores_club").select("*").eq("club_id", miClubId).in("jugador_id", jugadorIds);
+    privados = data || [];
+  }
+
+  const filas = jugadores.map(j => {
+    const priv = privados.find(p => p.jugador_id === j.id) || {};
+    return {
+      jugador_id: j.id,
+      nombre: j.nombre,
+      dorsal: j.dorsal,
+      posicion: j.posicion,
+      anio_nacimiento: j.fecha_nacimiento ? new Date(j.fecha_nacimiento).getFullYear() : "",
+      partidos_convocados: j.partidos_convocados,
+      partidos_titular: j.partidos_titular,
+      partidos_suplente: j.partidos_suplente,
+      partidos_jugados: j.partidos_jugados,
+      goles: j.goles,
+      tarjetas_amarillas: j.tarjetas_amarillas,
+      tarjetas_rojas: j.tarjetas_rojas,
+      tarjetas_doble_amarilla: j.tarjetas_doble_amarilla,
+      tarjetas_verde: j.tarjetas_verde,
+      minutos_jugados: j.minutos_jugados,
+      es_portero: !!j.es_portero,
+      tiene_informe: tieneInforme(priv)
+    };
+  }).sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  await tablaRoster.setData(filas);
+  tablaRoster.setPage(1);
+}
+
+function volverABusqueda() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("equipo_id");
+  history.replaceState(null, "", url);
+
+  document.getElementById("vista_detalle").style.display = "none";
+  document.getElementById("buscador_equipos").style.display = "block";
+  document.getElementById("btn_volver_busqueda").style.display = "none";
+  document.getElementById("resultados_equipos").style.display = "grid";
+  ejecutarBusquedaEquipos();
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const ok = await protegerPagina();
+  if (!ok) return;
+
+  await cargarClubsSiAdmin();
+  await crearTablaRoster();
+
+  const equipoId = new URLSearchParams(window.location.search).get("equipo_id");
+  if (equipoId) {
+    await abrirEquipo(equipoId);
+  }
+});
+</script>
+</body>
+</html>

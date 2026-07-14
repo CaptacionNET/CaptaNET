@@ -40,6 +40,7 @@ input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-rad
   <div class="brand">CaptaNET <span id="brand_extra" style="color:var(--muted);font-weight:400;"></span></div>
   <div style="display:flex;gap:10px;">
     <button class="secondary" onclick="window.location.href='jugadores.html'">Jugadores</button>
+    <button class="secondary" onclick="window.location.href='equipos.html'">Equipos</button>
     <button class="secondary" onclick="window.location.href='plantillas.html'">Plantillas</button>
     <button class="secondary" onclick="window.location.href='usuario.html'">Mi perfil</button>
     <button class="secondary" onclick="logout()">Cerrar sesión</button>
@@ -391,7 +392,11 @@ function crearTabla() {
       { title: "Categoría", field: "categoria" },
       { title: "Liga", field: "liga" },
       { title: "Grupo", field: "grupo" },
-      { title: "Equipo", field: "equipo" },
+      {
+        title: "Equipo", field: "equipo",
+        formatter: cell => `<span style="color:var(--primary);cursor:pointer;text-decoration:underline;white-space:nowrap;">${cell.getValue()}</span>`,
+        cellClick: (e, cell) => { window.location.href = "equipos.html?equipo_id=" + cell.getRow().getData().equipo_id; }
+      },
       { title: "Año", field: "anio_nacimiento", sorter: "number", width: 70, hozAlign: "center" },
       { title: "Dorsal", field: "dorsal", width: 85, hozAlign: "center" },
       { title: "Goles", field: "goles", sorter: "number", width: 85, hozAlign: "center" },
@@ -436,6 +441,7 @@ async function cargarJugadores() {
     const categoria = liga?.categorias;
     return {
       jugador_id: j.id,
+      equipo_id: j.equipo_id,
       nombre: j.nombre,
       categoria: categoria?.nombre || "",
       liga: liga?.nombre || "",
