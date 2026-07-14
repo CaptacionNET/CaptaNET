@@ -337,8 +337,9 @@ function crearTabla() {
   return new Promise(resolve => {
     tabla = new Tabulator("#tabla", {
       data: [],
-      layout: window.matchMedia("(max-width:700px)").matches ? "fitData" : "fitColumns",
-      responsiveLayout: "collapse",
+      // "fitData": cada columna toma el ancho de su contenido real (nunca corta
+      // el nombre) y la tabla se desliza en horizontal si no cabe todo a la vez.
+      layout: "fitData",
       height: "70vh",
       reactiveData: true,
       pagination: true,
@@ -347,18 +348,18 @@ function crearTabla() {
       paginationCounter: "rows",
       columns: [
       {
-        title: "Jugador", field: "nombre", frozen: true,
-        formatter: cell => `<span style="color:var(--primary);cursor:pointer;text-decoration:underline;">${cell.getValue()}</span>`,
+        title: "Jugador", field: "nombre", frozen: true, minWidth: 160,
+        formatter: cell => `<span style="color:var(--primary);cursor:pointer;text-decoration:underline;white-space:nowrap;">${cell.getValue()}</span>`,
         cellClick: (e, cell) => { window.location.href = "jugadores.html?jugador_id=" + cell.getRow().getData().jugador_id; }
       },
       { title: "Categoría", field: "categoria" },
       { title: "Liga", field: "liga" },
       { title: "Grupo", field: "grupo" },
       { title: "Equipo", field: "equipo" },
-      { title: "Año", field: "anio_nacimiento", sorter: "number" },
-      { title: "Dorsal", field: "dorsal" },
-      { title: "Goles", field: "goles", sorter: "number", hozAlign: "center" },
-      { title: "Con informe", field: "tiene_informe", formatter: "tickCross", hozAlign: "center" }
+      { title: "Año", field: "anio_nacimiento", sorter: "number", width: 70, hozAlign: "center" },
+      { title: "Dorsal", field: "dorsal", width: 85, hozAlign: "center" },
+      { title: "Goles", field: "goles", sorter: "number", width: 70, hozAlign: "center" },
+      { title: "Con informe", field: "tiene_informe", formatter: "tickCross", width: 130, hozAlign: "center" }
       ]
     });
 
