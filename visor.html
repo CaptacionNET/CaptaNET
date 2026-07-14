@@ -188,7 +188,7 @@ function selNum(id) {
 }
 
 function poblarCategorias() {
-  const temporadaId = document.getElementById("filtro_temporada").value;
+  const temporadaId = selNum("filtro_temporada");
   const sel = document.getElementById("filtro_categoria");
   sel.innerHTML = '<option value="">Selecciona categoría</option>';
   categoriasCache.filter(c => c.temporada_id === temporadaId)
@@ -229,7 +229,7 @@ function onLigaChange() { poblarGrupos(); poblarEquipos(); cargarJugadores(); }
 function onGrupoChange() { poblarEquipos(); cargarJugadores(); }
 
 function equiposFiltrados() {
-  const temporadaId = document.getElementById("filtro_temporada").value;
+  const temporadaId = selNum("filtro_temporada");
   const categoriaId = selNum("filtro_categoria");
   const ligaId = selNum("filtro_liga");
   const grupoId = selNum("filtro_grupo");

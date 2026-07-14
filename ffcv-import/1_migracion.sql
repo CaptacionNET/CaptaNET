@@ -18,7 +18,8 @@ create unique index if not exists jugadores_cod_ffcv_key
   on jugadores (cod_ffcv);
 
 -- Para encajar la jerarquía de FFCV sin duplicar, guardamos su código en cada nivel.
--- categoria = modalidad FFCV · liga = competición FFCV · grupo = grupo FFCV
+-- temporada = temporada FFCV · categoria = modalidad · liga = competición · grupo = grupo
+alter table temporadas add column if not exists cod_ffcv text;
 alter table categorias add column if not exists cod_ffcv text;
 alter table ligas      add column if not exists cod_ffcv text;
 alter table grupos     add column if not exists cod_ffcv text;
@@ -27,6 +28,7 @@ alter table equipos    add column if not exists cod_ffcv text;
 -- Índices únicos NO parciales (los parciales no valen para el upsert onConflict).
 -- Postgres permite varios NULL en un índice único, así que las filas manuales
 -- (sin cod_ffcv) conviven sin problema.
+create unique index if not exists temporadas_cod_ffcv_key on temporadas (cod_ffcv);
 create unique index if not exists categorias_cod_ffcv_key on categorias (cod_ffcv);
 create unique index if not exists ligas_cod_ffcv_key      on ligas (cod_ffcv);
 create unique index if not exists grupos_cod_ffcv_key     on grupos (cod_ffcv);
@@ -40,11 +42,15 @@ create table if not exists ffcv_grupos (
   nombre_competicion text,
   cod_temporada    text,
   nombre_temporada text,
+  fecha_inicio     date,
+  fecha_fin        date,
   modalidad        text,
   activo           boolean default true,   -- si la competición está en curso
   ultima_jornada   int,                    -- jornada con partidos (para listar equipos)
   descubierto      timestamptz default now()
 );
+alter table ffcv_grupos add column if not exists fecha_inicio date;
+alter table ffcv_grupos add column if not exists fecha_fin date;
 
 -- 3) Cola / progreso de importación (permite reanudar entre ejecuciones)
 create table if not exists ffcv_cola (
