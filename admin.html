@@ -307,19 +307,35 @@ async function ffcvToggleFondo() {
   }
 }
 
+// Supabase solo devuelve 1000 filas por consulta si no se pide más explícitamente.
+// Con miles de equipos importados de FFCV, hay que traerlos todos en bloques.
+async function fetchTodo(tabla) {
+  const filas = [];
+  const TAMANO = 1000;
+  let desde = 0;
+  while (true) {
+    const { data, error } = await client.from(tabla).select("*").order("nombre").range(desde, desde + TAMANO - 1);
+    if (error || !data) break;
+    filas.push(...data);
+    if (data.length < TAMANO) break;
+    desde += TAMANO;
+  }
+  return filas;
+}
+
 async function cargarCaches() {
   const [t, c, l, g, e] = await Promise.all([
-    client.from("temporadas").select("*").order("nombre"),
-    client.from("categorias").select("*").order("nombre"),
-    client.from("ligas").select("*").order("nombre"),
-    client.from("grupos").select("*").order("nombre"),
-    client.from("equipos").select("*").order("nombre"),
+    fetchTodo("temporadas"),
+    fetchTodo("categorias"),
+    fetchTodo("ligas"),
+    fetchTodo("grupos"),
+    fetchTodo("equipos"),
   ]);
-  temporadasCache = t.data || [];
-  categoriasCache = c.data || [];
-  ligasCache = l.data || [];
-  gruposCache = g.data || [];
-  equiposCache = e.data || [];
+  temporadasCache = t;
+  categoriasCache = c;
+  ligasCache = l;
+  gruposCache = g;
+  equiposCache = e;
 }
 
 const nombreTemporada = id => temporadasCache.find(x => x.id === id)?.nombre || "";
@@ -423,10 +439,10 @@ async function cargarNivel() {
   const nivel = document.getElementById("nivel_selector").value;
   await cargarCaches();
 
-  const { data } = await client.from(nivel).select("*");
+  const data = await fetchTodo(nivel);
 
   tablaNivel = new Tabulator("#tabla-nivel", {
-    data: data || [],
+    data: data,
     layout: window.matchMedia("(max-width:700px)").matches ? "fitData" : "fitColumns",
     responsiveLayout: "collapse",
     reactiveData: true,
