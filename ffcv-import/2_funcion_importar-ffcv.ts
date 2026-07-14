@@ -323,7 +323,7 @@ async function procesarGrupo(admin: any, codGrupo: string): Promise<{ equipos: n
 
   // listar equipos del grupo a partir de los partidos (varias jornadas por si alguna viene vacía)
   const total = g.ultima_jornada || 34;
-  const codes = new Map<string, string>();
+  const codes = new Map<string, { nombre: string; escudo: string | null }>();
   const orden: number[] = [];
   const medio = Math.max(1, Math.floor(total / 2));
   for (let d = 0; d < total; d++) {
@@ -335,23 +335,32 @@ async function procesarGrupo(admin: any, codGrupo: string): Promise<{ equipos: n
   for (const j of orden) {
     const data = await ffcvGet(`partidos/resultados_por_grupo_jornada_data.php?cod_temporada=${g.cod_temporada}&cod_competicion=${g.cod_competicion}&cod_grupo=${codGrupo}&cod_jornada=${j}`);
     for (const p of (data.partidos || [])) {
-      if (p.cod_equipo_local) codes.set(p.cod_equipo_local, limpiar(p.local));
-      if (p.cod_equipo_visitante) codes.set(p.cod_equipo_visitante, limpiar(p.visitante));
+      if (p.cod_equipo_local) codes.set(p.cod_equipo_local, { nombre: limpiar(p.local), escudo: urlEscudo(p.escudo_local) });
+      if (p.cod_equipo_visitante) codes.set(p.cod_equipo_visitante, { nombre: limpiar(p.visitante), escudo: urlEscudo(p.escudo_visitante) });
     }
     if (codes.size >= 4) break;
   }
 
   let n = 0;
-  for (const [cod, nombre] of codes) {
-    await db("upsert equipo",
-      admin.from("equipos").upsert(
-        { cod_ffcv: cod, nombre, grupo_id: grupoId, temporada_id: temporadaId, ffcv_cod_temporada: g.cod_temporada },
-        { onConflict: "cod_ffcv" }));
+  for (const [cod, datos] of codes) {
+    const registro: Record<string, unknown> = {
+      cod_ffcv: cod, nombre: datos.nombre, grupo_id: grupoId, temporada_id: temporadaId, ffcv_cod_temporada: g.cod_temporada,
+    };
+    // Solo se incluye si hay valor: así no se borra un escudo ya guardado
+    // cuando una jornada concreta no trae la imagen del equipo.
+    if (datos.escudo) registro.escudo_url = datos.escudo;
+    await db("upsert equipo", admin.from("equipos").upsert(registro, { onConflict: "cod_ffcv" }));
     await db("encolar equipo",
       admin.from("ffcv_cola").upsert({ tipo: "equipo", referencia: cod, estado: "pendiente" }, { onConflict: "tipo,referencia" }));
     n++;
   }
   return { equipos: n };
+}
+
+// Las rutas de escudo que da la FFCV son relativas a su CMS (Novanet), no a ffcv.es.
+const NOVANET = "https://appwebffcv.novanet.es";
+function urlEscudo(ruta: string | null | undefined): string | null {
+  return ruta ? `${NOVANET}${ruta}` : null;
 }
 
 // ------------------------------------------------------------

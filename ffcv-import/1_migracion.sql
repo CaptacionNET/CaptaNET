@@ -184,3 +184,9 @@ update equipos set nombre_normalizado = normalizar_texto(nombre)
 
 create index if not exists equipos_nombre_normalizado_idx
   on equipos using gin (nombre_normalizado gin_trgm_ops);
+
+-- 8) Escudo del equipo: la FFCV lo publica en los datos de cada partido, se
+-- enlaza directamente a su imagen pública (no hace falta subirla a R2).
+-- Se rellena solo. Los equipos ya importados lo recibirán en la próxima
+-- pasada del importador (semanal, o al lanzar "Importar FFCV" a mano).
+alter table equipos add column if not exists escudo_url text;
