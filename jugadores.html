@@ -111,10 +111,6 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
           <input id="f_posicion" type="text" oninput="guardarInformeDebounced()">
         </div>
         <div>
-          <label>Año de nacimiento</label>
-          <input id="f_anio" type="number" oninput="guardarInformeDebounced()">
-        </div>
-        <div>
           <label>Teléfono</label>
           <input id="f_contacto" type="text" oninput="guardarInformeDebounced()">
         </div>
@@ -211,7 +207,7 @@ function cambiarPanel(nombre) {
 }
 
 function tieneDatosPrivado(p) {
-  return !!(p.anio_nacimiento || p.posicion || p.contacto || p.contactado ||
+  return !!(p.posicion || p.contacto || p.contactado ||
     p.tecnica || p.tactica || p.fisico || p.actitud || (p.comentario && String(p.comentario).trim()));
 }
 
@@ -310,7 +306,6 @@ async function abrirJugador(jugadorId) {
       .filter(Boolean).join(" · ");
 
   document.getElementById("f_posicion").value = priv?.posicion || "";
-  document.getElementById("f_anio").value = priv?.anio_nacimiento || "";
   document.getElementById("f_contacto").value = priv?.contacto || "";
   document.getElementById("f_contactado").checked = !!priv?.contactado;
   document.getElementById("f_tecnica").value = priv?.tecnica ?? "";
@@ -378,7 +373,6 @@ async function guardarInforme() {
     club_id: miClubId,
     temporada_id: jugadorActual.temporada_id,
     posicion: document.getElementById("f_posicion").value || null,
-    anio_nacimiento: document.getElementById("f_anio").value || null,
     contacto: document.getElementById("f_contacto").value || null,
     contactado: document.getElementById("f_contactado").checked,
     tecnica: document.getElementById("f_tecnica").value || null,

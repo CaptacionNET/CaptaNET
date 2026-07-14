@@ -24,10 +24,6 @@ input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-rad
 .field label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 .field select,.field input{min-width:160px;}
 .aviso{margin:24px;color:var(--muted);}
-.anio-dropdown-btn{padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:#fff;cursor:pointer;min-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.anio-dropdown-panel{position:absolute;top:100%;left:0;z-index:50;background:#fff;border:1px solid var(--border);border-radius:6px;box-shadow:0 8px 20px rgba(0,0,0,.15);padding:8px;margin-top:4px;min-width:160px;}
-.anio-dropdown-panel label{display:flex;align-items:center;gap:6px;font-size:13px;padding:4px 2px;cursor:pointer;color:var(--text);}
-.anio-dropdown-panel input{width:auto;min-width:auto;}
 .tabla-scroll{margin:0 24px;overflow-x:auto;}
 @media (max-width:700px){
   #topbar{padding:12px 16px;}
@@ -81,16 +77,23 @@ input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-rad
     <label>Buscar jugador</label>
     <input id="filtro_nombre" type="text" placeholder="Nombre..." oninput="aplicarFiltrosLocales()">
   </div>
-  <div class="field" style="position:relative;">
-    <label>Año</label>
-    <div id="anio_dropdown_btn" class="anio-dropdown-btn" onclick="toggleAnioDropdown()">Todos</div>
-    <div id="anio_dropdown_panel" class="anio-dropdown-panel" style="display:none;"></div>
+  <div class="field">
+    <label>Año (desde)</label>
+    <select id="filtro_anio_desde" onchange="aplicarFiltrosLocales()"><option value="">Sin mínimo</option></select>
+  </div>
+  <div class="field">
+    <label>Año (hasta)</label>
+    <select id="filtro_anio_hasta" onchange="aplicarFiltrosLocales()"><option value="">Sin máximo</option></select>
+  </div>
+  <div class="field">
+    <label>Mín. goles</label>
+    <input id="filtro_min_goles" type="number" min="0" placeholder="0" style="min-width:90px;" oninput="aplicarFiltrosLocales()">
   </div>
   <div class="field">
     <label>&nbsp;</label>
     <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);">
-      <input id="filtro_solo_vistos" type="checkbox" onchange="aplicarFiltrosLocales()" style="width:16px;min-width:16px;flex-shrink:0;">
-      Solo vistos
+      <input id="filtro_con_informe" type="checkbox" onchange="aplicarFiltrosLocales()" style="width:16px;min-width:16px;flex-shrink:0;">
+      Con informe
     </label>
   </div>
   <div class="field">
@@ -111,8 +114,7 @@ const client = supabase.createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
 );
 
-const CAMPOS_PRIVADOS = ["anio_nacimiento", "posicion", "contacto", "contactado", "tecnica", "tactica", "fisico", "actitud", "comentario"];
-const NIVELES_FISICO = ["BAJO", "MEDIO-BAJO", "MEDIO", "MEDIO-ALTO", "ALTO", "MUY ALTO"];
+const ANIO_MIN = 2004, ANIO_MAX = 2021;
 
 let esAdmin = false;
 let miClubId = null;
@@ -283,38 +285,16 @@ function crearTabla() {
       { title: "Liga", field: "liga" },
       { title: "Grupo", field: "grupo" },
       { title: "Equipo", field: "equipo" },
+      { title: "Año", field: "anio_nacimiento", sorter: "number" },
       { title: "Dorsal", field: "dorsal" },
-      { title: "Año", field: "anio_nacimiento", editor: "number" },
-      { title: "Posición", field: "posicion", editor: "input" },
-      { title: "Teléfono", field: "contacto", editor: "input" },
-      { title: "Contactado", field: "contactado", editor: "tickCross", formatter: "tickCross" },
-      { title: "Técnica", field: "tecnica", editor: "number" },
-      { title: "Táctica", field: "tactica", editor: "number" },
-      {
-        title: "Físico", field: "fisico", editor: "list",
-        editorParams: { values: NIVELES_FISICO }
-      },
-      { title: "Actitud", field: "actitud", editor: "number" },
-      {
-        title: "Comentario", field: "comentario", editor: "textarea",
-        formatter: cell => {
-          const v = cell.getValue() || "";
-          const corto = v.length > 45 ? v.slice(0, 45) + "…" : v;
-          const esc = v.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-          return `<span title="${esc}">${corto}</span>`;
-        }
-      }
+      { title: "Goles", field: "goles", sorter: "number", hozAlign: "center" },
+      { title: "Con informe", field: "tiene_informe", formatter: "tickCross", hozAlign: "center" }
       ]
     });
 
     // En Tabulator 5.x los eventos de tabla solo funcionan vía .on(),
     // no como opciones del constructor (ahí se ignoran en silencio).
     tabla.on("tableBuilt", resolve);
-    tabla.on("cellEdited", cell => {
-      if (CAMPOS_PRIVADOS.includes(cell.getField())) {
-        guardarPrivado(cell.getRow().getData());
-      }
-    });
   });
 }
 
@@ -353,15 +333,9 @@ async function cargarJugadores() {
       grupo: jer.grupo,
       equipo: equipo?.nombre || "",
       dorsal: j.dorsal,
-      anio_nacimiento: priv.anio_nacimiento ?? "",
-      posicion: priv.posicion ?? "",
-      contacto: priv.contacto ?? "",
-      contactado: priv.contactado ?? false,
-      tecnica: priv.tecnica ?? "",
-      tactica: priv.tactica ?? "",
-      fisico: priv.fisico ?? "",
-      actitud: priv.actitud ?? "",
-      comentario: priv.comentario ?? ""
+      anio_nacimiento: j.fecha_nacimiento ? new Date(j.fecha_nacimiento).getFullYear() : (priv.anio_nacimiento || ""),
+      goles: j.goles ?? "",
+      tiene_informe: tieneInforme(priv)
     };
   });
 
@@ -377,94 +351,35 @@ function jerarquiaDeEquipo(equipoId) {
   return { categoria: c?.nombre || "", liga: l?.nombre || "", grupo: g?.nombre || "" };
 }
 
-function tieneDatosClub(f) {
-  return !!(f.anio_nacimiento || f.posicion || f.contacto || f.contactado ||
-    f.tecnica || f.tactica || f.fisico || f.actitud || (f.comentario && String(f.comentario).trim()));
+function tieneInforme(p) {
+  return !!(p.posicion || p.contacto || p.contactado ||
+    p.tecnica || p.tactica || p.fisico || p.actitud || (p.comentario && String(p.comentario).trim()));
 }
 
-const ANIO_MIN = 2008, ANIO_MAX = 2015;
-
-function poblarAnios() {
-  const panel = document.getElementById("anio_dropdown_panel");
-  panel.innerHTML = "";
+function poblarAniosRango() {
+  const desde = document.getElementById("filtro_anio_desde");
+  const hasta = document.getElementById("filtro_anio_hasta");
   for (let y = ANIO_MIN; y <= ANIO_MAX; y++) {
-    panel.innerHTML += `<label><input type="checkbox" value="${y}" onchange="onAnioCheckChange()"> ${y}</label>`;
+    desde.innerHTML += `<option value="${y}">${y}</option>`;
+    hasta.innerHTML += `<option value="${y}">${y}</option>`;
   }
-}
-
-function toggleAnioDropdown() {
-  const panel = document.getElementById("anio_dropdown_panel");
-  panel.style.display = panel.style.display === "none" ? "block" : "none";
-}
-
-document.addEventListener("click", e => {
-  const panel = document.getElementById("anio_dropdown_panel");
-  const btn = document.getElementById("anio_dropdown_btn");
-  if (panel && panel.style.display !== "none" && !panel.contains(e.target) && e.target !== btn) {
-    panel.style.display = "none";
-  }
-});
-
-function aniosSeleccionados() {
-  return Array.from(document.querySelectorAll("#anio_dropdown_panel input:checked")).map(i => Number(i.value));
-}
-
-function onAnioCheckChange() {
-  const sel = aniosSeleccionados().sort((a, b) => a - b);
-  document.getElementById("anio_dropdown_btn").textContent = sel.length ? sel.join(", ") : "Todos";
-  aplicarFiltrosLocales();
 }
 
 function aplicarFiltrosLocales() {
   const nombreFiltro = document.getElementById("filtro_nombre").value.toLowerCase();
-  const soloVistos = document.getElementById("filtro_solo_vistos").checked;
-  const anios = aniosSeleccionados();
+  const conInforme = document.getElementById("filtro_con_informe").checked;
+  const anioDesde = document.getElementById("filtro_anio_desde").value;
+  const anioHasta = document.getElementById("filtro_anio_hasta").value;
+  const minGoles = document.getElementById("filtro_min_goles").value;
 
   let filas = basefilas;
   if (nombreFiltro) filas = filas.filter(f => f.nombre.toLowerCase().includes(nombreFiltro));
-  if (soloVistos) filas = filas.filter(tieneDatosClub);
-  if (anios.length) filas = filas.filter(f => anios.includes(Number(f.anio_nacimiento)));
+  if (conInforme) filas = filas.filter(f => f.tiene_informe);
+  if (anioDesde) filas = filas.filter(f => f.anio_nacimiento && Number(f.anio_nacimiento) >= Number(anioDesde));
+  if (anioHasta) filas = filas.filter(f => f.anio_nacimiento && Number(f.anio_nacimiento) <= Number(anioHasta));
+  if (minGoles) filas = filas.filter(f => Number(f.goles || 0) >= Number(minGoles));
 
   tabla.setData(filas);
-}
-
-async function guardarPrivado(row) {
-  const temporadaId = document.getElementById("filtro_temporada").value;
-  const aviso = document.getElementById("aviso");
-  const payload = {
-    jugador_id: row.jugador_id,
-    club_id: miClubId,
-    temporada_id: temporadaId,
-    anio_nacimiento: row.anio_nacimiento || null,
-    posicion: row.posicion || null,
-    contacto: row.contacto || null,
-    contactado: !!row.contactado,
-    tecnica: row.tecnica || null,
-    tactica: row.tactica || null,
-    fisico: row.fisico || null,
-    actitud: row.actitud || null,
-    comentario: row.comentario || null
-  };
-
-  try {
-    const { error } = await client.from("jugadores_club")
-      .upsert(payload, { onConflict: "jugador_id,club_id,temporada_id" })
-      .select();
-
-    aviso.style.display = "block";
-    if (error) {
-      aviso.style.color = "#dc2626";
-      aviso.textContent = "No se pudo guardar: " + error.message;
-    } else {
-      aviso.style.color = "#16a34a";
-      aviso.textContent = "Guardado.";
-      setTimeout(() => { aviso.style.display = "none"; aviso.style.color = ""; }, 1500);
-    }
-  } catch (e) {
-    aviso.style.display = "block";
-    aviso.style.color = "#dc2626";
-    aviso.textContent = "Excepción al guardar: " + e.message;
-  }
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -478,7 +393,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   poblarLigas();
   poblarGrupos();
   poblarEquipos();
-  poblarAnios();
+  poblarAniosRango();
   await crearTabla();
   cargarJugadores();
 });
