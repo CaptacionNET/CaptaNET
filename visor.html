@@ -188,6 +188,21 @@ async function fetchJugadoresPorEquipos(equipoIds) {
   return todos;
 }
 
+// Igual que fetchJugadoresPorEquipos pero genérico: trocea los ids (para no
+// generar una URL enorme) y pagina cada trozo (por si un solo trozo ya supera
+// las 1000 filas). Se usa en cualquier "dame los X de estos Y" con muchos Y.
+async function fetchPorIds(tabla, columnaFiltro, ids, columnas = "id") {
+  const TAMANO_LOTE = 200;
+  const todos = [];
+  for (let i = 0; i < ids.length; i += TAMANO_LOTE) {
+    const lote = ids.slice(i, i + TAMANO_LOTE);
+    const filas = await fetchPaginado((desde, hasta) => client
+      .from(tabla).select(columnas).in(columnaFiltro, lote).range(desde, hasta));
+    todos.push(...filas);
+  }
+  return todos;
+}
+
 async function cargarCaches() {
   // Las temporadas sí se cargan enteras (son pocas, una por año).
   const { data } = await client.from("temporadas").select("*").order("nombre");
@@ -195,8 +210,9 @@ async function cargarCaches() {
 }
 
 async function gruposDeLiga(ligaId) {
-  const { data } = await client.from("grupos").select("id").eq("liga_id", ligaId);
-  return (data || []).map(g => g.id);
+  const filas = await fetchPaginado((desde, hasta) => client
+    .from("grupos").select("id").eq("liga_id", ligaId).range(desde, hasta));
+  return filas.map(g => g.id);
 }
 
 async function cargarClubsSiAdmin() {
@@ -267,8 +283,8 @@ async function poblarEquipos() {
   } else if (ligaId) {
     const grupoIds = await gruposDeLiga(ligaId);
     if (grupoIds.length) {
-      const { data } = await client.from("equipos").select("id,nombre").in("grupo_id", grupoIds).order("nombre");
-      equipos = data || [];
+      equipos = await fetchPorIds("equipos", "grupo_id", grupoIds, "id,nombre");
+      equipos.sort((a, b) => a.nombre.localeCompare(b.nombre));
     }
   }
   equipos.forEach(e => sel.innerHTML += `<option value="${e.id}">${e.nombre}</option>`);
@@ -291,30 +307,33 @@ async function equipoIdsFiltrados() {
   if (equipoId) return [equipoId];
 
   if (grupoId) {
-    const { data } = await client.from("equipos").select("id").eq("grupo_id", grupoId);
-    return (data || []).map(e => e.id);
+    const filas = await fetchPaginado((desde, hasta) => client
+      .from("equipos").select("id").eq("grupo_id", grupoId).range(desde, hasta));
+    return filas.map(e => e.id);
   }
 
   let grupoIds = null;
   if (ligaId) {
     grupoIds = await gruposDeLiga(ligaId);
   } else if (categoriaId) {
-    const { data: ligas } = await client.from("ligas").select("id").eq("categoria_id", categoriaId);
-    const ligaIds = (ligas || []).map(l => l.id);
+    const ligas = await fetchPaginado((desde, hasta) => client
+      .from("ligas").select("id").eq("categoria_id", categoriaId).range(desde, hasta));
+    const ligaIds = ligas.map(l => l.id);
     if (!ligaIds.length) return [];
-    const { data: grupos } = await client.from("grupos").select("id").in("liga_id", ligaIds);
-    grupoIds = (grupos || []).map(g => g.id);
+    const grupos = await fetchPorIds("grupos", "liga_id", ligaIds);
+    grupoIds = grupos.map(g => g.id);
   }
 
   if (grupoIds !== null) {
     if (!grupoIds.length) return [];
-    const { data } = await client.from("equipos").select("id").in("grupo_id", grupoIds);
-    return (data || []).map(e => e.id);
+    const equipos = await fetchPorIds("equipos", "grupo_id", grupoIds);
+    return equipos.map(e => e.id);
   }
 
   if (temporadaId) {
-    const { data } = await client.from("equipos").select("id").eq("temporada_id", temporadaId);
-    return (data || []).map(e => e.id);
+    const filas = await fetchPaginado((desde, hasta) => client
+      .from("equipos").select("id").eq("temporada_id", temporadaId).range(desde, hasta));
+    return filas.map(e => e.id);
   }
 
   return [];
