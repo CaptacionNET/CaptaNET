@@ -113,15 +113,37 @@ Deno.serve(async (req) => {
     // ESTADO
     // ========================================================
     if (accion === "estado") {
-      const [{ count: pend }, { count: total }, { count: err }, { data: ejec }] = await Promise.all([
+      const [{ count: pend }, { count: total }, { count: err }, { data: ejec }, { data: fondoActivo }] = await Promise.all([
         admin.from("ffcv_cola").select("*", { count: "exact", head: true }).eq("estado", "pendiente"),
         admin.from("ffcv_cola").select("*", { count: "exact", head: true }),
         admin.from("ffcv_cola").select("*", { count: "exact", head: true }).eq("estado", "error"),
         admin.from("ffcv_ejecuciones").select("*").order("iniciado", { ascending: false }).limit(1),
+        admin.rpc("ffcv_estado_fondo"),
       ]);
       const { data: ultimoError } = await admin.from("ffcv_cola").select("tipo,referencia,error_msg")
         .eq("estado", "error").order("id", { ascending: false }).limit(1).maybeSingle();
-      return json({ pendientes: pend ?? 0, total_cola: total ?? 0, con_error: err ?? 0, ultimo_error: ultimoError, ultima_ejecucion: ejec?.[0] ?? null });
+      return json({
+        pendientes: pend ?? 0, total_cola: total ?? 0, con_error: err ?? 0,
+        ultimo_error: ultimoError, ultima_ejecucion: ejec?.[0] ?? null,
+        fondo_activo: !!fondoActivo,
+      });
+    }
+
+    // ========================================================
+    // FONDO — activa/desactiva el procesado automático cada minuto
+    // (corre en el servidor, no depende de tener el navegador abierto)
+    // ========================================================
+    if (accion === "activar_fondo") {
+      const secreto = Deno.env.get("FFCV_CRON_SECRET");
+      if (!secreto) return json({ error: "Falta el secreto FFCV_CRON_SECRET en la configuración" }, 500);
+      const { error } = await admin.rpc("ffcv_programar_fondo", { p_secreto: secreto });
+      if (error) return json({ error: error.message }, 500);
+      return json({ ok: true });
+    }
+    if (accion === "desactivar_fondo") {
+      const { error } = await admin.rpc("ffcv_detener_fondo");
+      if (error) return json({ error: error.message }, 500);
+      return json({ ok: true });
     }
 
     // ========================================================

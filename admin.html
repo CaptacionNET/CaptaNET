@@ -120,6 +120,14 @@ label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px;}
       <button class="secondary" id="btn_ffcv_procesar" onclick="ffcvToggleProcesar()">2 · Procesar todo ahora</button>
       <button class="secondary" onclick="ffcvEstado()">Actualizar estado</button>
     </div>
+    <p style="color:var(--muted);font-size:13px;margin-top:14px;">
+      "Procesar todo ahora" depende de tener esta pestaña abierta y el ordenador despierto.
+      Para que siga solo aunque cierres el navegador o se bloquee el portátil, usa esto:
+    </p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <button class="secondary" id="btn_ffcv_fondo" onclick="ffcvToggleFondo()">Activar segundo plano</button>
+      <span id="ffcv_fondo_estado" style="font-size:13px;color:var(--muted);"></span>
+    </div>
     <p id="ffcv_status" class="status"></p>
     <div id="ffcv_barra_wrap" style="display:none;margin-top:6px;">
       <div style="background:#eef0f5;border-radius:6px;height:10px;overflow:hidden;">
@@ -277,7 +285,26 @@ async function ffcvEstado() {
     } else {
       barraWrap.style.display = "none";
     }
+
+    document.getElementById("btn_ffcv_fondo").textContent = d.fondo_activo ? "Detener segundo plano" : "Activar segundo plano";
+    document.getElementById("ffcv_fondo_estado").textContent = d.fondo_activo
+      ? "🟢 Corriendo en el servidor (se para solo al terminar)."
+      : "";
   } catch (e) { panel.style.display = "block"; panel.textContent = "Error consultando estado: " + e.message; }
+}
+
+async function ffcvToggleFondo() {
+  const btn = document.getElementById("btn_ffcv_fondo");
+  const activando = btn.textContent.includes("Activar");
+  btn.disabled = true;
+  try {
+    await ffcvLlamar(activando ? "activar_fondo" : "desactivar_fondo");
+    await ffcvEstado();
+  } catch (e) {
+    document.getElementById("ffcv_fondo_estado").textContent = "Error: " + e.message;
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 async function cargarCaches() {
