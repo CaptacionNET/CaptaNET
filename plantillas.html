@@ -671,7 +671,7 @@ function renderTablero(filas) {
     tarjeta.style.top = fila.pos_y + "%";
     tarjeta.innerHTML = `
       <div class="avatar origen-${fila.origen} color-${fila.color || "blanco"}" title="${fila.nombre}">
-        <div class="avatar-nombre">${fila.nombre}</div>
+        <div class="avatar-nombre">${fila.nombre}${fila.anio_nacimiento ? " - " + fila.anio_nacimiento : ""}</div>
         <div class="avatar-sub">${subTextoTarjeta(fila)}</div>
       </div>
       <span class="quitar" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="quitarDelTablero(event, ${fila.id})">×</span>
@@ -863,7 +863,7 @@ function moverArrastre(e) {
   arrastreActivo.nuevaY = y;
 }
 
-async function soltarArrastre() {
+async function soltarArrastre(e) {
   document.removeEventListener("mousemove", moverArrastre);
   document.removeEventListener("mouseup", soltarArrastre);
   document.removeEventListener("touchmove", moverArrastre);
@@ -875,7 +875,10 @@ async function soltarArrastre() {
   const { fila, nuevaX, nuevaY } = arrastreActivo;
   arrastreActivo = null;
 
-  if (nuevaX === undefined) return;
+  if (nuevaX === undefined) {
+    if (e && e.type === "touchend" && !seDeslizoBastante) mostrarDetalle(fila);
+    return;
+  }
   fila.pos_x = nuevaX;
   fila.pos_y = nuevaY;
   await client.from("plantilla_jugadores").update({ pos_x: nuevaX, pos_y: nuevaY }).eq("id", fila.id);
