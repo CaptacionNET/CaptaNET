@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
       if (!perfil?.is_admin) return json({ error: "Solo el administrador puede importar" }, 403);
     }
 
-    const { accion, lote, soloCompeticion } = await req.json().catch(() => ({ accion: "estado" }));
+    const { accion, lote, soloCompeticion, modalidades } = await req.json().catch(() => ({ accion: "estado" }));
 
     // ========================================================
     // ESTADO
@@ -161,12 +161,17 @@ Deno.serve(async (req) => {
       const temporadaActual = temps[0];
       if (!temporadaActual) return json({ error: "No hay temporadas en FFCV" }, 500);
 
+      // Se puede elegir desde el panel qué modalidades traer (por defecto, las dos).
+      const modalidadesPedidas: string[] = Array.isArray(modalidades) && modalidades.length
+        ? modalidades
+        : MODALIDADES_PERMITIDAS;
+
       let elegida: any = null;
       let competiciones: any[] = [];
       for (const t of temps.slice(0, 3)) {
         let comps = (await ffcvGet(`filtros/competiciones_fetch.php?temporada=${t.cod_temporada}`)).competiciones || [];
-        // Solo fútbol 11 y fútbol 8 (nada de Valenta, Futsal, Playa, Gegants...)
-        comps = comps.filter((c: any) => MODALIDADES_PERMITIDAS.includes(limpiar(c.nombre_grupo_categoria)));
+        // Solo fútbol 11 y/o fútbol 8, según lo pedido (nada de Valenta, Futsal, Playa, Gegants...)
+        comps = comps.filter((c: any) => modalidadesPedidas.includes(limpiar(c.nombre_grupo_categoria)));
         if (soloCompeticion) {
           const filtro = String(soloCompeticion).toLowerCase();
           comps = comps.filter((c: any) => limpiar(c.nombre).toLowerCase().includes(filtro));
@@ -233,6 +238,7 @@ Deno.serve(async (req) => {
         temporada_estructura: elegida.nombre !== temporadaActual.nombre ? elegida.nombre : null,
         temporada_id: temporadaRow.id,
         grupos_encolados: filasGrupos.length,
+        modalidades: modalidadesPedidas,
       });
     }
 

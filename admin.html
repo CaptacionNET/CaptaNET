@@ -111,9 +111,19 @@ label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px;}
       dorsal, fecha de nacimiento e historial de clubes). Solo fútbol 11 y fútbol 8 (nada de Valenta,
       Sala, Playa...). Se actualiza solo cada fin de semana. Aquí puedes lanzarlo o ver el progreso a mano.
     </p>
-    <div style="margin-top:12px;">
-      <label>Filtro opcional (para probar con poco antes de lanzar todo)</label>
-      <input id="ffcv_filtro_competicion" type="text" placeholder="Ej: Liga Nacional Juvenil (déjalo vacío para importar todo)" style="width:100%;max-width:420px;">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;">
+      <div>
+        <label>Modalidad</label>
+        <select id="ffcv_modalidad">
+          <option value="ambas">Fútbol 11 y Fútbol 8</option>
+          <option value="f11">Solo Fútbol 11</option>
+          <option value="f8">Solo Fútbol 8</option>
+        </select>
+      </div>
+      <div style="flex:1;min-width:220px;">
+        <label>Filtro opcional (para probar con poco antes de lanzar todo)</label>
+        <input id="ffcv_filtro_competicion" type="text" placeholder="Ej: Liga Nacional Juvenil (déjalo vacío para importar todo)" style="width:100%;">
+      </div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
       <button onclick="ffcvDescubrir()">1 · Catalogar grupos e iniciar</button>
@@ -196,16 +206,25 @@ async function ffcvLlamar(accion, extra = {}) {
   return data;
 }
 
+const MODALIDADES_FFCV = {
+  ambas: ["MASCULÍ F11", "MASCULÍ F8"],
+  f11: ["MASCULÍ F11"],
+  f8: ["MASCULÍ F8"],
+};
+
 async function ffcvDescubrir() {
   const s = document.getElementById("ffcv_status");
   const filtro = document.getElementById("ffcv_filtro_competicion").value.trim();
+  const modalidadSel = document.getElementById("ffcv_modalidad").value;
+  const modalidades = MODALIDADES_FFCV[modalidadSel];
+  const etiquetaModalidad = document.getElementById("ffcv_modalidad").selectedOptions[0].textContent;
   const aviso = filtro
-    ? `Esto cataloga solo las competiciones que contengan "${filtro}" y reinicia la cola. ¿Continuar?`
-    : "Esto cataloga TODAS las competiciones de fútbol 11 y fútbol 8 de la temporada actual y reinicia la cola. ¿Continuar?";
+    ? `Esto cataloga solo las competiciones de "${etiquetaModalidad}" que contengan "${filtro}" y reinicia la cola. ¿Continuar?`
+    : `Esto cataloga TODAS las competiciones de "${etiquetaModalidad}" de la temporada actual y reinicia la cola. ¿Continuar?`;
   if (!confirm(aviso)) return;
   s.textContent = "Catalogando grupos en la FFCV… (puede tardar un minuto)";
   try {
-    const d = await ffcvLlamar("descubrir", filtro ? { soloCompeticion: filtro } : {});
+    const d = await ffcvLlamar("descubrir", { modalidades, ...(filtro ? { soloCompeticion: filtro } : {}) });
     s.textContent = `Listo. Temporada ${d.temporada}: ${d.grupos_encolados} grupos en cola. Pulsa "Procesar todo ahora" o espera al proceso automático del fin de semana.`;
     ffcvEstado();
   } catch (e) { s.textContent = "Error: " + e.message; }
