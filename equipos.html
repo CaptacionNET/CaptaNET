@@ -19,6 +19,11 @@ button.secondary{background:#fff;color:var(--text);border:1px solid var(--border
 input,select{padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;}
 .barra{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:16px 24px;}
 .barra input{flex:1;min-width:220px;max-width:420px;}
+.clubes-detectados{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.clubes-detectados .etiqueta{color:var(--muted);font-size:12px;}
+.club-pill{padding:6px 12px;border:1px solid var(--border);border-radius:999px;background:#fff;color:var(--text);cursor:pointer;font-size:13px;}
+.club-pill:hover{border-color:var(--primary);}
+.club-pill.active{background:var(--primary);color:#fff;border-color:var(--primary);}
 .resultados{margin:0 24px 24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;}
 .resultado{border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--card);cursor:pointer;}
 .resultado:hover{border-color:var(--primary);}
@@ -53,6 +58,7 @@ input,select{padding:8px 10px;border:1px solid var(--border);border-radius:6px;f
     <select id="filtro_club" onchange="onClubChange()"></select>
   </div>
   <input id="buscador_equipos" type="text" placeholder="Buscar equipo por nombre..." oninput="buscarEquipos()">
+  <div id="clubes_detectados" class="clubes-detectados"></div>
   <button class="secondary" id="btn_volver_busqueda" style="display:none;" onclick="volverABusqueda()">‹ Volver a la búsqueda</button>
 </div>
 
@@ -80,9 +86,46 @@ function normalizarTexto(s) {
   return (s || "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
+// Mismo criterio de categoría de edad que en visor.html, para que los
+// resultados de un mismo club se agrupen en un orden con sentido (y no el
+// orden en que Supabase los devuelva, que no está garantizado).
+const ORDEN_EDAD_LIGAS = ["AMATEUR", "JUVENIL", "CADETE", "INFANTIL", "ALEVIN", "BENJAMIN", "PREBENJAMIN", "QUERUBIN"];
+function edadDeLiga(nombreLiga) {
+  const n = normalizarTexto(nombreLiga);
+  if (n.includes("querubi")) return "QUERUBIN";
+  if (n.includes("prebenjami")) return "PREBENJAMIN";
+  if (n.includes("benjami")) return "BENJAMIN";
+  if (n.includes("alevi")) return "ALEVIN";
+  if (n.includes("infantil")) return "INFANTIL";
+  if (n.includes("cadet")) return "CADETE";
+  if (n.includes("juvenil")) return "JUVENIL";
+  return "AMATEUR";
+}
+function ordenarEquipos(equipos) {
+  return [...equipos].sort((a, b) => {
+    const n = a.nombre.localeCompare(b.nombre);
+    if (n !== 0) return n;
+    const catA = a.grupos?.ligas?.categorias?.nombre || "";
+    const catB = b.grupos?.ligas?.categorias?.nombre || "";
+    const c = catA.localeCompare(catB);
+    if (c !== 0) return c;
+    const ligaA = a.grupos?.ligas?.nombre || "";
+    const ligaB = b.grupos?.ligas?.nombre || "";
+    const ra = ORDEN_EDAD_LIGAS.indexOf(edadDeLiga(ligaA));
+    const rb = ORDEN_EDAD_LIGAS.indexOf(edadDeLiga(ligaB));
+    if (ra !== rb) return ra - rb;
+    const l = ligaA.localeCompare(ligaB);
+    if (l !== 0) return l;
+    return (a.grupos?.nombre || "").localeCompare(b.grupos?.nombre || "");
+  });
+}
+
 let esAdmin = false;
 let miClubId = null;
 let tablaRoster = null;
+let ultimaBusquedaTexto = "";
+let ultimaBusquedaEquipos = [];
+let clubSeleccionado = null;
 
 async function protegerPagina() {
   const { data: session } = await client.auth.getSession();
@@ -131,12 +174,15 @@ function buscarEquipos() {
 }
 
 async function ejecutarBusquedaEquipos() {
+  clubSeleccionado = null;
   const q = document.getElementById("buscador_equipos").value.trim();
   const aviso = document.getElementById("aviso_busqueda");
   const cont = document.getElementById("resultados_equipos");
+  const clubesCont = document.getElementById("clubes_detectados");
 
   if (!q) {
     cont.innerHTML = "";
+    clubesCont.innerHTML = "";
     aviso.style.display = "block";
     aviso.textContent = "Escribe el nombre de un equipo para empezar a buscar.";
     return;
@@ -149,19 +195,27 @@ async function ejecutarBusquedaEquipos() {
   palabras.forEach(p => { consulta = consulta.ilike("nombre_normalizado", `%${p}%`); });
   const { data: equipos, error } = await consulta;
 
-  if (error) { aviso.style.display = "block"; aviso.textContent = "Error al buscar: " + error.message; cont.innerHTML = ""; return; }
+  if (error) { aviso.style.display = "block"; aviso.textContent = "Error al buscar: " + error.message; cont.innerHTML = ""; clubesCont.innerHTML = ""; return; }
 
   if (!equipos || !equipos.length) {
     aviso.style.display = "block";
     aviso.textContent = "Sin resultados.";
     cont.innerHTML = "";
+    clubesCont.innerHTML = "";
     return;
   }
 
-  equipos.sort((a, b) => a.nombre.localeCompare(b.nombre));
   aviso.style.display = "none";
+  ultimaBusquedaTexto = q;
+  ultimaBusquedaEquipos = equipos;
+  renderResultadosEquipos(equipos, equipos.length === 50);
+  renderClubesDetectados();
+}
+
+function renderResultadosEquipos(equipos, huboLimite) {
+  const cont = document.getElementById("resultados_equipos");
   cont.innerHTML = "";
-  equipos.forEach(e => {
+  ordenarEquipos(equipos).forEach(e => {
     const div = document.createElement("div");
     div.className = "resultado";
     div.onclick = () => abrirEquipo(e.id);
@@ -169,12 +223,59 @@ async function ejecutarBusquedaEquipos() {
     cont.appendChild(div);
   });
 
-  if (equipos.length === 50) {
+  if (huboLimite) {
     const nota = document.createElement("p");
     nota.style.cssText = "color:var(--muted);font-size:12px;grid-column:1/-1;margin:0;";
     nota.textContent = "Hay más de 50 resultados, afina la búsqueda para verlos todos.";
     cont.appendChild(nota);
   }
+}
+
+// A la derecha del buscador, con 5 caracteres o más, se muestran los nombres
+// de club distintos entre los resultados. Al pulsar uno se filtra a sus
+// equipos exactos (todas sus categorías), pidiéndolos de nuevo a la base de
+// datos para no depender del límite de 50 de la búsqueda de texto libre.
+function renderClubesDetectados() {
+  const cont = document.getElementById("clubes_detectados");
+  cont.innerHTML = "";
+  if (normalizarTexto(ultimaBusquedaTexto).length < 5) return;
+
+  const nombresUnicos = [...new Set(ultimaBusquedaEquipos.map(e => e.nombre))].sort((a, b) => a.localeCompare(b));
+  if (nombresUnicos.length < 2) return;
+
+  const etiqueta = document.createElement("span");
+  etiqueta.className = "etiqueta";
+  etiqueta.textContent = "Clubes:";
+  cont.appendChild(etiqueta);
+
+  nombresUnicos.forEach(nombre => {
+    const pill = document.createElement("button");
+    pill.type = "button";
+    pill.className = "club-pill" + (clubSeleccionado === nombre ? " active" : "");
+    pill.textContent = nombre;
+    pill.onclick = () => seleccionarClub(nombre);
+    cont.appendChild(pill);
+  });
+}
+
+async function seleccionarClub(nombre) {
+  clubSeleccionado = clubSeleccionado === nombre ? null : nombre;
+  renderClubesDetectados();
+
+  if (!clubSeleccionado) {
+    renderResultadosEquipos(ultimaBusquedaEquipos, ultimaBusquedaEquipos.length === 50);
+    return;
+  }
+
+  const aviso = document.getElementById("aviso_busqueda");
+  const { data: equipos, error } = await client.from("equipos")
+    .select("id, nombre, grupos(nombre, ligas(nombre, categorias(nombre)))")
+    .eq("nombre_normalizado", normalizarTexto(nombre));
+
+  if (error) { aviso.style.display = "block"; aviso.textContent = "Error al buscar: " + error.message; return; }
+
+  aviso.style.display = "none";
+  renderResultadosEquipos(equipos || [], false);
 }
 
 function tieneInforme(p) {
@@ -251,6 +352,7 @@ async function abrirEquipo(equipoId) {
   document.getElementById("resultados_equipos").style.display = "none";
   document.getElementById("aviso_busqueda").style.display = "none";
   document.getElementById("buscador_equipos").style.display = "none";
+  document.getElementById("clubes_detectados").style.display = "none";
   document.getElementById("btn_volver_busqueda").style.display = "inline-block";
   document.getElementById("vista_detalle").style.display = "block";
   document.getElementById("d_nombre").textContent = equipo.nombre;
@@ -300,6 +402,7 @@ function volverABusqueda() {
 
   document.getElementById("vista_detalle").style.display = "none";
   document.getElementById("buscador_equipos").style.display = "block";
+  document.getElementById("clubes_detectados").style.display = "flex";
   document.getElementById("btn_volver_busqueda").style.display = "none";
   document.getElementById("resultados_equipos").style.display = "grid";
   ejecutarBusquedaEquipos();
