@@ -161,12 +161,31 @@ async function fetchPaginado(construirConsulta) {
   let desde = 0;
   while (true) {
     const { data, error } = await construirConsulta(desde, desde + TAMANO - 1);
-    if (error || !data) break;
+    if (error) { console.error("fetchPaginado:", error); break; }
+    if (!data) break;
     filas.push(...data);
     if (data.length < TAMANO) break;
     desde += TAMANO;
   }
   return filas;
+}
+
+// Cuando hay muchos equipos seleccionados (p.ej. toda una temporada), pedirlos
+// todos en un solo "in (...)" puede generar una URL demasiado larga y que la
+// consulta falle en silencio. Se pide en lotes pequeños y se junta todo.
+async function fetchJugadoresPorEquipos(equipoIds) {
+  const TAMANO_LOTE = 200;
+  const todos = [];
+  for (let i = 0; i < equipoIds.length; i += TAMANO_LOTE) {
+    const lote = equipoIds.slice(i, i + TAMANO_LOTE);
+    const filas = await fetchPaginado((desde, hasta) => client
+      .from("jugadores")
+      .select("*, equipos(nombre, grupos(nombre, ligas(nombre, categorias(nombre))))")
+      .in("equipo_id", lote)
+      .range(desde, hasta));
+    todos.push(...filas);
+  }
+  return todos;
 }
 
 async function cargarCaches() {
@@ -363,13 +382,7 @@ async function cargarJugadores() {
   const equipoIds = await equipoIdsFiltrados();
   if (equipoIds.length === 0) { tabla.setData([]); return; }
 
-  // Se trae la jerarquía (equipo->grupo->liga->categoría) en la misma consulta,
-  // así no hace falta tener todo el árbol cargado en el navegador.
-  const jugadores = await fetchPaginado((desde, hasta) => client
-    .from("jugadores")
-    .select("*, equipos(nombre, grupos(nombre, ligas(nombre, categorias(nombre))))")
-    .in("equipo_id", equipoIds)
-    .range(desde, hasta));
+  const jugadores = await fetchJugadoresPorEquipos(equipoIds);
   const jugadorIds = jugadores.map(j => j.id);
 
   let privados = [];
@@ -415,7 +428,7 @@ function poblarAniosRango() {
   }
 }
 
-function aplicarFiltrosLocales() {
+async function aplicarFiltrosLocales() {
   const nombreFiltro = document.getElementById("filtro_nombre").value.toLowerCase();
   const conInforme = document.getElementById("filtro_con_informe").checked;
   const anioDesde = document.getElementById("filtro_anio_desde").value;
@@ -429,7 +442,10 @@ function aplicarFiltrosLocales() {
   if (anioHasta) filas = filas.filter(f => f.anio_nacimiento && Number(f.anio_nacimiento) <= Number(anioHasta));
   if (minGoles) filas = filas.filter(f => Number(f.goles || 0) >= Number(minGoles));
 
-  tabla.setData(filas);
+  await tabla.setData(filas);
+  // Sin esto, si estabas en la página 3 y el nuevo filtro solo tiene un
+  // resultado, se queda en una página que ya no existe y parece que "no está".
+  tabla.setPage(1);
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
