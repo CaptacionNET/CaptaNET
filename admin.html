@@ -682,6 +682,11 @@ async function cargarClubsCache() {
   clubsCache = data || [];
 }
 
+function formatearFechaHora(iso) {
+  if (!iso) return "Nunca";
+  return new Date(iso).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
 async function cargarUsuarios() {
   const status = document.getElementById("usuarios_status");
   await cargarClubsCache();
@@ -690,8 +695,14 @@ async function cargarUsuarios() {
   if (error) { status.textContent = "Error cargando usuarios: " + error.message; return; }
   status.textContent = "";
 
+  let accesos = {};
+  try {
+    const { data: d } = await client.functions.invoke("ultimo-acceso");
+    accesos = d?.accesos || {};
+  } catch { /* si falla, la columna simplemente sale vacía */ }
+
   tablaUsuarios = new Tabulator("#tabla-usuarios", {
-    data: (data || []).map(u => ({ ...u, contrasena: "" })),
+    data: (data || []).map(u => ({ ...u, contrasena: "", ultimo_acceso: accesos[u.id] || null })),
     layout: window.matchMedia("(max-width:700px)").matches ? "fitData" : "fitColumns",
     responsiveLayout: "collapse",
     reactiveData: true,
@@ -710,6 +721,10 @@ async function cargarUsuarios() {
       },
       { title: "Admin", field: "is_admin", editor: "tickCross", formatter: "tickCross" },
       { title: "Admin de club", field: "is_club_admin", editor: "tickCross", formatter: "tickCross" },
+      {
+        title: "Último acceso", field: "ultimo_acceso", sorter: "datetime",
+        formatter: cell => formatearFechaHora(cell.getValue())
+      },
       {
         title: "Nueva contraseña", field: "contrasena", editor: "input",
         editorParams: { elementAttributes: { type: "password", autocomplete: "new-password" } }
