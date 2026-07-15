@@ -24,7 +24,9 @@ input,select{padding:8px 10px;border:1px solid var(--border);border-radius:6px;f
 .club-pill{padding:6px 12px;border:1px solid var(--border);border-radius:999px;background:#fff;color:var(--text);cursor:pointer;font-size:13px;}
 .club-pill:hover{border-color:var(--primary);}
 .club-pill.active{background:var(--primary);color:#fff;border-color:var(--primary);}
-.resultados{margin:0 24px 24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;}
+.seccion-titulo{margin:20px 24px 8px;font-size:13px;font-weight:700;letter-spacing:.04em;color:var(--muted);text-transform:uppercase;}
+.seccion-titulo:first-child{margin-top:0;}
+.resultados{margin:0 24px 8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;}
 .resultado{border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--card);cursor:pointer;}
 .resultado:hover{border-color:var(--primary);}
 .resultado .nombre{font-weight:600;font-size:14px;}
@@ -38,7 +40,8 @@ input,select{padding:8px 10px;border:1px solid var(--border);border-radius:6px;f
 @media (max-width:700px){
   #topbar{padding:12px 16px;}
   .barra{padding:12px;}
-  .resultados{margin:0 12px 16px;}
+  .resultados{margin:0 12px 8px;}
+  .seccion-titulo{margin:16px 12px 6px;}
   .detalle-cab,.tabla-scroll{margin-left:12px;margin-right:12px;}
 }
 </style>
@@ -64,7 +67,7 @@ input,select{padding:8px 10px;border:1px solid var(--border);border-radius:6px;f
 </div>
 
 <p id="aviso_busqueda" class="aviso">Escribe el nombre de un equipo para empezar a buscar.</p>
-<div id="resultados_equipos" class="resultados"></div>
+<div id="resultados_equipos"></div>
 
 <div id="vista_detalle" style="display:none;">
   <div class="detalle-cab">
@@ -88,12 +91,21 @@ function normalizarTexto(s) {
   return (s || "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
-// Mismo criterio de categoría de edad que en visor.html, para que los
-// resultados de un mismo club se agrupen en un orden con sentido (y no el
-// orden en que Supabase los devuelva, que no está garantizado).
+// Mismo criterio de categoría de edad que en visor.html: se usa el nombre de
+// categoría que da la propia FFCV por competición (categoria_edad_ffcv,
+// p.ej. "Querubines") cuando existe, porque es más fiable que adivinar por
+// el nombre de la liga ("Escola de Gegants" no menciona ninguna edad, pero
+// la FFCV la cataloga como "Querubines"). Si no hay ese dato, se adivina
+// por el nombre de la liga.
 const ORDEN_EDAD_LIGAS = ["AMATEUR", "JUVENIL", "CADETE", "INFANTIL", "ALEVIN", "BENJAMIN", "PREBENJAMIN", "QUERUBIN"];
-function edadDeLiga(nombreLiga) {
-  const n = normalizarTexto(nombreLiga);
+const ETIQUETA_EDAD_LIGAS = {
+  AMATEUR: "AMATEUR", JUVENIL: "JUVENILES", CADETE: "CADETES", INFANTIL: "INFANTILES",
+  ALEVIN: "ALEVINES", BENJAMIN: "BENJAMINES", PREBENJAMIN: "PREBENJAMINES", QUERUBIN: "QUERUBINES"
+};
+function edadDeLiga(nombreLiga, categoriaEdadFfcv) {
+  const nombreN = normalizarTexto(nombreLiga);
+  if (nombreN.includes("gegant")) return "QUERUBIN"; // "Escola de Gegants" (F5) = Querubines
+  const n = normalizarTexto(categoriaEdadFfcv) || nombreN;
   if (n.includes("querubi")) return "QUERUBIN";
   if (n.includes("prebenjami")) return "PREBENJAMIN";
   if (n.includes("benjami")) return "BENJAMIN";
@@ -103,14 +115,15 @@ function edadDeLiga(nombreLiga) {
   if (n.includes("juvenil")) return "JUVENIL";
   return "AMATEUR";
 }
+function edadDeEquipo(e) {
+  return edadDeLiga(e.grupos?.ligas?.nombre, e.grupos?.ligas?.categoria_edad_ffcv);
+}
 // Se agrupa primero por sección de edad (Amateur, Juvenil, Cadete...) y,
 // dentro de cada sección, por nombre de equipo.
 function ordenarEquipos(equipos) {
   return [...equipos].sort((a, b) => {
-    const ligaA = a.grupos?.ligas?.nombre || "";
-    const ligaB = b.grupos?.ligas?.nombre || "";
-    const ra = ORDEN_EDAD_LIGAS.indexOf(edadDeLiga(ligaA));
-    const rb = ORDEN_EDAD_LIGAS.indexOf(edadDeLiga(ligaB));
+    const ra = ORDEN_EDAD_LIGAS.indexOf(edadDeEquipo(a));
+    const rb = ORDEN_EDAD_LIGAS.indexOf(edadDeEquipo(b));
     if (ra !== rb) return ra - rb;
     const n = a.nombre.localeCompare(b.nombre);
     if (n !== 0) return n;
@@ -118,6 +131,8 @@ function ordenarEquipos(equipos) {
     const catB = b.grupos?.ligas?.categorias?.nombre || "";
     const c = catA.localeCompare(catB);
     if (c !== 0) return c;
+    const ligaA = a.grupos?.ligas?.nombre || "";
+    const ligaB = b.grupos?.ligas?.nombre || "";
     const l = ligaA.localeCompare(ligaB);
     if (l !== 0) return l;
     return (a.grupos?.nombre || "").localeCompare(b.grupos?.nombre || "");
@@ -201,7 +216,7 @@ async function ejecutarBusquedaEquipos() {
 
   const palabras = normalizarTexto(q).split(/\s+/).filter(Boolean);
   let consulta = client.from("equipos")
-    .select("id, nombre, grupos(nombre, ligas(nombre, categorias(nombre)))")
+    .select("id, nombre, grupos(nombre, ligas(nombre, categoria_edad_ffcv, categorias(nombre)))")
     .limit(50);
   palabras.forEach(p => { consulta = consulta.ilike("nombre_normalizado", `%${p}%`); });
   const { data: equipos, error } = await consulta;
@@ -223,20 +238,36 @@ async function ejecutarBusquedaEquipos() {
   renderClubesDetectados();
 }
 
+// Secciones reales: una cabecera (Amateur, Juveniles, Cadetes...) por cada
+// categoría de edad presente en los resultados, en vez de un único listado.
 function renderResultadosEquipos(equipos, huboLimite) {
   const cont = document.getElementById("resultados_equipos");
   cont.innerHTML = "";
+
+  let seccionActual = null;
+  let grid = null;
   ordenarEquipos(equipos).forEach(e => {
+    const edad = edadDeEquipo(e);
+    if (edad !== seccionActual) {
+      const titulo = document.createElement("div");
+      titulo.className = "seccion-titulo";
+      titulo.textContent = ETIQUETA_EDAD_LIGAS[edad];
+      cont.appendChild(titulo);
+      grid = document.createElement("div");
+      grid.className = "resultados";
+      cont.appendChild(grid);
+      seccionActual = edad;
+    }
     const div = document.createElement("div");
     div.className = "resultado";
     div.onclick = () => abrirEquipo(e.id);
     div.innerHTML = `<div class="nombre">${e.nombre}</div><div class="meta">${jerarquiaTexto(e) || "Sin categoría asignada"}</div>`;
-    cont.appendChild(div);
+    grid.appendChild(div);
   });
 
   if (huboLimite) {
     const nota = document.createElement("p");
-    nota.style.cssText = "color:var(--muted);font-size:12px;grid-column:1/-1;margin:0;";
+    nota.style.cssText = "color:var(--muted);font-size:12px;margin:0 24px;";
     nota.textContent = "Hay más de 50 resultados, afina la búsqueda para verlos todos.";
     cont.appendChild(nota);
   }
@@ -282,7 +313,7 @@ async function seleccionarClub(base) {
   // añade el sufijo 'A'/'B'/... que se quitó para agrupar por club.
   const aviso = document.getElementById("aviso_busqueda");
   const { data: equipos, error } = await client.from("equipos")
-    .select("id, nombre, grupos(nombre, ligas(nombre, categorias(nombre)))")
+    .select("id, nombre, grupos(nombre, ligas(nombre, categoria_edad_ffcv, categorias(nombre)))")
     .ilike("nombre_normalizado", `${normalizarTexto(clubSeleccionado)}%`);
 
   if (error) { aviso.style.display = "block"; aviso.textContent = "Error al buscar: " + error.message; return; }
@@ -350,7 +381,7 @@ async function fetchPaginado(construirConsulta) {
 
 async function abrirEquipo(equipoId) {
   const { data: equipo } = await client.from("equipos")
-    .select("id, nombre, escudo_url, grupos(nombre, ligas(nombre, categorias(nombre)))")
+    .select("id, nombre, escudo_url, grupos(nombre, ligas(nombre, categoria_edad_ffcv, categorias(nombre)))")
     .eq("id", equipoId).single();
   if (!equipo) {
     document.getElementById("aviso_busqueda").style.display = "block";

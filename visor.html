@@ -128,16 +128,26 @@ function coincideNombre(nombre, consulta) {
   return palabras.every(p => nombreNorm.includes(p));
 }
 
-// Orden de las ligas en el desplegable: primero por categoría de edad (de
-// mayor a menor), y dentro de cada una, alfabético. La categoría de edad se
-// detecta por el nombre de la liga (p.ej. "Liga Nacional Juvenil" -> Juvenil);
-// si no menciona ninguna, se considera Amateur.
-// Las claves están recortadas a la raíz común entre castellano y valenciano
-// (la FFCV nombra algunas ligas en valenciano: "Cadet", "Benjamí", "Querubí",
-// sin la "e"/"n" final del castellano "Cadete", "Benjamín", "Querubín").
+// Las ligas se agrupan en secciones reales por categoría de edad (de mayor
+// a menor), y dentro de cada una, alfabético. Se usa el nombre de categoría
+// que da la propia FFCV por competición (categoria_edad_ffcv, p.ej.
+// "Querubines") cuando existe, porque es más fiable que adivinar por el
+// nombre de la liga: "Escola de Gegants" no menciona ninguna edad en su
+// nombre, pero la FFCV la cataloga como "Querubines". Si no hay ese dato
+// (liga creada a mano, o pendiente de la próxima importación), se sigue
+// adivinando por el nombre de la liga como hasta ahora.
+// Las claves de texto están recortadas a la raíz común entre castellano y
+// valenciano (la FFCV nombra algunas ligas en valenciano: "Cadet", "Benjamí",
+// "Querubí", sin la "e"/"n" final del castellano "Cadete", "Benjamín", "Querubín").
 const ORDEN_EDAD_LIGAS = ["AMATEUR", "JUVENIL", "CADETE", "INFANTIL", "ALEVIN", "BENJAMIN", "PREBENJAMIN", "QUERUBIN"];
-function edadDeLiga(nombreLiga) {
-  const n = normalizarTexto(nombreLiga);
+const ETIQUETA_EDAD_LIGAS = {
+  AMATEUR: "AMATEUR", JUVENIL: "JUVENILES", CADETE: "CADETES", INFANTIL: "INFANTILES",
+  ALEVIN: "ALEVINES", BENJAMIN: "BENJAMINES", PREBENJAMIN: "PREBENJAMINES", QUERUBIN: "QUERUBINES"
+};
+function edadDeLiga(nombreLiga, categoriaEdadFfcv) {
+  const nombreN = normalizarTexto(nombreLiga);
+  if (nombreN.includes("gegant")) return "QUERUBIN"; // "Escola de Gegants" (F5) = Querubines
+  const n = normalizarTexto(categoriaEdadFfcv) || nombreN;
   if (n.includes("querubi")) return "QUERUBIN";
   if (n.includes("prebenjami")) return "PREBENJAMIN";
   if (n.includes("benjami")) return "BENJAMIN";
@@ -149,8 +159,8 @@ function edadDeLiga(nombreLiga) {
 }
 function ordenarLigasPorEdad(ligas) {
   return [...ligas].sort((a, b) => {
-    const rangoA = ORDEN_EDAD_LIGAS.indexOf(edadDeLiga(a.nombre));
-    const rangoB = ORDEN_EDAD_LIGAS.indexOf(edadDeLiga(b.nombre));
+    const rangoA = ORDEN_EDAD_LIGAS.indexOf(edadDeLiga(a.nombre, a.categoria_edad_ffcv));
+    const rangoB = ORDEN_EDAD_LIGAS.indexOf(edadDeLiga(b.nombre, b.categoria_edad_ffcv));
     return rangoA !== rangoB ? rangoA - rangoB : a.nombre.localeCompare(b.nombre);
   });
 }
@@ -296,8 +306,22 @@ async function poblarLigas() {
   const sel = document.getElementById("filtro_liga");
   sel.innerHTML = '<option value="">Todas</option>';
   if (!categoriaId) return;
-  const { data } = await client.from("ligas").select("id,nombre").eq("categoria_id", categoriaId);
-  ordenarLigasPorEdad(data || []).forEach(l => sel.innerHTML += `<option value="${l.id}">${l.nombre}</option>`);
+  const { data } = await client.from("ligas").select("id,nombre,categoria_edad_ffcv").eq("categoria_id", categoriaId);
+
+  // Secciones reales (optgroup) por categoría de edad, no solo orden.
+  let html = "";
+  let seccionActual = null;
+  ordenarLigasPorEdad(data || []).forEach(l => {
+    const edad = edadDeLiga(l.nombre, l.categoria_edad_ffcv);
+    if (edad !== seccionActual) {
+      if (seccionActual !== null) html += "</optgroup>";
+      html += `<optgroup label="${ETIQUETA_EDAD_LIGAS[edad]}">`;
+      seccionActual = edad;
+    }
+    html += `<option value="${l.id}">${l.nombre}</option>`;
+  });
+  if (seccionActual !== null) html += "</optgroup>";
+  sel.innerHTML += html;
 }
 
 async function poblarGrupos() {

@@ -190,3 +190,12 @@ create index if not exists equipos_nombre_normalizado_idx
 -- Se rellena solo. Los equipos ya importados lo recibirán en la próxima
 -- pasada del importador (semanal, o al lanzar "Importar FFCV" a mano).
 alter table equipos add column if not exists escudo_url text;
+
+-- 9) Nombre de categoría de edad que da la propia FFCV por competición
+-- (p.ej. "Querubines", "Alevín 2º. Año"). Es más fiable que adivinar la
+-- edad a partir del nombre de la liga: por ejemplo "Escola de Gegants"
+-- no menciona ninguna edad en su nombre, pero la FFCV la cataloga como
+-- "Querubines". Se usa como pista para agrupar/ordenar; si una liga no
+-- la tiene (creada a mano, o pendiente de la próxima importación),
+-- se sigue adivinando por el nombre como hasta ahora.
+alter table ligas add column if not exists categoria_edad_ffcv text;

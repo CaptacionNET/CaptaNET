@@ -221,6 +221,10 @@ Deno.serve(async (req) => {
             activo: comp.Activa === "1",
             ultima_jornada: Number(g.total_jornadas) || null,
             orden_liga: comp.Orden != null ? Number(comp.Orden) : null, // orden de la competición según la FFCV
+            // Nombre "limpio" de categoría que da la propia FFCV (p.ej. "Querubines",
+            // "Alevín 2º. Año"): mejor punto de partida que adivinar por el nombre de
+            // la competición, que a veces no la menciona (p.ej. "Escola de Gegants").
+            categoria_edad_ffcv: limpiar(comp.NombreCategoria) || null,
           });
           filasCola.push({ tipo: "grupo", referencia: g.codigo, estado: "pendiente" });
         }
@@ -317,7 +321,8 @@ async function procesarGrupo(admin: any, codGrupo: string): Promise<{ equipos: n
   const catId = await upsertNivel(admin, "categorias",
     { cod_ffcv: `${g.cod_temporada_destino}_${g.modalidad}`, nombre: g.modalidad, temporada_id: temporadaId }, {});
   const ligaId = await upsertNivel(admin, "ligas",
-    { cod_ffcv: g.cod_competicion, nombre: g.nombre_competicion, temporada_id: temporadaId, orden: g.orden_liga }, { categoria_id: catId });
+    { cod_ffcv: g.cod_competicion, nombre: g.nombre_competicion, temporada_id: temporadaId, orden: g.orden_liga, categoria_edad_ffcv: g.categoria_edad_ffcv },
+    { categoria_id: catId });
   const grupoId = await upsertNivel(admin, "grupos",
     { cod_ffcv: g.cod_grupo, nombre: g.nombre_grupo, temporada_id: temporadaId }, { liga_id: ligaId });
 
