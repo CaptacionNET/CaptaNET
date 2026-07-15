@@ -198,4 +198,8 @@ alter table equipos add column if not exists escudo_url text;
 -- "Querubines". Se usa como pista para agrupar/ordenar; si una liga no
 -- la tiene (creada a mano, o pendiente de la próxima importación),
 -- se sigue adivinando por el nombre como hasta ahora.
+-- Hace falta en las DOS tablas: en ffcv_grupos (paso intermedio, donde
+-- "descubrir" cataloga cada grupo) y en ligas (donde queda guardado
+-- de verdad tras "procesar").
 alter table ligas add column if not exists categoria_edad_ffcv text;
+alter table ffcv_grupos add column if not exists categoria_edad_ffcv text;
