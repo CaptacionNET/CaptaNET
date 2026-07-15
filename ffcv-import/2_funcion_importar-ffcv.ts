@@ -113,18 +113,25 @@ Deno.serve(async (req) => {
     // ESTADO
     // ========================================================
     if (accion === "estado") {
-      const [{ count: pend }, { count: total }, { count: err }, { data: ejec }, { data: fondoActivo }] = await Promise.all([
+      const [{ count: pend }, { count: total }, { count: err }, { count: procesando }, { data: ejec }, { data: fondoActivo }] = await Promise.all([
         admin.from("ffcv_cola").select("*", { count: "exact", head: true }).eq("estado", "pendiente"),
         admin.from("ffcv_cola").select("*", { count: "exact", head: true }),
         admin.from("ffcv_cola").select("*", { count: "exact", head: true }).eq("estado", "error"),
+        admin.from("ffcv_cola").select("*", { count: "exact", head: true }).eq("estado", "procesando"),
         admin.from("ffcv_ejecuciones").select("*").order("iniciado", { ascending: false }).limit(1),
         admin.rpc("ffcv_estado_fondo"),
       ]);
       const { data: ultimoError } = await admin.from("ffcv_cola").select("tipo,referencia,error_msg")
         .eq("estado", "error").order("id", { ascending: false }).limit(1).maybeSingle();
+      // Cuándo se completó de verdad el último elemento: a diferencia de
+      // "ultima_ejecucion" (que puede llevar horas en "en_curso" sin decir
+      // nada), esto revela si el segundo plano realmente sigue avanzando.
+      const { data: ultimaActividad } = await admin.from("ffcv_cola").select("procesado")
+        .eq("estado", "hecho").order("procesado", { ascending: false }).limit(1).maybeSingle();
       return json({
-        pendientes: pend ?? 0, total_cola: total ?? 0, con_error: err ?? 0,
+        pendientes: pend ?? 0, total_cola: total ?? 0, con_error: err ?? 0, procesando: procesando ?? 0,
         ultimo_error: ultimoError, ultima_ejecucion: ejec?.[0] ?? null,
+        ultima_actividad: ultimaActividad?.procesado ?? null,
         fondo_activo: !!fondoActivo,
       });
     }

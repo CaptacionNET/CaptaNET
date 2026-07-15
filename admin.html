@@ -285,15 +285,23 @@ async function ffcvEstado() {
   try {
     const d = await ffcvLlamar("estado");
     const ej = d.ultima_ejecucion;
+    const minutosSinActividad = d.ultima_actividad ? Math.round((Date.now() - new Date(d.ultima_actividad).getTime()) / 60000) : null;
     panel.style.display = "block";
     panel.innerHTML =
       `<b>Cola:</b> ${d.pendientes} pendientes de ${d.total_cola}` +
+      (d.procesando ? ` · <span style="color:#dc2626;">${d.procesando} atascados en "procesando"</span>` : "") +
       (d.con_error ? ` · <span style="color:#dc2626;">${d.con_error} con error</span>` : "") + `.<br>` +
-      (ej ? `<b>Última pasada:</b> ${ej.estado} · ${ej.equipos_total || 0} equipos · ` +
-            `${ej.jugadores_nuevos || 0} jugadores nuevos · ${ej.jugadores_actualizados || 0} actualizados` +
-            (ej.finalizado ? ` · terminó ${new Date(ej.finalizado).toLocaleString()}` : "")
-          : "Aún no se ha ejecutado ninguna pasada.") +
-      (d.ultimo_error ? `<br><b style="color:#dc2626;">Último error</b> (${d.ultimo_error.tipo} ${d.ultimo_error.referencia}): ${d.ultimo_error.error_msg || ""}` : "");
+      (ej ? `<b>Última pasada:</b> ${ej.estado} · iniciada ${new Date(ej.iniciado).toLocaleString()}` +
+            (ej.finalizado ? ` · terminó ${new Date(ej.finalizado).toLocaleString()}` : "") + `<br>` +
+            `${ej.equipos_total || 0} equipos · ${ej.jugadores_nuevos || 0} jugadores nuevos · ${ej.jugadores_actualizados || 0} actualizados<br>`
+          : "Aún no se ha ejecutado ninguna pasada.<br>") +
+      (d.ultima_actividad
+        ? `<b>Última actividad real:</b> ${new Date(d.ultima_actividad).toLocaleString()}` +
+          (minutosSinActividad > 10 && d.pendientes > 0
+            ? ` · <span style="color:#dc2626;">sin novedad desde hace ${minutosSinActividad} min, puede estar parado</span>`
+            : "") + `<br>`
+        : "") +
+      (d.ultimo_error ? `<b style="color:#dc2626;">Último error</b> (${d.ultimo_error.tipo} ${d.ultimo_error.referencia}): ${d.ultimo_error.error_msg || ""}` : "");
 
     if (d.total_cola > 0) {
       const hechos = d.total_cola - d.pendientes;
