@@ -88,6 +88,26 @@ button:disabled{opacity:.6;cursor:default;}
   font-size:13px;
   margin-bottom:16px;
 }
+.aviso-ok{
+  display:none;
+  background:#f0fdf4;
+  color:#15803d;
+  border:1px solid #bbf7d0;
+  border-radius:8px;
+  padding:10px 12px;
+  font-size:13px;
+  margin-bottom:16px;
+}
+.link-secundario{
+  display:block;
+  text-align:center;
+  margin-top:16px;
+  font-size:13px;
+  color:var(--primary);
+  cursor:pointer;
+  text-decoration:none;
+}
+.link-secundario:hover{text-decoration:underline;}
 </style>
 </head>
 
@@ -97,6 +117,7 @@ button:disabled{opacity:.6;cursor:default;}
     <div class="subtitle" id="subtitle">Plataforma de scouting</div>
 
     <p id="error" class="error"></p>
+    <p id="avisoOk" class="aviso-ok"></p>
 
     <form id="loginForm">
       <div class="field">
@@ -108,6 +129,19 @@ button:disabled{opacity:.6;cursor:default;}
         <input id="password" type="password" autocomplete="current-password" required>
       </div>
       <button id="submitBtn" type="submit">Entrar</button>
+      <a class="link-secundario" onclick="mostrarRecuperar()">¿Has olvidado tu contraseña?</a>
+    </form>
+
+    <form id="recuperarForm" style="display:none;">
+      <p style="font-size:13px;color:var(--muted);margin:0 0 16px;">
+        Escribe tu usuario y te enviaremos un enlace a tu email para elegir una contraseña nueva.
+      </p>
+      <div class="field">
+        <label for="usuarioRecuperar">Usuario</label>
+        <input id="usuarioRecuperar" type="text" autocomplete="username" required>
+      </div>
+      <button id="recuperarBtn" type="submit">Enviar enlace</button>
+      <a class="link-secundario" onclick="mostrarLogin()">Volver a iniciar sesión</a>
     </form>
   </div>
 
@@ -118,12 +152,36 @@ button:disabled{opacity:.6;cursor:default;}
     );
 
     const form = document.getElementById("loginForm");
+    const recuperarForm = document.getElementById("recuperarForm");
     const errorBox = document.getElementById("error");
+    const avisoOk = document.getElementById("avisoOk");
     const submitBtn = document.getElementById("submitBtn");
+    const recuperarBtn = document.getElementById("recuperarBtn");
 
     function mostrarError(msg) {
+      avisoOk.style.display = "none";
       errorBox.textContent = msg;
       errorBox.style.display = "block";
+    }
+
+    function mostrarAviso(msg) {
+      errorBox.style.display = "none";
+      avisoOk.textContent = msg;
+      avisoOk.style.display = "block";
+    }
+
+    function mostrarRecuperar() {
+      errorBox.style.display = "none";
+      avisoOk.style.display = "none";
+      form.style.display = "none";
+      recuperarForm.style.display = "block";
+    }
+
+    function mostrarLogin() {
+      errorBox.style.display = "none";
+      avisoOk.style.display = "none";
+      recuperarForm.style.display = "none";
+      form.style.display = "block";
     }
 
     function getClubSlug() {
@@ -204,6 +262,31 @@ button:disabled{opacity:.6;cursor:default;}
       }
 
       window.location.href = "visor.html";
+    });
+
+    recuperarForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorBox.style.display = "none";
+      avisoOk.style.display = "none";
+
+      const username = document.getElementById("usuarioRecuperar").value.trim();
+      recuperarBtn.disabled = true;
+      recuperarBtn.textContent = "Enviando...";
+
+      const { data: email } = await client.rpc("get_email_by_username", { p_username: username });
+
+      // Se manda el mismo aviso exista o no ese usuario, para no revelar
+      // qué nombres de usuario están registrados.
+      if (email) {
+        await client.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin + "/restablecer.html"
+        });
+      }
+
+      mostrarAviso("Si el usuario existe, te hemos enviado un email con un enlace para elegir una contraseña nueva.");
+      recuperarBtn.disabled = false;
+      recuperarBtn.textContent = "Enviar enlace";
+      recuperarForm.reset();
     });
   </script>
 </body>

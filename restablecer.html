@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CaptaNET - Restablecer contraseña</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#2563eb;--primary-dark:#1d4ed8;--bg:#f5f6fa;--card:#fff;--border:#e2e4eb;--text:#1f2430;--muted:#6b7280;}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  background:linear-gradient(160deg,#eef1fb 0%,var(--bg) 55%);
+  color:var(--text);
+}
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  box-shadow:0 20px 40px -20px rgba(30,41,59,.25);
+  padding:40px 36px;
+  width:100%;
+  max-width:380px;
+}
+.logo{font-size:26px;font-weight:800;color:var(--primary);text-align:center;margin-bottom:4px;}
+.subtitle{text-align:center;color:var(--muted);font-size:14px;margin-bottom:28px;}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;font-weight:600;}
+.field{margin-bottom:16px;}
+input{
+  width:100%;
+  padding:11px 12px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  font-size:15px;
+  background:#fafbfe;
+  transition:border-color .15s, box-shadow .15s;
+}
+input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.15);background:#fff;}
+button{
+  width:100%;
+  padding:12px;
+  margin-top:8px;
+  border:none;
+  border-radius:8px;
+  background:var(--primary);
+  color:#fff;
+  font-size:15px;
+  font-weight:600;
+  cursor:pointer;
+  transition:background .15s;
+}
+button:hover{background:var(--primary-dark);}
+button:disabled{opacity:.6;cursor:default;}
+.error{
+  display:none;
+  background:#fef2f2;
+  color:#dc2626;
+  border:1px solid #fecaca;
+  border-radius:8px;
+  padding:10px 12px;
+  font-size:13px;
+  margin-bottom:16px;
+}
+.aviso-ok{
+  display:none;
+  background:#f0fdf4;
+  color:#15803d;
+  border:1px solid #bbf7d0;
+  border-radius:8px;
+  padding:10px 12px;
+  font-size:13px;
+  margin-bottom:16px;
+}
+.link-secundario{display:block;text-align:center;margin-top:16px;font-size:13px;color:var(--primary);text-decoration:none;}
+.link-secundario:hover{text-decoration:underline;}
+</style>
+</head>
+
+<body>
+  <div class="card">
+    <div class="logo">CaptaNET</div>
+    <div class="subtitle">Elige tu nueva contraseña</div>
+
+    <p id="error" class="error"></p>
+    <p id="avisoOk" class="aviso-ok"></p>
+
+    <form id="formRestablecer" style="display:none;">
+      <div class="field">
+        <label for="password1">Nueva contraseña</label>
+        <input id="password1" type="password" autocomplete="new-password" minlength="6" required>
+      </div>
+      <div class="field">
+        <label for="password2">Repite la contraseña</label>
+        <input id="password2" type="password" autocomplete="new-password" minlength="6" required>
+      </div>
+      <button id="submitBtn" type="submit">Guardar contraseña</button>
+    </form>
+
+    <a id="volverLogin" class="link-secundario" href="index.html" style="display:none;">Volver a iniciar sesión</a>
+  </div>
+
+  <script>
+    const client = supabase.createClient(
+      "https://bnqoisjvboytiphiwosj.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
+    );
+
+    const form = document.getElementById("formRestablecer");
+    const errorBox = document.getElementById("error");
+    const avisoOk = document.getElementById("avisoOk");
+    const submitBtn = document.getElementById("submitBtn");
+    const volverLogin = document.getElementById("volverLogin");
+
+    function mostrarError(msg) {
+      avisoOk.style.display = "none";
+      errorBox.textContent = msg;
+      errorBox.style.display = "block";
+    }
+
+    // El enlace del email trae un token en la URL; supabase-js lo detecta
+    // solo al cargar y dispara este evento con una sesión temporal válida
+    // únicamente para cambiar la contraseña.
+    let listo = false;
+    client.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        listo = true;
+        form.style.display = "block";
+      }
+    });
+
+    // Si el enlace ya ha caducado o no es válido, no llega el evento anterior.
+    setTimeout(() => {
+      if (!listo) {
+        mostrarError("Este enlace no es válido o ha caducado. Pide uno nuevo desde la pantalla de inicio de sesión.");
+        volverLogin.style.display = "block";
+      }
+    }, 2500);
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorBox.style.display = "none";
+
+      const p1 = document.getElementById("password1").value;
+      const p2 = document.getElementById("password2").value;
+
+      if (p1 !== p2) { mostrarError("Las dos contraseñas no coinciden."); return; }
+      if (p1.length < 6) { mostrarError("La contraseña debe tener al menos 6 caracteres."); return; }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Guardando...";
+
+      const { error } = await client.auth.updateUser({ password: p1 });
+
+      if (error) {
+        mostrarError("No se ha podido guardar: " + error.message);
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Guardar contraseña";
+        return;
+      }
+
+      window.location.href = "visor.html";
+    });
+  </script>
+</body>
+</html>
