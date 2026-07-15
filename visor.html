@@ -440,14 +440,6 @@ function crearTabla() {
       { title: "Goles", field: "goles", sorter: "number", width: 85, hozAlign: "center" },
       { title: "Con informe", field: "tiene_informe", formatter: "tickCross", width: 130, hozAlign: "center" }
     ];
-    // Solo el admin ve cuándo se importó/actualizó cada jugador desde la FFCV.
-    if (esAdmin) {
-      columnas.push({
-        title: "Actualizado", field: "actualizado", sorter: "datetime", sorterParams: { format: "iso" },
-        formatter: cell => { const v = cell.getValue(); return v ? new Date(v).toLocaleString() : ""; },
-        width: 160
-      });
-    }
 
     tabla = new Tabulator("#tabla", {
       data: [],
@@ -460,8 +452,7 @@ function crearTabla() {
       paginationSize: 60,
       paginationSizeSelector: [30, 60, 100, 200],
       paginationCounter: "rows",
-      columns: columnas,
-      ...(esAdmin ? { initialSort: [{ column: "actualizado", dir: "desc" }] } : {})
+      columns: columnas
     });
 
     // En Tabulator 5.x los eventos de tabla solo funcionan vía .on(),
@@ -487,10 +478,15 @@ async function cargarJugadores() {
   const jugadores = await fetchJugadoresPorEquipos(equipoIds);
   const jugadorIds = jugadores.map(j => j.id);
 
+  // En una selección amplia (una liga entera) esto puede ser cientos de ids:
+  // sin trocear, la URL se hace demasiado larga y Supabase devuelve un 400
+  // que dejaba la tabla vacía en silencio.
   let privados = [];
   if (jugadorIds.length) {
-    const { data } = await client.from("jugadores_club").select("*").eq("club_id", miClubId).in("jugador_id", jugadorIds);
-    privados = data || [];
+    const resultados = await Promise.all(enLotes(jugadorIds, 200).map(lote =>
+      fetchPaginado((desde, hasta) => client
+        .from("jugadores_club").select("*").eq("club_id", miClubId).in("jugador_id", lote).range(desde, hasta))));
+    privados = resultados.flat();
   }
 
   basefilas = jugadores.map(j => {
@@ -510,7 +506,6 @@ async function cargarJugadores() {
       dorsal: j.dorsal,
       anio_nacimiento: j.fecha_nacimiento ? new Date(j.fecha_nacimiento).getFullYear() : (priv.anio_nacimiento || ""),
       goles: j.goles ?? "",
-      actualizado: j.ffcv_actualizado || "",
       tiene_informe: tieneInforme(priv)
     };
   });
