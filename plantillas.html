@@ -154,7 +154,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
       <h3>Añadir jugador</h3>
       <div class="panel-tabs">
         <div class="panel-tab active" id="tab_buscar" onclick="cambiarPanel('buscar')">Ya valorados</div>
-        <div class="panel-tab" id="tab_club" onclick="cambiarPanel('club')">Mi club</div>
+        <div class="panel-tab" id="tab_todos" onclick="cambiarPanel('todos')">Todos</div>
         <div class="panel-tab" id="tab_manual" onclick="cambiarPanel('manual')">Manual</div>
       </div>
 
@@ -163,18 +163,9 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
         <div id="resultados_busqueda"></div>
       </div>
 
-      <div id="panel_club" style="display:none;">
-        <input id="buscador_club" type="text" placeholder="Buscar en mi club..." style="width:100%;margin-bottom:10px;" oninput="buscarClub()">
-        <div id="resultados_club"></div>
-        <hr style="margin:14px 0;border:none;border-top:1px solid var(--border);">
-        <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">¿No está en la lista? Añádelo a tu club:</p>
-        <label>Nombre</label>
-        <input id="club_nombre" type="text" style="width:100%;margin-bottom:8px;">
-        <label>Posición</label>
-        <input id="club_posicion" type="text" style="width:100%;margin-bottom:8px;">
-        <label>Año de nacimiento</label>
-        <input id="club_anio" type="number" style="width:100%;margin-bottom:10px;">
-        <button style="width:100%;" onclick="crearJugadorClub()">+ Crear y añadir</button>
+      <div id="panel_todos" style="display:none;">
+        <input id="buscador_todos" type="text" placeholder="Buscar en toda la FFCV..." style="width:100%;margin-bottom:10px;" oninput="buscarTodos()">
+        <div id="resultados_todos"></div>
       </div>
 
       <div id="panel_manual" style="display:none;">
@@ -316,10 +307,10 @@ function onClubChange() {
 
 function cambiarPanel(nombre) {
   document.getElementById("panel_buscar").style.display = nombre === "buscar" ? "block" : "none";
-  document.getElementById("panel_club").style.display = nombre === "club" ? "block" : "none";
+  document.getElementById("panel_todos").style.display = nombre === "todos" ? "block" : "none";
   document.getElementById("panel_manual").style.display = nombre === "manual" ? "block" : "none";
   document.getElementById("tab_buscar").classList.toggle("active", nombre === "buscar");
-  document.getElementById("tab_club").classList.toggle("active", nombre === "club");
+  document.getElementById("tab_todos").classList.toggle("active", nombre === "todos");
   document.getElementById("tab_manual").classList.toggle("active", nombre === "manual");
 }
 
@@ -952,29 +943,39 @@ async function ejecutarBusqueda() {
   });
 }
 
-let buscarClubTimeout = null;
-function buscarClub() {
-  clearTimeout(buscarClubTimeout);
-  buscarClubTimeout = setTimeout(ejecutarBusquedaClub, 300);
+// Búsqueda por nombre sin distinguir acentos ni el orden de las palabras
+// (igual que en visor/jugadores/equipos): "MARCOS VERA" encuentra a
+// "VERA PEREZ, MARCOS".
+function normalizarTexto(s) {
+  return (s || "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
-async function ejecutarBusquedaClub() {
-  const q = document.getElementById("buscador_club").value.trim();
-  const cont = document.getElementById("resultados_club");
-  if (!miClubId) { cont.innerHTML = ""; return; }
+let buscarTodosTimeout = null;
+function buscarTodos() {
+  clearTimeout(buscarTodosTimeout);
+  buscarTodosTimeout = setTimeout(ejecutarBusquedaTodos, 300);
+}
 
-  let query = client.from("club_jugadores").select("*").eq("club_id", miClubId);
-  if (q) query = query.ilike("nombre", `%${q}%`);
-  const { data } = await query.order("nombre").limit(30);
+async function ejecutarBusquedaTodos() {
+  const q = document.getElementById("buscador_todos").value.trim();
+  const cont = document.getElementById("resultados_todos");
+  if (!q) { cont.innerHTML = ""; return; }
+
+  const palabras = normalizarTexto(q).split(/\s+/).filter(Boolean);
+  let query = client.from("jugadores").select("*, equipos(nombre)").limit(30);
+  palabras.forEach(p => { query = query.ilike("nombre_normalizado", `%${p}%`); });
+  const { data: jugadores } = await query;
 
   const rango = rangoActual();
-  const filtrados = (data || []).filter(j => {
-    if (!rango || !j.anio_nacimiento) return true;
-    return j.anio_nacimiento >= rango.min && j.anio_nacimiento <= rango.max;
+  const filtrados = (jugadores || []).filter(j => {
+    if (!rango) return true;
+    const anio = j.fecha_nacimiento ? new Date(j.fecha_nacimiento).getFullYear() : null;
+    if (!anio) return true;
+    return anio >= rango.min && anio <= rango.max;
   });
 
   if (!filtrados.length) {
-    cont.innerHTML = "<p style='color:var(--muted);font-size:12px;'>Sin jugadores propios todavía.</p>";
+    cont.innerHTML = "<p style='color:var(--muted);font-size:12px;'>Sin resultados.</p>";
     return;
   }
 
@@ -984,32 +985,11 @@ async function ejecutarBusquedaClub() {
     div.className = "resultado";
     div.innerHTML = `
       <div class="nombre">${j.nombre}</div>
-      <div class="meta">${[j.posicion, j.anio_nacimiento].filter(Boolean).join(" · ")}</div>
-      <button onclick="anadirClubJugador('${j.id}')">+ Añadir al campo</button>
+      <div class="meta">${j.equipos?.nombre || "Sin equipo"}</div>
+      <button onclick="anadirExistente('${j.id}')">+ Añadir al campo</button>
     `;
     cont.appendChild(div);
   });
-}
-
-async function crearJugadorClub() {
-  const nombre = document.getElementById("club_nombre").value.trim();
-  const posicion = document.getElementById("club_posicion").value.trim();
-  const anio = document.getElementById("club_anio").value || null;
-  if (!nombre) { alert("Escribe un nombre."); return; }
-  if (!miClubId) { alert("No hay un club seleccionado."); return; }
-
-  const { data, error } = await client.from("club_jugadores")
-    .insert({ club_id: miClubId, nombre, posicion: posicion || null, anio_nacimiento: anio })
-    .select("id").single();
-
-  if (error) { alert("Error creando jugador: " + error.message); return; }
-
-  document.getElementById("club_nombre").value = "";
-  document.getElementById("club_posicion").value = "";
-  document.getElementById("club_anio").value = "";
-
-  await ejecutarBusquedaClub();
-  if (plantillaActualId) await anadirClubJugador(data.id);
 }
 
 function siguientePosicion() {
@@ -1023,17 +1003,6 @@ async function anadirExistente(jugadorId) {
 
   const { error } = await client.from("plantilla_jugadores").insert({
     plantilla_id: plantillaActualId, jugador_id: jugadorId, pos_x, pos_y
-  });
-  if (error) { alert("Error añadiendo: " + error.message); return; }
-  cargarTablero();
-}
-
-async function anadirClubJugador(clubJugadorId) {
-  if (!plantillaActualId) { alert("Crea o selecciona una plantilla primero."); return; }
-  const { pos_x, pos_y } = siguientePosicion();
-
-  const { error } = await client.from("plantilla_jugadores").insert({
-    plantilla_id: plantillaActualId, club_jugador_id: clubJugadorId, pos_x, pos_y
   });
   if (error) { alert("Error añadiendo: " + error.message); return; }
   cargarTablero();
