@@ -131,6 +131,14 @@ label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px;}
       <button class="secondary" onclick="ffcvEstado()">Actualizar estado</button>
     </div>
     <p style="color:var(--muted);font-size:13px;margin-top:14px;">
+      División de Honor Juvenil (RFEF) no aparece en el catálogo normal de competiciones — son 9 equipos
+      concretos de clubes de la Comunitat Valenciana, mantenidos a mano. Pulsa esto para añadirlos a la cola
+      (luego se procesan igual que el resto, con "Procesar todo ahora" o el segundo plano):
+    </p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="secondary" onclick="ffcvDescubrirRfef()">Añadir equipos RFEF (División de Honor Juvenil)</button>
+    </div>
+    <p style="color:var(--muted);font-size:13px;margin-top:14px;">
       "Procesar todo ahora" depende de tener esta pestaña abierta y el ordenador despierto.
       Para que siga solo aunque cierres el navegador o se bloquee el portátil, usa esto:
     </p>
@@ -226,6 +234,17 @@ async function ffcvDescubrir() {
   try {
     const d = await ffcvLlamar("descubrir", { modalidades, ...(filtro ? { soloCompeticion: filtro } : {}) });
     s.textContent = `Listo. Temporada ${d.temporada}: ${d.grupos_encolados} grupos en cola. Pulsa "Procesar todo ahora" o espera al proceso automático del fin de semana.`;
+    ffcvEstado();
+  } catch (e) { s.textContent = "Error: " + e.message; }
+}
+
+async function ffcvDescubrirRfef() {
+  const s = document.getElementById("ffcv_status");
+  if (!confirm('Esto añade a la cola los 9 equipos de División de Honor Juvenil (RFEF) de clubes de la Comunitat Valenciana, sin tocar el resto de la cola. ¿Continuar?')) return;
+  s.textContent = "Añadiendo equipos RFEF a la cola…";
+  try {
+    const d = await ffcvLlamar("descubrir_rfef");
+    s.textContent = `Listo. Temporada ${d.temporada}: ${d.equipos} equipos RFEF en cola. Pulsa "Procesar todo ahora" o espera al proceso automático.`;
     ffcvEstado();
   } catch (e) { s.textContent = "Error: " + e.message; }
 }

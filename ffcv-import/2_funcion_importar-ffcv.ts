@@ -30,6 +30,27 @@ const json = (body: unknown, status = 200) =>
 const FFCV = "https://ffcv.es/competiciones/api";
 // Solo nos interesa fútbol 11 y fútbol 8 (nada de Valenta, Futsal, Playa, Gegants...)
 const MODALIDADES_PERMITIDAS = ["MASCULÍ F11", "MASCULÍ F8"];
+
+// Equipos de División de Honor Juvenil (RFEF, nivel nacional) de clubes de la
+// Comunitat Valenciana. No se pueden "descubrir" solos como el resto (esta
+// competición no aparece en el listado general de competiciones de la FFCV;
+// solo se llega a ella entrando en la ficha de cada club uno a uno), así que
+// es una lista fija mantenida a mano. Cambia poco — solo con ascensos/
+// descensos, una vez al año — pero si un club sube o baja de categoría, hay
+// que actualizar aquí su cod_equipo (buscando el club en
+// ffcv.es/competiciones/#partidos, pestaña Equipos, y copiando el link de su
+// equipo de "División de Honor Juvenil").
+const EQUIPOS_RFEF_CV = [
+  { cod_equipo: "11365", nombre: "Villarreal C.F. 'A'" },
+  { cod_equipo: "10387", nombre: "Valencia C.F. 'A'" },
+  { cod_equipo: "10394", nombre: "Levante U.D. 'A'" },
+  { cod_equipo: "11212", nombre: "C.D. Castellón 'A'" },
+  { cod_equipo: "9861", nombre: "Elche C.F. 'A'" },
+  { cod_equipo: "19572", nombre: "Patacona C.F. 'A'" },
+  { cod_equipo: "22470", nombre: "Torrent C.F. 'A'" },
+  { cod_equipo: "23648", nombre: "Kelme C.F. 'A'" },
+  { cod_equipo: "8787", nombre: "C.D. Roda 'A'" },
+];
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15";
 const PRESUPUESTO_MS = 25_000;            // corto a propósito: el navegador vuelve a llamar en bucle
 const PAUSA_MS = 350;                     // pausa entre llamadas a FFCV (ritmo suave)
@@ -261,6 +282,52 @@ Deno.serve(async (req) => {
         grupos_encolados: filasGrupos.length,
         modalidades: modalidadesPedidas,
       });
+    }
+
+    // ========================================================
+    // DESCUBRIR RFEF — encola la lista fija de equipos de División de Honor
+    // Juvenil (ver EQUIPOS_RFEF_CV). A diferencia de "descubrir", no explora
+    // nada: solo da de alta la temporada/categoría/liga/grupo sintéticos y
+    // esos equipos, y deja que "procesar" haga el resto igual que con
+    // cualquier otro equipo (mismo endpoint de plantilla, historial y stats).
+    // ========================================================
+    if (accion === "descubrir_rfef") {
+      const temps = (await ffcvGet("filtros/temporadas_fetch.php")).temporadas || [];
+      temps.sort((a: any, b: any) => Number(b.cod_temporada) - Number(a.cod_temporada));
+      const temporadaActual = temps[0];
+      if (!temporadaActual) return json({ error: "No hay temporadas en FFCV" }, 500);
+
+      const temporadaRow = await db("upsert temporada (rfef)",
+        admin.from("temporadas")
+          .upsert({
+            cod_ffcv: temporadaActual.cod_temporada,
+            nombre: `FFCV ${limpiar(temporadaActual.nombre)}`,
+            fecha_inicio: temporadaActual.fecha_inicio || null,
+            fecha_fin: temporadaActual.fecha_fin || null,
+          }, { onConflict: "cod_ffcv" })
+          .select("id").single());
+      const temporadaId = temporadaRow.id;
+
+      const catId = await upsertNivel(admin, "categorias",
+        { cod_ffcv: `rfef_${temporadaActual.cod_temporada}`, nombre: "RFEF", temporada_id: temporadaId }, {});
+      const ligaId = await upsertNivel(admin, "ligas",
+        { cod_ffcv: `rfef_dh_juvenil_${temporadaActual.cod_temporada}`, nombre: "División de Honor Juvenil", temporada_id: temporadaId },
+        { categoria_id: catId });
+      const grupoId = await upsertNivel(admin, "grupos",
+        { cod_ffcv: `rfef_dh_juvenil_cv_${temporadaActual.cod_temporada}`, nombre: "Comunitat Valenciana", temporada_id: temporadaId },
+        { liga_id: ligaId });
+
+      let n = 0;
+      for (const eq of EQUIPOS_RFEF_CV) {
+        await db("upsert equipo rfef",
+          admin.from("equipos").upsert(
+            { cod_ffcv: eq.cod_equipo, nombre: eq.nombre, grupo_id: grupoId, temporada_id: temporadaId, ffcv_cod_temporada: temporadaActual.cod_temporada },
+            { onConflict: "cod_ffcv" }));
+        await db("encolar equipo rfef",
+          admin.from("ffcv_cola").upsert({ tipo: "equipo", referencia: eq.cod_equipo, estado: "pendiente" }, { onConflict: "tipo,referencia" }));
+        n++;
+      }
+      return json({ ok: true, temporada: temporadaActual.nombre, equipos: n });
     }
 
     // ========================================================
