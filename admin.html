@@ -263,6 +263,18 @@ async function ffcvBucleProcesar() {
       s.textContent = `Procesando… quedan ${d.pendientes} pendientes (${ffcvAcumulado.equipos} equipos, ${ffcvAcumulado.nuevos} jugadores nuevos, ${ffcvAcumulado.actualizados} actualizados).`;
       ffcvEstado();
     } catch (e) {
+      // Con importaciones largas, la pestaña puede pasar mucho rato en
+      // segundo plano y el navegador retrasa el refresco automático de la
+      // sesión hasta que la sesión caduca de verdad. Antes de contarlo como
+      // un fallo real, se intenta renovarla.
+      if (/autenticado|jwt|token/i.test(e.message || "")) {
+        const { error: errRefresh } = await client.auth.refreshSession();
+        if (!errRefresh) {
+          s.textContent = "Sesión renovada, reintentando…";
+          await new Promise(r => setTimeout(r, 500));
+          continue;
+        }
+      }
       fallosSeguidos++;
       s.textContent = `Aviso: ${e.message} — reintentando… (fallo ${fallosSeguidos})`;
       if (fallosSeguidos >= 5) {
