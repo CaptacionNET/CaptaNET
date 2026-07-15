@@ -100,7 +100,11 @@ Deno.serve(async (req) => {
     const cronSecret = req.headers.get("x-cron-secret");
     let esCron = false;
     if (cronSecret) {
-      const { data: cfg } = await admin.from("ffcv_config").select("valor").eq("clave", "cron_secret").maybeSingle();
+      const { data: cfg, error: errCfg } = await admin.from("ffcv_config").select("valor").eq("clave", "cron_secret").maybeSingle();
+      // Si esto falla (p.ej. caché de esquema de PostgREST desactualizada
+      // tras crear la tabla), que se vea en los logs en vez de acabar
+      // pareciendo un simple "no autorizado" sin pista de la causa real.
+      if (errCfg) console.error("ffcv_config lookup:", errCfg.message);
       esCron = !!cfg?.valor && cronSecret === cfg.valor;
     }
     if (!esCron) {
