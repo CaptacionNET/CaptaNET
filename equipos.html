@@ -146,6 +146,39 @@ function nombreBaseClub(nombre) {
   return (nombre || "").replace(/\s+['"’][A-Za-z]['"’]\s*$/, "").trim();
 }
 
+// Junta nombres de club "parecidos" en un solo chip: el mismo club a veces
+// se registra con pequeñas variaciones (puntuación, mayúsculas, una palabra
+// de más al final, p.ej. "C.F. Inter San José Valencia" y "CF INTER SAN
+// JOSE"). Se consideran el mismo club si, palabra a palabra en el mismo
+// orden, uno es el principio del otro. Esto NO junta clubes distintos que
+// solo comparten una palabra (p.ej. la localidad "Mislata"), porque ahí la
+// primera palabra que cambia ya rompe el prefijo ("Mislata C.F." no es
+// prefijo de "C.F. Rovella Mislata": empiezan por palabras distintas).
+function tokensClub(nombreBase) {
+  return normalizarTexto(nombreBase).replace(/['".,]/g, "").split(/\s+/).filter(Boolean);
+}
+function esPrefijoDePalabras(a, b) {
+  return a.length <= b.length && a.every((palabra, i) => palabra === b[i]);
+}
+function nombresDeClubParecidos(baseA, baseB) {
+  if (baseA === baseB) return true;
+  const ta = tokensClub(baseA), tb = tokensClub(baseB);
+  return esPrefijoDePalabras(ta, tb) || esPrefijoDePalabras(tb, ta);
+}
+function agruparClubesParecidos(basesUnicas) {
+  const grupos = [];
+  basesUnicas.forEach(base => {
+    const grupo = grupos.find(g => g.variantes.some(v => nombresDeClubParecidos(v, base)));
+    if (grupo) {
+      grupo.variantes.push(base);
+      if (base.length > grupo.representante.length) grupo.representante = base;
+    } else {
+      grupos.push({ representante: base, variantes: [base] });
+    }
+  });
+  return grupos;
+}
+
 let esAdmin = false;
 let miClubId = null;
 let tablaRoster = null;
@@ -282,26 +315,27 @@ function renderClubesDetectados() {
   cont.innerHTML = "";
   if (normalizarTexto(ultimaBusquedaTexto).length < 5) return;
 
-  const basesUnicas = [...new Set(ultimaBusquedaEquipos.map(e => nombreBaseClub(e.nombre)))].sort((a, b) => a.localeCompare(b));
-  if (basesUnicas.length < 2) return;
+  const basesUnicas = [...new Set(ultimaBusquedaEquipos.map(e => nombreBaseClub(e.nombre)))];
+  const grupos = agruparClubesParecidos(basesUnicas).sort((a, b) => a.representante.localeCompare(b.representante));
+  if (grupos.length < 2) return;
 
   const etiqueta = document.createElement("span");
   etiqueta.className = "etiqueta";
   etiqueta.textContent = "Clubes:";
   cont.appendChild(etiqueta);
 
-  basesUnicas.forEach(base => {
+  grupos.forEach(grupo => {
     const pill = document.createElement("button");
     pill.type = "button";
-    pill.className = "club-pill" + (clubSeleccionado === base ? " active" : "");
-    pill.textContent = base;
-    pill.onclick = () => seleccionarClub(base);
+    pill.className = "club-pill" + (clubSeleccionado === grupo.representante ? " active" : "");
+    pill.textContent = grupo.representante;
+    pill.onclick = () => seleccionarClub(grupo);
     cont.appendChild(pill);
   });
 }
 
-async function seleccionarClub(base) {
-  clubSeleccionado = clubSeleccionado === base ? null : base;
+async function seleccionarClub(grupo) {
+  clubSeleccionado = clubSeleccionado === grupo.representante ? null : grupo.representante;
   renderClubesDetectados();
 
   if (!clubSeleccionado) {
@@ -309,12 +343,15 @@ async function seleccionarClub(base) {
     return;
   }
 
-  // Se pide "empieza por" (no exacto), porque el nombre real del equipo
-  // añade el sufijo 'A'/'B'/... que se quitó para agrupar por club.
+  // "Empieza por" en vez de exacto, porque el nombre real del equipo añade
+  // el sufijo 'A'/'B'/... que se quitó para agrupar por club. Se combinan
+  // con "or" todas las variantes de nombre que se hayan agrupado en este
+  // club (p.ej. "C.F. Inter San José Valencia" y "CF INTER SAN JOSE").
+  const filtro = grupo.variantes.map(v => `nombre_normalizado.ilike.${normalizarTexto(v)}%`).join(",");
   const aviso = document.getElementById("aviso_busqueda");
   const { data: equipos, error } = await client.from("equipos")
     .select("id, nombre, grupos(nombre, ligas(nombre, categoria_edad_ffcv, categorias(nombre)))")
-    .ilike("nombre_normalizado", `${normalizarTexto(clubSeleccionado)}%`);
+    .or(filtro);
 
   if (error) { aviso.style.display = "block"; aviso.textContent = "Error al buscar: " + error.message; return; }
 
