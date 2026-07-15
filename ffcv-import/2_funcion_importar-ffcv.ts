@@ -10,7 +10,7 @@
 //                  dentro de un presupuesto de tiempo corto. Se llama en bucle.
 //   "estado"    -> devuelve el progreso actual.
 //
-// Autorización: admin global (JWT) O cabecera X-Cron-Secret == FFCV_CRON_SECRET.
+// Autorización: admin global (JWT) O cabecera X-Cron-Secret == ffcv_config.cron_secret.
 // No se guardan DNI ni email (decisión de privacidad).
 // Toda operación de base de datos comprueba su error y lo lanza:
 // así un fallo real se ve en ffcv_cola.error_msg en vez de desaparecer en silencio.
@@ -94,8 +94,15 @@ Deno.serve(async (req) => {
     const admin = createClient(url, serviceKey);
 
     // --- Autorización: cron-secret o admin global ---
+    // El secreto vive en una sola tabla (ffcv_config), no en variables de
+    // entorno: así el cron y esta función siempre comparan el mismo valor,
+    // sin depender de mantener dos copias sincronizadas a mano.
     const cronSecret = req.headers.get("x-cron-secret");
-    const esCron = cronSecret && cronSecret === Deno.env.get("FFCV_CRON_SECRET");
+    let esCron = false;
+    if (cronSecret) {
+      const { data: cfg } = await admin.from("ffcv_config").select("valor").eq("clave", "cron_secret").maybeSingle();
+      esCron = !!cfg?.valor && cronSecret === cfg.valor;
+    }
     if (!esCron) {
       const authHeader = req.headers.get("Authorization") || "";
       const userClient = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -141,9 +148,7 @@ Deno.serve(async (req) => {
     // (corre en el servidor, no depende de tener el navegador abierto)
     // ========================================================
     if (accion === "activar_fondo") {
-      const secreto = Deno.env.get("FFCV_CRON_SECRET");
-      if (!secreto) return json({ error: "Falta el secreto FFCV_CRON_SECRET en la configuración" }, 500);
-      const { error } = await admin.rpc("ffcv_programar_fondo", { p_secreto: secreto });
+      const { error } = await admin.rpc("ffcv_programar_fondo");
       if (error) return json({ error: error.message }, 500);
       return json({ ok: true });
     }
