@@ -29,6 +29,9 @@ label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px;}
 .field{margin-bottom:12px;}
 .status{font-weight:600;margin-top:10px;color:var(--muted);}
 .tabla-scroll{margin:0 24px;overflow-x:auto;}
+.ffcv-seccion{font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--muted);text-transform:uppercase;margin:22px 0 10px;padding-top:18px;border-top:1px solid var(--border);}
+.ffcv-seccion:first-of-type{margin-top:18px;}
+.ffcv-extra{background:#f8f9fc;border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-top:18px;}
 @media (max-width:700px){
   #topbar{padding:12px 16px;}
   .tabs{padding:12px 12px 0;overflow-x:auto;flex-wrap:nowrap;}
@@ -104,14 +107,16 @@ label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px;}
 
 <!-- IMPORTAR FFCV -->
 <div id="ffcv" class="tab-content">
-  <div class="card">
+  <div class="card" style="max-width:640px;">
     <h3>Importar jugadores desde la FFCV</h3>
     <p style="color:var(--muted);font-size:14px;">
       Descarga automáticamente los jugadores de la web pública de la FFCV (nombre, foto, posición,
       dorsal, fecha de nacimiento e historial de clubes). Solo fútbol 11 y fútbol 8 (nada de Valenta,
       Sala, Playa...). Se actualiza solo cada fin de semana. Aquí puedes lanzarlo o ver el progreso a mano.
     </p>
-    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;">
+
+    <h4 class="ffcv-seccion">1 · Catalogar</h4>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;">
       <div>
         <label>Modalidad</label>
         <select id="ffcv_modalidad">
@@ -125,27 +130,30 @@ label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px;}
         <input id="ffcv_filtro_competicion" type="text" placeholder="Ej: Liga Nacional Juvenil (déjalo vacío para importar todo)" style="width:100%;">
       </div>
     </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
-      <button onclick="ffcvDescubrir()">1 · Catalogar grupos e iniciar</button>
-      <button class="secondary" id="btn_ffcv_procesar" onclick="ffcvToggleProcesar()">2 · Procesar todo ahora</button>
-      <button class="secondary" onclick="ffcvEstado()">Actualizar estado</button>
-    </div>
-    <p style="color:var(--muted);font-size:13px;margin-top:14px;">
-      División de Honor Juvenil (RFEF) no aparece en el catálogo normal de competiciones — son 9 equipos
-      concretos de clubes de la Comunitat Valenciana, mantenidos a mano. Pulsa esto para añadirlos a la cola
-      (luego se procesan igual que el resto, con "Procesar todo ahora" o el segundo plano):
-    </p>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-      <button class="secondary" onclick="ffcvDescubrirRfef()">Añadir equipos RFEF (División de Honor Juvenil)</button>
-    </div>
-    <p style="color:var(--muted);font-size:13px;margin-top:14px;">
-      "Procesar todo ahora" depende de tener esta pestaña abierta y el ordenador despierto.
-      Para que siga solo aunque cierres el navegador o se bloquee el portátil, usa esto:
+    <button onclick="ffcvDescubrir()" style="margin-top:12px;">Catalogar grupos e iniciar</button>
+
+    <h4 class="ffcv-seccion">2 · Procesar</h4>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 10px;">
+      "Procesar todo ahora" necesita esta pestaña abierta y el ordenador despierto. El segundo plano
+      sigue solo aunque cierres el navegador.
     </p>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <button class="secondary" id="btn_ffcv_procesar" onclick="ffcvToggleProcesar()">Procesar todo ahora</button>
       <button class="secondary" id="btn_ffcv_fondo" onclick="ffcvToggleFondo()">Activar segundo plano</button>
       <span id="ffcv_fondo_estado" style="font-size:13px;color:var(--muted);"></span>
     </div>
+
+    <div class="ffcv-extra">
+      <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Extra · División de Honor Juvenil (RFEF)</div>
+      <p style="color:var(--muted);font-size:12px;margin:0 0 10px;">
+        9 equipos concretos de clubes de la Comunitat Valenciana que no aparecen en el catálogo normal
+        (mantenidos a mano). Se añaden a la misma cola de arriba.
+      </p>
+      <button class="secondary" onclick="ffcvDescubrirRfef()">Añadir equipos RFEF</button>
+    </div>
+
+    <h4 class="ffcv-seccion">Estado</h4>
+    <button class="secondary" onclick="ffcvEstado()">Actualizar estado</button>
     <p id="ffcv_status" class="status"></p>
     <div id="ffcv_barra_wrap" style="display:none;margin-top:6px;">
       <div style="background:#eef0f5;border-radius:6px;height:10px;overflow:hidden;">
