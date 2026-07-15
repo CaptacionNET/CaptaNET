@@ -76,7 +76,7 @@ input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-rad
   </div>
   <div class="field">
     <label>Buscar jugador</label>
-    <input id="filtro_nombre" type="text" placeholder="Nombre..." oninput="aplicarFiltrosLocales()">
+    <input id="filtro_nombre" type="text" placeholder="Nombre..." oninput="aplicarFiltrosLocalesDebounced()">
   </div>
   <div class="field">
     <label>Año (desde)</label>
@@ -88,7 +88,7 @@ input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-rad
   </div>
   <div class="field">
     <label>Mín. goles</label>
-    <input id="filtro_min_goles" type="number" min="0" placeholder="0" style="min-width:90px;" oninput="aplicarFiltrosLocales()">
+    <input id="filtro_min_goles" type="number" min="0" placeholder="0" style="min-width:90px;" oninput="aplicarFiltrosLocalesDebounced()">
   </div>
   <div class="field">
     <label>&nbsp;</label>
@@ -97,7 +97,7 @@ input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-rad
       Con informe
     </label>
   </div>
-  <div class="field">
+  <div class="field" id="campo_exportar" style="display:none;">
     <label>&nbsp;</label>
     <div style="display:flex;gap:10px;">
       <button class="secondary" onclick="exportarExcel()">Exportar a Excel</button>
@@ -181,7 +181,10 @@ async function protegerPagina() {
   esAdmin = !!perfil?.is_admin;
   miClubId = perfil?.club_id || null;
 
-  if (esAdmin) document.getElementById("btn_admin").style.display = "inline-block";
+  if (esAdmin) {
+    document.getElementById("btn_admin").style.display = "inline-block";
+    document.getElementById("campo_exportar").style.display = "block";
+  }
   if (perfil?.is_club_admin) document.getElementById("btn_equipo").style.display = "inline-block";
 
   document.getElementById("brand_extra").textContent =
@@ -219,37 +222,37 @@ async function fetchPaginado(construirConsulta) {
   return filas;
 }
 
+// Trocea un array en trozos de tamaño fijo.
+function enLotes(arr, tamano) {
+  const lotes = [];
+  for (let i = 0; i < arr.length; i += tamano) lotes.push(arr.slice(i, i + tamano));
+  return lotes;
+}
+
 // Cuando hay muchos equipos seleccionados (p.ej. toda una temporada), pedirlos
 // todos en un solo "in (...)" puede generar una URL demasiado larga y que la
-// consulta falle en silencio. Se pide en lotes pequeños y se junta todo.
+// consulta falle en silencio. Se pide en lotes pequeños, todos a la vez (no
+// uno detrás de otro: con una liga grande, esperar cada lote por turnos es lo
+// que hacía que la carga se notara lenta).
 async function fetchJugadoresPorEquipos(equipoIds) {
-  const TAMANO_LOTE = 200;
-  const todos = [];
-  for (let i = 0; i < equipoIds.length; i += TAMANO_LOTE) {
-    const lote = equipoIds.slice(i, i + TAMANO_LOTE);
-    const filas = await fetchPaginado((desde, hasta) => client
+  const resultados = await Promise.all(enLotes(equipoIds, 200).map(lote =>
+    fetchPaginado((desde, hasta) => client
       .from("jugadores")
       .select("*, equipos(nombre, grupos(nombre, ligas(nombre, categorias(nombre))))")
       .in("equipo_id", lote)
-      .range(desde, hasta));
-    todos.push(...filas);
-  }
-  return todos;
+      .range(desde, hasta))));
+  return resultados.flat();
 }
 
 // Igual que fetchJugadoresPorEquipos pero genérico: trocea los ids (para no
-// generar una URL enorme) y pagina cada trozo (por si un solo trozo ya supera
-// las 1000 filas). Se usa en cualquier "dame los X de estos Y" con muchos Y.
+// generar una URL enorme), pide todos los lotes a la vez, y pagina cada uno
+// (por si un solo trozo ya supera las 1000 filas). Se usa en cualquier
+// "dame los X de estos Y" con muchos Y.
 async function fetchPorIds(tabla, columnaFiltro, ids, columnas = "id") {
-  const TAMANO_LOTE = 200;
-  const todos = [];
-  for (let i = 0; i < ids.length; i += TAMANO_LOTE) {
-    const lote = ids.slice(i, i + TAMANO_LOTE);
-    const filas = await fetchPaginado((desde, hasta) => client
-      .from(tabla).select(columnas).in(columnaFiltro, lote).range(desde, hasta));
-    todos.push(...filas);
-  }
-  return todos;
+  const resultados = await Promise.all(enLotes(ids, 200).map(lote =>
+    fetchPaginado((desde, hasta) => client
+      .from(tabla).select(columnas).in(columnaFiltro, lote).range(desde, hasta))));
+  return resultados.flat();
 }
 
 async function cargarCaches() {
@@ -417,18 +420,7 @@ function exportarPDF() {
 
 function crearTabla() {
   return new Promise(resolve => {
-    tabla = new Tabulator("#tabla", {
-      data: [],
-      // "fitData": cada columna toma el ancho de su contenido real (nunca corta
-      // el nombre) y la tabla se desliza en horizontal si no cabe todo a la vez.
-      layout: "fitData",
-      height: "70vh",
-      reactiveData: true,
-      pagination: true,
-      paginationSize: 60,
-      paginationSizeSelector: [30, 60, 100, 200],
-      paginationCounter: "rows",
-      columns: [
+    const columnas = [
       {
         // En móvil, fijar esta columna deja muy poco sitio para el resto.
         title: "Jugador", field: "nombre", frozen: !window.matchMedia("(max-width:700px)").matches, minWidth: 160,
@@ -446,14 +438,30 @@ function crearTabla() {
       { title: "Año", field: "anio_nacimiento", sorter: "number", width: 70, hozAlign: "center" },
       { title: "Dorsal", field: "dorsal", width: 85, hozAlign: "center" },
       { title: "Goles", field: "goles", sorter: "number", width: 85, hozAlign: "center" },
-      { title: "Con informe", field: "tiene_informe", formatter: "tickCross", width: 130, hozAlign: "center" },
-      {
+      { title: "Con informe", field: "tiene_informe", formatter: "tickCross", width: 130, hozAlign: "center" }
+    ];
+    // Solo el admin ve cuándo se importó/actualizó cada jugador desde la FFCV.
+    if (esAdmin) {
+      columnas.push({
         title: "Actualizado", field: "actualizado", sorter: "datetime", sorterParams: { format: "iso" },
         formatter: cell => { const v = cell.getValue(); return v ? new Date(v).toLocaleString() : ""; },
         width: 160
-      }
-      ],
-      initialSort: [{ column: "actualizado", dir: "desc" }]
+      });
+    }
+
+    tabla = new Tabulator("#tabla", {
+      data: [],
+      // "fitData": cada columna toma el ancho de su contenido real (nunca corta
+      // el nombre) y la tabla se desliza en horizontal si no cabe todo a la vez.
+      layout: "fitData",
+      height: "70vh",
+      reactiveData: true,
+      pagination: true,
+      paginationSize: 60,
+      paginationSizeSelector: [30, 60, 100, 200],
+      paginationCounter: "rows",
+      columns: columnas,
+      ...(esAdmin ? { initialSort: [{ column: "actualizado", dir: "desc" }] } : {})
     });
 
     // En Tabulator 5.x los eventos de tabla solo funcionan vía .on(),
@@ -522,6 +530,12 @@ function poblarAniosRango() {
     desde.innerHTML += `<option value="${y}">${y}</option>`;
     hasta.innerHTML += `<option value="${y}">${y}</option>`;
   }
+}
+
+let filtrosLocalesTimeout = null;
+function aplicarFiltrosLocalesDebounced() {
+  clearTimeout(filtrosLocalesTimeout);
+  filtrosLocalesTimeout = setTimeout(aplicarFiltrosLocales, 250);
 }
 
 async function aplicarFiltrosLocales() {
