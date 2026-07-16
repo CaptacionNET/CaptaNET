@@ -441,6 +441,11 @@ async function confirmarNuevaPlantilla() {
   const anio_min = document.getElementById("np_anio_min").value || null;
   const anio_max = document.getElementById("np_anio_max").value || null;
 
+  if (anio_min && anio_max && Number(anio_min) > Number(anio_max)) {
+    alert('El "Año mínimo" no puede ser mayor que el "Año máximo".');
+    return;
+  }
+
   if (modoModalPlantilla === "editar") {
     const { data, error } = await client.from("plantillas")
       .update({ nombre, anio_min, anio_max }).eq("id", plantillaActualId).select("*").single();
