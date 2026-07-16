@@ -964,7 +964,12 @@ async function ejecutarBusquedaTodos() {
   const palabras = normalizarTexto(q).split(/\s+/).filter(Boolean);
   let query = client.from("jugadores").select("*, equipos(nombre)").limit(30);
   palabras.forEach(p => { query = query.ilike("nombre_normalizado", `%${p}%`); });
-  const { data: jugadores } = await query;
+  const { data: jugadores, error } = await query;
+
+  if (error) {
+    cont.innerHTML = `<p style='color:#dc2626;font-size:12px;'>Error al buscar: ${error.message}</p>`;
+    return;
+  }
 
   const rango = rangoActual();
   const filtrados = (jugadores || []).filter(j => {
