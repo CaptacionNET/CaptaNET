@@ -14,6 +14,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ari
 button{background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px;}
 button:hover{opacity:.9;}
 button.secondary{background:#fff;color:var(--text);border:1px solid var(--border);}
+button.danger{background:#fff;color:#dc2626;border:1px solid #fecaca;}
 input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;}
 label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 .barra{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:16px 24px;}
@@ -148,7 +149,10 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
       <div id="f_stats" style="display:none;"></div>
       <div id="f_historial" style="display:none;"></div>
 
-      <p id="status" class="status"></p>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <p id="status" class="status" style="margin:12px 0 0;"></p>
+        <button class="danger" id="btn_eliminar_informe" style="display:none;font-size:12px;padding:6px 12px;margin-top:12px;" onclick="eliminarInforme()">Eliminar informe</button>
+      </div>
     </div>
   </div>
 </div>
@@ -329,6 +333,8 @@ async function abrirJugador(jugadorId) {
   // Foto: la del club si la tiene guardada de antes; si no, la de FFCV
   actualizarFotoUI(priv?.foto_url || j.foto_url || null);
 
+  document.getElementById("btn_eliminar_informe").style.display = tieneDatosPrivado(priv || {}) ? "inline-block" : "none";
+
   // Estadísticas de la última temporada importada (viene de FFCV)
   const contStats = document.getElementById("f_stats");
   const hayStats = j.partidos_jugados != null || j.goles != null;
@@ -403,6 +409,32 @@ async function guardarInforme() {
 
   jugadorActual.privado = data;
   status.textContent = "Guardado.";
+  cargarInformes();
+}
+
+async function eliminarInforme() {
+  if (!jugadorActual) return;
+  if (!confirm("¿Eliminar el informe de este jugador? Se borrará toda la valoración (posición, técnica, táctica, físico, actitud, contacto y comentario). No se puede deshacer.")) return;
+
+  const status = document.getElementById("status");
+  const { error } = await client.from("jugadores_club")
+    .delete().eq("jugador_id", jugadorActual.id).eq("club_id", miClubId);
+
+  if (error) { status.textContent = "Error eliminando: " + error.message; return; }
+
+  jugadorActual.privado = {};
+  document.getElementById("f_posicion").value = "";
+  document.getElementById("f_contacto").value = "";
+  document.getElementById("f_contactado").checked = false;
+  document.getElementById("f_tecnica").value = "";
+  document.getElementById("f_tactica").value = "";
+  document.getElementById("f_fisico").value = "";
+  document.getElementById("f_actitud").value = "";
+  document.getElementById("f_comentario").value = "";
+  document.getElementById("btn_eliminar_informe").style.display = "none";
+  actualizarFotoUI(jugadorActual.foto_url || null);
+
+  status.textContent = "Informe eliminado.";
   cargarInformes();
 }
 
