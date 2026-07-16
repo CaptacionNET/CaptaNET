@@ -46,12 +46,12 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 }
 .tarjeta.arrastrando{cursor:grabbing;z-index:20;}
 .tarjeta .avatar{
-  max-width:190px;padding:9px 18px;border-radius:8px;color:var(--text);
-  box-shadow:0 2px 6px rgba(0,0,0,.2);border:2px solid var(--primary);
+  max-width:104px;padding:4px 7px;border-radius:6px;color:var(--text);
+  box-shadow:0 2px 6px rgba(0,0,0,.2);border:1.5px solid var(--primary);
   text-align:center;
 }
-.tarjeta .avatar-nombre{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.tarjeta .avatar-sub{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+.tarjeta .avatar-nombre{font-weight:700;font-size:10.5px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tarjeta .avatar-sub{font-size:8px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
 .tarjeta .avatar.origen-manual{border-color:#f59e0b;}
 .tarjeta .avatar.origen-club{border-color:#16a34a;}
 .tarjeta .avatar.color-blanco{background:#fff;}
@@ -59,16 +59,16 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 .tarjeta .avatar.color-amarillo{background:#fef9c3;}
 .tarjeta .avatar.color-verde{background:#dcfce7;}
 .tarjeta .quitar{
-  position:absolute;top:-8px;right:-8px;width:18px;height:18px;border-radius:50%;
-  background:#dc2626;color:#fff;font-size:11px;line-height:18px;text-align:center;
+  position:absolute;top:-7px;right:-7px;width:15px;height:15px;border-radius:50%;
+  background:#dc2626;color:#fff;font-size:10px;line-height:15px;text-align:center;
   cursor:pointer;display:none;z-index:10;
 }
 .tarjeta .colores{
-  display:none;position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);
+  display:none;position:absolute;bottom:-24px;left:50%;transform:translateX(-50%);
   gap:4px;background:#fff;border:1px solid var(--border);border-radius:12px;
-  padding:4px 6px;box-shadow:0 2px 8px rgba(0,0,0,.2);white-space:nowrap;z-index:10;
+  padding:3px 5px;box-shadow:0 2px 8px rgba(0,0,0,.2);white-space:nowrap;z-index:10;
 }
-.tarjeta .colores span{width:15px;height:15px;border-radius:50%;border:1px solid var(--border);cursor:pointer;display:inline-block;}
+.tarjeta .colores span{width:13px;height:13px;border-radius:50%;border:1px solid var(--border);cursor:pointer;display:inline-block;}
 .panel-detalle{width:300px;flex-shrink:0;}
 .panel-izda{display:flex;flex-direction:column;gap:16px;flex-shrink:0;}
 .barra{margin-bottom:12px;}
@@ -118,9 +118,9 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
     display:block;background:#fef3c7;color:#92400e;border:1px solid #fde68a;
     border-radius:8px;padding:10px 14px;margin:0 12px 12px;font-size:13px;text-align:center;font-weight:600;
   }
-  .tarjeta .avatar{max-width:110px;padding:5px 9px;border-width:1.5px;}
-  .tarjeta .avatar-nombre{font-size:10px;}
-  .tarjeta .avatar-sub{font-size:8px;}
+  .tarjeta .avatar{max-width:80px;padding:3px 5px;border-width:1.2px;}
+  .tarjeta .avatar-nombre{font-size:8px;}
+  .tarjeta .avatar-sub{font-size:6.5px;}
 }
 </style>
 </head>
@@ -216,6 +216,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
     <h3>Ficha</h3>
     <div id="detalle_vacio" style="color:var(--muted);font-size:13px;padding:20px 4px;">Haz clic en un jugador del campo para ver su ficha aquí.</div>
     <div id="detalle_contenido" style="display:none;">
+      <img id="det_foto" style="display:none;width:100px;height:100px;object-fit:cover;border-radius:8px;border:1px solid var(--border);margin-bottom:12px;" onerror="this.style.display='none';">
       <h2 id="det_nombre" style="margin:0 0 4px;font-size:20px;"></h2>
       <p id="det_sub" style="margin:0 0 16px;color:var(--muted);font-size:13px;"></p>
       <div id="det_barras"></div>
@@ -529,6 +530,7 @@ async function cargarTablero() {
         nombre: j.nombre || "(jugador)",
         equipo: equipo?.nombre || "",
         posicion_oficial: j.posicion || "",
+        foto_url: j.foto_url || null,
         anio_oficial: j.fecha_nacimiento ? new Date(j.fecha_nacimiento).getFullYear() : "",
         anio_nacimiento: priv.anio_nacimiento,
         posicion: priv.posicion,
@@ -604,7 +606,7 @@ function exportarPDF() {
 
     doc.setFontSize(8);
     doc.setTextColor(30);
-    doc.text(truncar(fila.nombre, 20), cx, cy - 1, { align: "center" });
+    doc.text(truncar(formatearNombre(fila.nombre), 20), cx, cy - 1, { align: "center" });
 
     const sub = subTextoTarjeta(fila);
     if (sub) {
@@ -667,7 +669,7 @@ function renderTablero(filas) {
     tarjeta.style.top = fila.pos_y + "%";
     tarjeta.innerHTML = `
       <div class="avatar origen-${fila.origen} color-${fila.color || "blanco"}" title="${fila.nombre}">
-        <div class="avatar-nombre">${fila.nombre}${fila.anio_nacimiento ? " - " + fila.anio_nacimiento : ""}</div>
+        <div class="avatar-nombre">${formatearNombre(fila.nombre)}${fila.anio_nacimiento ? " - " + fila.anio_nacimiento : ""}</div>
         <div class="avatar-sub">${subTextoTarjeta(fila)}</div>
       </div>
       <span class="quitar" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="quitarDelTablero(event, ${fila.id})">×</span>
@@ -737,7 +739,11 @@ function barraFisicoHtml(valor) {
 function mostrarDetalle(fila) {
   document.getElementById("detalle_vacio").style.display = "none";
   document.getElementById("detalle_contenido").style.display = "block";
-  document.getElementById("det_nombre").textContent = fila.nombre;
+  document.getElementById("det_nombre").textContent = formatearNombre(fila.nombre);
+
+  const fotoImg = document.getElementById("det_foto");
+  if (fila.foto_url) { fotoImg.src = fila.foto_url; fotoImg.style.display = "block"; }
+  else { fotoImg.style.display = "none"; }
 
   const barras = document.getElementById("det_barras");
   const extra = document.getElementById("det_extra");
@@ -772,7 +778,7 @@ function mostrarTooltip(e, fila) {
 
   if (fila.origen === "manual") {
     tt.innerHTML = `
-      <div class="t-nombre">${fila.nombre}</div>
+      <div class="t-nombre">${formatearNombre(fila.nombre)}</div>
       <div class="t-row"><span>Club</span><b>${fila.club_manual || "-"}</b></div>
       <div class="t-row"><span>Posición</span><b>${fila.posicion || "-"}</b></div>
       <div class="t-row"><span>Año</span><b>${fila.anio_nacimiento || "-"}</b></div>
@@ -780,14 +786,14 @@ function mostrarTooltip(e, fila) {
     `;
   } else if (fila.origen === "club") {
     tt.innerHTML = `
-      <div class="t-nombre">${fila.nombre}</div>
+      <div class="t-nombre">${formatearNombre(fila.nombre)}</div>
       <div class="t-row"><span>Posición</span><b>${fila.posicion || "-"}</b></div>
       <div class="t-row"><span>Año</span><b>${fila.anio_nacimiento || "-"}</b></div>
       <div class="t-row"><span>Origen</span><b>Jugador de mi club</b></div>
     `;
   } else {
     tt.innerHTML = `
-      <div class="t-nombre">${fila.nombre}</div>
+      <div class="t-nombre">${formatearNombre(fila.nombre)}</div>
       <div class="t-row"><span>Equipo</span><b>${fila.equipo || "-"}</b></div>
       <div class="t-row"><span>Posición</span><b>${fila.posicion || "-"}</b></div>
       <div class="t-row"><span>Año</span><b>${fila.anio_nacimiento || fila.anio_oficial || "-"}</b></div>
@@ -953,6 +959,16 @@ async function ejecutarBusqueda() {
 // "VERA PEREZ, MARCOS".
 function normalizarTexto(s) {
   return (s || "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+// La FFCV guarda "Apellidos, Nombre"; en las tarjetas (mucho más
+// estrechas) se lee mejor y ocupa menos "Nombre Apellidos".
+function formatearNombre(nombre) {
+  if (!nombre || !nombre.includes(",")) return nombre;
+  const idx = nombre.indexOf(",");
+  const apellidos = nombre.slice(0, idx).trim();
+  const nombrePila = nombre.slice(idx + 1).trim();
+  return nombrePila ? `${nombrePila} ${apellidos}` : nombre;
 }
 
 let buscarTodosTimeout = null;
