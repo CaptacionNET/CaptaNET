@@ -770,6 +770,10 @@ function mostrarDetalle(fila) {
     <div class="det-fila"><span>Contactado: </span><b>${fila.contactado ? "Sí" : "No"}</b></div>
     ${fila.contacto ? `<div class="det-fila"><span>Teléfono: </span><b>${fila.contacto}</b></div>` : ""}
     ${fila.comentario ? `<p style="margin-top:12px;font-size:13px;">${fila.comentario}</p>` : ""}
+    <a href="jugadores.html?jugador_id=${fila.jugador_id}" target="_blank" rel="noopener"
+       style="display:inline-block;margin-top:14px;font-size:13px;color:var(--primary);font-weight:600;text-decoration:none;">
+      ✎ Editar informe
+    </a>
   `;
 }
 
