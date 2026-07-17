@@ -85,6 +85,12 @@ textarea{
     const inscripcionId = params.get("id");
     let respuestaElegida = null;
 
+    function escapeHtml(s) {
+      return (s ?? "").toString()
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
     function mostrarError(msg) {
       document.getElementById("error").textContent = msg;
       document.getElementById("error").style.display = "block";
@@ -110,10 +116,10 @@ textarea{
 
       const fecha = fila.dia_prueba ? new Date(fila.dia_prueba + "T00:00:00").toLocaleDateString("es-ES") : null;
       document.getElementById("detalle_cita").innerHTML =
-        `Hola <b>${fila.nombre}</b>.<br>` +
+        `Hola <b>${escapeHtml(fila.nombre)}</b>.<br>` +
         (fecha ? `📅 ${fecha}` : "Aún no tenemos el día confirmado.") +
         (fila.hora_prueba ? ` · 🕒 ${fila.hora_prueba.slice(0, 5)}` : "") +
-        (fila.lugar_prueba ? `<br>📍 ${fila.lugar_prueba}` : "");
+        (fila.lugar_prueba ? `<br>📍 ${escapeHtml(fila.lugar_prueba)}` : "");
 
       if (fila.respuesta_asistencia) elegir(fila.respuesta_asistencia);
 

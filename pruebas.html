@@ -107,6 +107,10 @@ button:disabled{opacity:.6;cursor:default;}
         <label for="comentario">Cuéntanos algo sobre ti (opcional)</label>
         <textarea id="comentario"></textarea>
       </div>
+      <div style="position:absolute;left:-9999px;" aria-hidden="true">
+        <label for="web">Deja este campo vacío</label>
+        <input id="web" type="text" tabindex="-1" autocomplete="off">
+      </div>
       <button id="submitBtn" type="submit">Inscribirme</button>
     </form>
 
@@ -175,6 +179,7 @@ button:disabled{opacity:.6;cursor:default;}
         p_posicion: document.getElementById("posicion").value,
         p_club_actual: document.getElementById("club_actual").value.trim(),
         p_comentario: document.getElementById("comentario").value.trim(),
+        p_honeypot: document.getElementById("web").value,
       });
 
       if (error) {

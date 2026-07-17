@@ -291,6 +291,15 @@ function coincideNombre(nombre, consulta) {
   return palabras.every(p => nombreNorm.includes(p));
 }
 
+// El nombre lo escribe libremente quien rellena el formulario público, así
+// que hay que escaparlo antes de meterlo en innerHTML (si no, alguien
+// podría inyectar HTML/JS que se ejecutaría en el navegador del club).
+function escapeHtml(s) {
+  return (s ?? "").toString()
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
 const ESTADOS = {
   pendiente: "Pendiente",
   citado: "Citado",
@@ -382,7 +391,7 @@ function crearTabla() {
         },
         {
           title: "Nombre", field: "nombre", minWidth: 160,
-          formatter: cell => `<span class="nombre-link">${cell.getValue()}</span>`,
+          formatter: cell => `<span class="nombre-link">${escapeHtml(cell.getValue())}</span>`,
           cellClick: (e, cell) => abrirInscripcion(cell.getRow().getData().id)
         },
         { title: "Año", field: "anio_nacimiento", sorter: "number", width: 80, hozAlign: "center" },
@@ -559,7 +568,7 @@ async function renderFfcvBox() {
       .eq("id", inscripcionActual.jugador_ffcv_id).single();
     box.innerHTML = j
       ? `<div class="ffcv-resultado">
-           <span>${j.nombre} · ${j.equipos?.nombre || "Sin equipo"}</span>
+           <span>${escapeHtml(j.nombre)} · ${escapeHtml(j.equipos?.nombre || "Sin equipo")}</span>
            <span style="display:flex;gap:6px;">
              <button class="secondary" style="font-size:12px;padding:5px 10px;" onclick="window.open('jugadores.html?jugador_id=${j.id}','_blank')">Ver ficha</button>
              <button class="danger" style="font-size:12px;padding:5px 10px;" onclick="quitarVinculoFfcv()">Quitar</button>
@@ -595,7 +604,7 @@ async function buscarCoincidenciasFfcv() {
   candidatos.forEach(j => {
     const div = document.createElement("div");
     div.className = "ffcv-resultado";
-    div.innerHTML = `<span>${j.nombre} · ${j.equipos?.nombre || "Sin equipo"}</span>`;
+    div.innerHTML = `<span>${escapeHtml(j.nombre)} · ${escapeHtml(j.equipos?.nombre || "Sin equipo")}</span>`;
     const btn = document.createElement("button");
     btn.textContent = "Vincular";
     btn.style.cssText = "font-size:12px;padding:5px 10px;";
