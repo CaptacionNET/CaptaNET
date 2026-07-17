@@ -46,7 +46,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 }
 .tarjeta.arrastrando{cursor:grabbing;z-index:20;}
 .tarjeta .avatar{
-  position:relative;max-width:120px;padding:4px 8px;border-radius:6px;color:var(--text);
+  position:relative;width:136px;padding:4px 8px;border-radius:6px;color:var(--text);
   box-shadow:0 2px 6px rgba(0,0,0,.2);border:1.5px solid var(--primary);
   text-align:center;
 }
@@ -54,7 +54,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
   position:absolute;top:-6px;left:-6px;background:var(--card);border:1px solid var(--border);
   border-radius:4px;padding:0 3px;font-size:7.5px;font-weight:700;color:var(--muted);line-height:1.4;
 }
-.tarjeta .avatar-nombre{font-weight:700;font-size:10.5px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tarjeta .avatar-nombre{font-weight:700;font-size:10.5px;line-height:1.2;white-space:normal;word-break:break-word;}
 .tarjeta .avatar-sub{font-size:8px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
 .tarjeta .avatar.origen-manual{border-color:#f59e0b;}
 .tarjeta .avatar.origen-club{border-color:#16a34a;}
@@ -73,7 +73,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
   padding:3px 5px;box-shadow:0 2px 8px rgba(0,0,0,.2);white-space:nowrap;z-index:10;
 }
 .tarjeta .colores span{width:13px;height:13px;border-radius:50%;border:1px solid var(--border);cursor:pointer;display:inline-block;}
-.panel-detalle{width:270px;flex-shrink:0;}
+.panel-detalle{width:270px;flex-shrink:0;max-height:75vh;overflow-y:auto;}
 .panel-izda{display:flex;flex-direction:column;gap:16px;flex-shrink:0;}
 .stat-barra{margin-bottom:12px;}
 .stat-barra .barra-cab{font-size:12px;color:var(--muted);margin-bottom:4px;}
@@ -122,7 +122,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
     display:block;background:#fef3c7;color:#92400e;border:1px solid #fde68a;
     border-radius:8px;padding:10px 14px;margin:0 12px 12px;font-size:13px;text-align:center;font-weight:600;
   }
-  .tarjeta .avatar{max-width:80px;padding:3px 5px;border-width:1.2px;}
+  .tarjeta .avatar{width:92px;padding:3px 5px;border-width:1.2px;}
   .tarjeta .avatar-nombre{font-size:8px;}
   .tarjeta .avatar-sub{font-size:6.5px;}
 }
