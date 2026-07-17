@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CaptaNET - Confirmar asistencia</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#2563eb;--primary-dark:#1d4ed8;--bg:#f5f6fa;--card:#fff;--border:#e2e4eb;--text:#1f2430;--muted:#6b7280;}
+*{box-sizing:border-box;}
+body{
+  margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  background:linear-gradient(160deg,#eef1fb 0%,var(--bg) 55%);color:var(--text);padding:24px 0;
+}
+.card{
+  background:var(--card);border:1px solid var(--border);border-radius:14px;
+  box-shadow:0 20px 40px -20px rgba(30,41,59,.25);padding:40px 36px;width:100%;max-width:440px;
+}
+.logo{font-size:26px;font-weight:800;color:var(--primary);text-align:center;margin-bottom:4px;}
+.subtitle{text-align:center;color:var(--muted);font-size:14px;margin-bottom:24px;}
+.detalle-cita{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:14px;margin-bottom:24px;line-height:1.6;}
+.botones{display:flex;gap:10px;margin-bottom:16px;}
+button{
+  flex:1;border:none;padding:12px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;
+}
+.btn-si{background:#15803d;color:#fff;}
+.btn-si.activo{outline:3px solid #bbf7d0;}
+.btn-no{background:#dc2626;color:#fff;}
+.btn-no.activo{outline:3px solid #fecaca;}
+button:hover{opacity:.9;}
+button:disabled{opacity:.6;cursor:default;}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;font-weight:600;}
+textarea{
+  width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:8px;
+  font-size:14px;font-family:inherit;resize:vertical;min-height:80px;margin-bottom:16px;
+}
+.btn-enviar{width:100%;background:var(--primary);color:#fff;}
+.btn-enviar:hover{background:var(--primary-dark);}
+.error{
+  display:none;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:8px;
+  padding:10px 12px;font-size:13px;margin-bottom:16px;
+}
+.aviso-ok{text-align:center;padding:20px 4px;}
+.aviso-ok h2{color:#15803d;margin:0 0 8px;}
+.aviso-ok p{color:var(--muted);font-size:14px;margin:0;}
+</style>
+</head>
+
+<body>
+  <div class="card" id="card">
+    <div class="logo">CaptaNET</div>
+    <div class="subtitle" id="subtitle">Confirmar asistencia</div>
+
+    <p id="error" class="error"></p>
+
+    <div id="contenido" style="display:none;">
+      <div class="detalle-cita" id="detalle_cita"></div>
+
+      <label>¿Podrás asistir?</label>
+      <div class="botones">
+        <button class="btn-si" id="btn_si" onclick="elegir('si')">Sí, asistiré</button>
+        <button class="btn-no" id="btn_no" onclick="elegir('no')">No podré asistir</button>
+      </div>
+
+      <label for="comentario">Comentario (opcional)</label>
+      <textarea id="comentario" placeholder="Si no puedes asistir, cuéntanos el motivo..."></textarea>
+
+      <button class="btn-enviar" id="btn_enviar" onclick="enviarRespuesta()" disabled>Enviar respuesta</button>
+    </div>
+
+    <div id="okBox" class="aviso-ok" style="display:none;">
+      <h2>¡Gracias!</h2>
+      <p>Hemos registrado tu respuesta.</p>
+    </div>
+  </div>
+
+  <script>
+    const client = supabase.createClient(
+      "https://bnqoisjvboytiphiwosj.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
+    );
+
+    const params = new URLSearchParams(window.location.search);
+    const inscripcionId = params.get("id");
+    let respuestaElegida = null;
+
+    function mostrarError(msg) {
+      document.getElementById("error").textContent = msg;
+      document.getElementById("error").style.display = "block";
+    }
+
+    function elegir(valor) {
+      respuestaElegida = valor;
+      document.getElementById("btn_si").classList.toggle("activo", valor === "si");
+      document.getElementById("btn_no").classList.toggle("activo", valor === "no");
+      document.getElementById("btn_enviar").disabled = false;
+    }
+
+    async function cargar() {
+      if (!inscripcionId) { mostrarError("Enlace no válido."); return; }
+
+      const { data, error } = await client.rpc("pruebas_obtener_publica", { p_id: inscripcionId });
+      const fila = Array.isArray(data) ? data[0] : data;
+
+      if (error || !fila) { mostrarError("No se ha encontrado esta inscripción."); return; }
+
+      document.getElementById("subtitle").textContent =
+        "Confirmar asistencia · " + (fila.club_nombre || "");
+
+      const fecha = fila.dia_prueba ? new Date(fila.dia_prueba + "T00:00:00").toLocaleDateString("es-ES") : null;
+      document.getElementById("detalle_cita").innerHTML =
+        `Hola <b>${fila.nombre}</b>.<br>` +
+        (fecha ? `📅 ${fecha}` : "Aún no tenemos el día confirmado.") +
+        (fila.hora_prueba ? ` · 🕒 ${fila.hora_prueba.slice(0, 5)}` : "") +
+        (fila.lugar_prueba ? `<br>📍 ${fila.lugar_prueba}` : "");
+
+      if (fila.respuesta_asistencia) elegir(fila.respuesta_asistencia);
+
+      document.getElementById("contenido").style.display = "block";
+    }
+
+    async function enviarRespuesta() {
+      if (!respuestaElegida) return;
+      const btn = document.getElementById("btn_enviar");
+      btn.disabled = true;
+      btn.textContent = "Enviando...";
+
+      const { error } = await client.rpc("pruebas_responder", {
+        p_id: inscripcionId,
+        p_respuesta: respuestaElegida,
+        p_comentario: document.getElementById("comentario").value.trim(),
+      });
+
+      if (error) {
+        mostrarError("No se ha podido enviar tu respuesta. Inténtalo de nuevo.");
+        btn.disabled = false;
+        btn.textContent = "Enviar respuesta";
+        return;
+      }
+
+      document.getElementById("contenido").style.display = "none";
+      document.getElementById("okBox").style.display = "block";
+    }
+
+    cargar();
+  </script>
+</body>
+</html>

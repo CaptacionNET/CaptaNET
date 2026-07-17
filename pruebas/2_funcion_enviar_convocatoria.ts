@@ -27,7 +27,7 @@ const cors = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
-const REMITENTE = "CaptaNET <pruebas@notificaciones.captacion.net>";
+const DOMINIO_REMITENTE = "pruebas@notificaciones.captacion.net";
 
 function formatearFecha(iso: string | null): string {
   if (!iso) return "";
@@ -37,6 +37,23 @@ function formatearFecha(iso: string | null): string {
 
 function personalizar(plantilla: string, datos: Record<string, string>): string {
   return plantilla.replace(/\{\{(\w+)\}\}/g, (_, clave) => datos[clave] ?? "");
+}
+
+// El nombre del club va como "display name" del remitente, para que el
+// jugador sepa de qué club es la convocatoria aunque reciba varias.
+function remitentePara(clubNombre: string | null): string {
+  const limpio = (clubNombre || "CaptaNET").replace(/[\r\n"<>]/g, "").trim() || "CaptaNET";
+  return `"${limpio}" <${DOMINIO_REMITENTE}>`;
+}
+
+function bloqueConfirmacion(slug: string | null, inscripcionId: string): string {
+  if (!slug) return "";
+  const url = `https://${slug}.captacion.net/confirmar_prueba.html?id=${inscripcionId}`;
+  return `
+    <div style="margin-top:24px;padding-top:20px;border-top:1px solid #e2e4eb;">
+      <p style="margin:0 0 12px;">¿Podrás asistir?</p>
+      <a href="${url}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:10px 18px;border-radius:6px;font-weight:600;">Confirmar asistencia</a>
+    </div>`;
 }
 
 Deno.serve(async (req) => {
@@ -63,9 +80,14 @@ Deno.serve(async (req) => {
     // RLS filtra automáticamente a las filas del club del que llama.
     const { data: filas, error: errFilas } = await userClient
       .from("pruebas_inscripciones")
-      .select("id, nombre, email")
+      .select("id, nombre, email, club_id")
       .in("id", inscripcion_ids);
     if (errFilas) return json({ error: errFilas.message }, 500);
+
+    const clubIds = [...new Set((filas || []).map(f => f.club_id))];
+    const { data: clubes, error: errClubes } = await userClient
+      .from("clubs").select("id, nombre, slug").in("id", clubIds);
+    if (errClubes) return json({ error: errClubes.message }, 500);
 
     const diaFmt = formatearFecha(dia || null);
     const enviados: string[] = [];
@@ -75,14 +97,16 @@ Deno.serve(async (req) => {
     for (const fila of filas || []) {
       if (!fila.email) { sinEmail.push(fila.id); continue; }
 
+      const club = (clubes || []).find(c => c.id === fila.club_id);
+
       const html = personalizar(cuerpo, {
         nombre: fila.nombre, dia: diaFmt, hora: hora || "", lugar: lugar || "",
-      }).replace(/\n/g, "<br>");
+      }).replace(/\n/g, "<br>") + bloqueConfirmacion(club?.slug || null, fila.id);
 
       const resp = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ from: REMITENTE, to: fila.email, subject: asunto, html }),
+        body: JSON.stringify({ from: remitentePara(club?.nombre || null), to: fila.email, subject: asunto, html }),
       });
 
       if (!resp.ok) {
