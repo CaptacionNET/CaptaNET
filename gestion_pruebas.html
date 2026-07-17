@@ -199,7 +199,11 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
       </div>
       <div class="campo-full">
         <label>Comentario del jugador (formulario)</label>
-        <textarea id="f_comentario_jugador" style="width:100%;min-height:60px;" oninput="guardarValoracionDebounced()"></textarea>
+        <p id="f_comentario_jugador" style="margin:0;font-size:13px;color:var(--muted);"></p>
+      </div>
+      <div class="campo-full">
+        <label>Comentario del jugador (conf. asistencia)</label>
+        <p id="f_comentario_confirmacion" style="margin:0;font-size:13px;color:var(--muted);"></p>
       </div>
       <div class="campo-full">
         <label>Valoración del día de la prueba</label>
@@ -526,13 +530,13 @@ async function abrirInscripcion(id) {
   document.getElementById("f_tactica").value = i.tactica ?? "";
   document.getElementById("f_fisico").value = i.fisico || "";
   document.getElementById("f_actitud").value = i.actitud ?? "";
-  document.getElementById("f_comentario_jugador").value = i.comentario || "";
+  document.getElementById("f_comentario_jugador").textContent = i.comentario || "(sin comentario)";
+  document.getElementById("f_comentario_confirmacion").textContent = i.respuesta_comentario || "(sin comentario)";
   document.getElementById("f_valoracion").value = i.valoracion_comentario || "";
 
   const respuesta = document.getElementById("f_respuesta");
   if (i.respuesta_asistencia) {
-    respuesta.innerHTML = `<span class="badge badge-${i.respuesta_asistencia}">${i.respuesta_asistencia === "si" ? "Sí asistirá" : "No asistirá"}</span>` +
-      (i.respuesta_comentario ? `<br><span style="color:var(--muted);">"${i.respuesta_comentario}"</span>` : "");
+    respuesta.innerHTML = `<span class="badge badge-${i.respuesta_asistencia}">${i.respuesta_asistencia === "si" ? "Sí asistirá" : "No asistirá"}</span>`;
   } else {
     respuesta.innerHTML = `<span style="color:var(--muted);">Aún no ha respondido</span>`;
   }
@@ -638,7 +642,6 @@ async function guardarValoracion() {
     posicion: document.getElementById("f_posicion").value || null,
     club_actual: document.getElementById("f_club_actual").value.trim() || null,
     equipo_propuesto: document.getElementById("f_equipo_propuesto").value.trim() || null,
-    comentario: document.getElementById("f_comentario_jugador").value.trim() || null,
     tecnica: document.getElementById("f_tecnica").value || null,
     tactica: document.getElementById("f_tactica").value || null,
     fisico: document.getElementById("f_fisico").value || null,
