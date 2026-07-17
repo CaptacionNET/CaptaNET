@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CaptaNET - Gestión de Pruebas</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#2563eb;--bg:#f5f6fa;--card:#fff;--border:#e2e4eb;--text:#1f2430;--muted:#6b7280;}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
+#topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;background:var(--card);border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px;}
+#topbar .brand{font-weight:700;font-size:18px;color:var(--primary);}
+button{background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px;}
+button:hover{opacity:.9;}
+button.secondary{background:#fff;color:var(--text);border:1px solid var(--border);}
+button.danger{background:#fff;color:#dc2626;border:1px solid #fecaca;}
+button:disabled{opacity:.5;cursor:default;}
+input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;}
+label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
+.barra{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:16px 24px;}
+.layout{display:flex;gap:20px;padding:0 24px 24px;align-items:flex-start;}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;width:340px;flex-shrink:0;}
+.panel h3{margin:0 0 10px;font-size:15px;}
+.grupo-anio{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:14px 0 6px;}
+.grupo-anio:first-child{margin-top:0;}
+.resultado{border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px;font-size:13px;cursor:pointer;display:flex;gap:8px;align-items:flex-start;}
+.resultado:hover{border-color:var(--primary);}
+.resultado.activo{border-color:var(--primary);background:#eff6ff;}
+.resultado input[type=checkbox]{margin-top:2px;flex-shrink:0;}
+.resultado .cuerpo{flex:1;min-width:0;}
+.resultado .nombre{font-weight:600;}
+.resultado .meta{color:var(--muted);font-size:12px;}
+.badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;padding:2px 6px;border-radius:4px;margin-top:3px;}
+.badge-pendiente{background:#f1f5f9;color:#475569;}
+.badge-citado{background:#dbeafe;color:#1d4ed8;}
+.badge-valorado{background:#ede9fe;color:#6d28d9;}
+.badge-descartado{background:#fee2e2;color:#b91c1c;}
+.badge-fichado{background:#dcfce7;color:#15803d;}
+.bulk-bar{display:none;align-items:center;gap:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;}
+.ficha{flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px;min-width:0;}
+.ficha-vacia{color:var(--muted);text-align:center;padding:60px 20px;}
+.ficha-info h2{margin:0 0 4px;font-size:22px;}
+.ficha-info p{margin:0;color:var(--muted);font-size:14px;}
+.campos-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0;}
+.campo-full{grid-column:1 / -1;}
+.status{font-weight:600;color:var(--muted);margin:12px 0 0;}
+.detalle-cita{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:6px;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:200;padding:20px;}
+.modal-box{background:#fff;border-radius:10px;padding:24px;width:100%;max-width:480px;box-shadow:0 20px 50px rgba(0,0,0,.3);max-height:90vh;overflow-y:auto;}
+.modal-box h3{margin:0 0 14px;}
+.modal-box .field{margin-bottom:12px;}
+.ayuda{color:var(--muted);font-size:11px;margin:-8px 0 12px;}
+@media (max-width:900px){
+  .layout{flex-direction:column;padding:0 12px 24px;}
+  .panel,.ficha{width:100%;}
+  .barra{padding:12px;}
+  .campos-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="brand">CaptaNET · Gestión de Pruebas</div>
+  <div style="display:flex;gap:10px;">
+    <button class="secondary" onclick="window.location.href='visor.html'">Volver al visor</button>
+    <button class="secondary" id="btn_copiar_enlace" onclick="copiarEnlaceFormulario()">Copiar enlace del formulario</button>
+    <button class="secondary" onclick="logout()">Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="barra">
+  <div id="campo_club_wrap" style="display:none;">
+    <select id="filtro_club" onchange="onClubChange()"></select>
+  </div>
+  <select id="filtro_estado" onchange="renderLista()">
+    <option value="">Todos los estados</option>
+    <option value="pendiente">Pendiente</option>
+    <option value="citado">Citado</option>
+    <option value="valorado">Valorado</option>
+    <option value="descartado">Descartado</option>
+    <option value="fichado">Fichado</option>
+  </select>
+</div>
+
+<div class="layout">
+  <div class="panel">
+    <h3>Inscritos</h3>
+    <input id="buscador" type="text" placeholder="Buscar por nombre..." style="width:100%;margin-bottom:10px;" oninput="renderLista()">
+
+    <div class="bulk-bar" id="bulk_bar">
+      <span id="bulk_texto"></span>
+      <button style="margin-left:auto;font-size:12px;padding:6px 10px;" onclick="abrirModalConvocatoria()">Enviar convocatoria</button>
+    </div>
+
+    <div id="lista_inscritos"></div>
+  </div>
+
+  <div class="ficha" id="ficha">
+    <div class="ficha-vacia" id="ficha_vacia">Elige un inscrito de la lista para ver su ficha aquí.</div>
+
+    <div id="ficha_contenido" style="display:none;">
+      <div class="ficha-info">
+        <h2 id="f_nombre"></h2>
+        <p id="f_sub"></p>
+      </div>
+
+      <div id="f_cita" style="margin-top:14px;"></div>
+
+      <div class="campos-grid">
+        <div>
+          <label>Estado</label>
+          <select id="f_estado" onchange="guardarValoracion()">
+            <option value="pendiente">Pendiente</option>
+            <option value="citado">Citado</option>
+            <option value="valorado">Valorado</option>
+            <option value="descartado">Descartado</option>
+            <option value="fichado">Fichado</option>
+          </select>
+        </div>
+        <div></div>
+        <div>
+          <label>Técnica (1-10)</label>
+          <input id="f_tecnica" type="number" min="1" max="10" oninput="guardarValoracionDebounced()">
+        </div>
+        <div>
+          <label>Táctica (1-10)</label>
+          <input id="f_tactica" type="number" min="1" max="10" oninput="guardarValoracionDebounced()">
+        </div>
+        <div>
+          <label>Físico</label>
+          <select id="f_fisico" onchange="guardarValoracion()">
+            <option value="">-</option>
+            <option>BAJO</option>
+            <option>MEDIO-BAJO</option>
+            <option>MEDIO</option>
+            <option>MEDIO-ALTO</option>
+            <option>ALTO</option>
+            <option>MUY ALTO</option>
+          </select>
+        </div>
+        <div>
+          <label>Actitud (1-10)</label>
+          <input id="f_actitud" type="number" min="1" max="10" oninput="guardarValoracionDebounced()">
+        </div>
+        <div class="campo-full">
+          <label>Comentario del jugador (formulario)</label>
+          <p id="f_comentario_jugador" style="margin:0;font-size:13px;color:var(--muted);"></p>
+        </div>
+        <div class="campo-full">
+          <label>Valoración del día de la prueba</label>
+          <textarea id="f_valoracion" style="width:100%;min-height:100px;" oninput="guardarValoracionDebounced()"></textarea>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <p id="status" class="status"></p>
+        <button class="danger" style="font-size:12px;padding:6px 12px;margin-top:12px;" onclick="eliminarInscripcion()">Eliminar inscripción</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal_convocatoria">
+  <div class="modal-box">
+    <h3>Enviar convocatoria</h3>
+    <p id="modal_destinatarios" class="ayuda" style="margin-top:-8px;"></p>
+
+    <div class="field">
+      <label>Día de la prueba</label>
+      <input id="mc_dia" type="date" style="width:100%;">
+    </div>
+    <div class="field">
+      <label>Hora</label>
+      <input id="mc_hora" type="time" style="width:100%;">
+    </div>
+    <div class="field">
+      <label>Lugar</label>
+      <input id="mc_lugar" type="text" style="width:100%;" placeholder="Campo municipal, dirección...">
+    </div>
+    <div class="field">
+      <label>Asunto del email</label>
+      <input id="mc_asunto" type="text" style="width:100%;">
+    </div>
+    <div class="field">
+      <label>Mensaje</label>
+      <textarea id="mc_cuerpo" style="width:100%;min-height:140px;"></textarea>
+      <p class="ayuda">Puedes usar {{nombre}}, {{dia}}, {{hora}} y {{lugar}} — se rellenan solos por jugador.</p>
+    </div>
+
+    <p id="modal_status" style="font-size:13px;color:var(--muted);min-height:18px;"></p>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="secondary" onclick="cerrarModalConvocatoria()">Cancelar</button>
+      <button id="btn_enviar_convocatoria" onclick="enviarConvocatoria()">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const client = supabase.createClient(
+  "https://bnqoisjvboytiphiwosj.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
+);
+
+function normalizarTexto(s) {
+  return (s || "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+function coincideNombre(nombre, consulta) {
+  const nombreNorm = normalizarTexto(nombre);
+  const palabras = normalizarTexto(consulta).trim().split(/\s+/).filter(Boolean);
+  return palabras.every(p => nombreNorm.includes(p));
+}
+
+let esAdmin = false;
+let miClubId = null;
+let miClubSlug = null;
+let inscritosCache = [];
+let seleccionados = new Set();
+let inscripcionActual = null;
+
+async function protegerPagina() {
+  const { data: session } = await client.auth.getSession();
+  if (!session.session) { window.location.href = "index.html"; return false; }
+
+  const { data: perfil } = await client
+    .from("profiles").select("is_admin, club_id, clubs(slug)").eq("id", session.session.user.id).single();
+
+  esAdmin = !!perfil?.is_admin;
+  miClubId = perfil?.club_id || null;
+  miClubSlug = perfil?.clubs?.slug || null;
+  return true;
+}
+
+async function logout() {
+  await client.auth.signOut();
+  window.location.href = "index.html";
+}
+
+async function cargarClubsSiAdmin() {
+  if (!esAdmin) return;
+  document.getElementById("campo_club_wrap").style.display = "block";
+  const { data: clubs } = await client.from("clubs").select("id, nombre, slug").order("nombre");
+  const sel = document.getElementById("filtro_club");
+  sel.innerHTML = "";
+  (clubs || []).forEach(c => sel.innerHTML += `<option value="${c.id}" data-slug="${c.slug || ""}">${c.nombre}</option>`);
+  if (clubs && clubs.length) { miClubId = clubs[0].id; miClubSlug = clubs[0].slug || null; }
+}
+
+function onClubChange() {
+  const sel = document.getElementById("filtro_club");
+  miClubId = sel.value;
+  miClubSlug = sel.selectedOptions[0]?.dataset.slug || null;
+  cargarInscritos();
+}
+
+function copiarEnlaceFormulario() {
+  if (!miClubSlug) { alert("Este club aún no tiene subdominio (slug) configurado."); return; }
+  const url = `https://${miClubSlug}.captacion.net/pruebas.html`;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById("btn_copiar_enlace");
+    const original = btn.textContent;
+    btn.textContent = "¡Copiado!";
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  });
+}
+
+async function cargarInscritos() {
+  const { data, error } = await client.from("pruebas_inscripciones")
+    .select("*").eq("club_id", miClubId).order("anio_nacimiento", { ascending: false });
+  if (error) { console.error("[CaptaNET] cargarInscritos:", error); return; }
+  inscritosCache = data || [];
+  seleccionados = new Set([...seleccionados].filter(id => inscritosCache.some(i => i.id === id)));
+  renderLista();
+  actualizarBulkBar();
+}
+
+function renderLista() {
+  const cont = document.getElementById("lista_inscritos");
+  const q = document.getElementById("buscador").value.trim();
+  const estadoFiltro = document.getElementById("filtro_estado").value;
+
+  let lista = inscritosCache;
+  if (q) lista = lista.filter(i => coincideNombre(i.nombre, q));
+  if (estadoFiltro) lista = lista.filter(i => i.estado === estadoFiltro);
+
+  if (!lista.length) { cont.innerHTML = "<p style='color:var(--muted);font-size:12px;'>No hay inscritos.</p>"; return; }
+
+  let html = "";
+  let anioActual = null;
+  lista.forEach(i => {
+    if (i.anio_nacimiento !== anioActual) {
+      anioActual = i.anio_nacimiento;
+      html += `<div class="grupo-anio">${anioActual}</div>`;
+    }
+    const activo = inscripcionActual?.id === i.id;
+    const marcado = seleccionados.has(i.id);
+    html += `
+      <div class="resultado${activo ? " activo" : ""}" data-id="${i.id}">
+        <input type="checkbox" ${marcado ? "checked" : ""} onclick="event.stopPropagation(); toggleSeleccion('${i.id}')">
+        <div class="cuerpo" onclick="abrirInscripcion('${i.id}')">
+          <div class="nombre">${i.nombre}</div>
+          <div class="meta">${i.posicion || "Sin posición"}${i.club_actual ? " · " + i.club_actual : ""}</div>
+          <span class="badge badge-${i.estado}">${i.estado}</span>
+        </div>
+      </div>`;
+  });
+  cont.innerHTML = html;
+}
+
+function toggleSeleccion(id) {
+  if (seleccionados.has(id)) seleccionados.delete(id); else seleccionados.add(id);
+  actualizarBulkBar();
+}
+
+function actualizarBulkBar() {
+  const bar = document.getElementById("bulk_bar");
+  if (seleccionados.size > 0) {
+    bar.style.display = "flex";
+    document.getElementById("bulk_texto").textContent = `${seleccionados.size} seleccionado${seleccionados.size > 1 ? "s" : ""}`;
+  } else {
+    bar.style.display = "none";
+  }
+}
+
+function abrirInscripcion(id) {
+  const i = inscritosCache.find(x => x.id === id);
+  if (!i) return;
+  inscripcionActual = i;
+  renderLista();
+
+  document.getElementById("ficha_vacia").style.display = "none";
+  document.getElementById("ficha_contenido").style.display = "block";
+
+  document.getElementById("f_nombre").textContent = i.nombre;
+  document.getElementById("f_sub").textContent =
+    [i.anio_nacimiento, i.posicion, i.club_actual, i.email, i.telefono, i.nombre_contacto ? "Contacto: " + i.nombre_contacto : null]
+      .filter(Boolean).join(" · ");
+
+  const cita = document.getElementById("f_cita");
+  if (i.dia_prueba || i.hora_prueba || i.lugar_prueba) {
+    const fecha = i.dia_prueba ? new Date(i.dia_prueba + "T00:00:00").toLocaleDateString("es-ES") : "";
+    cita.innerHTML = `<div class="detalle-cita">📅 ${fecha || "Sin día"} ${i.hora_prueba ? "· 🕒 " + i.hora_prueba.slice(0, 5) : ""} ${i.lugar_prueba ? "· 📍 " + i.lugar_prueba : ""}${i.notificado_at ? " · <span style='color:#15803d;'>avisado</span>" : ""}</div>`;
+  } else {
+    cita.innerHTML = "";
+  }
+
+  document.getElementById("f_estado").value = i.estado || "pendiente";
+  document.getElementById("f_tecnica").value = i.tecnica ?? "";
+  document.getElementById("f_tactica").value = i.tactica ?? "";
+  document.getElementById("f_fisico").value = i.fisico || "";
+  document.getElementById("f_actitud").value = i.actitud ?? "";
+  document.getElementById("f_comentario_jugador").textContent = i.comentario || "(sin comentario)";
+  document.getElementById("f_valoracion").value = i.valoracion_comentario || "";
+  document.getElementById("status").textContent = "";
+}
+
+let guardarTimeout = null;
+function guardarValoracionDebounced() {
+  clearTimeout(guardarTimeout);
+  guardarTimeout = setTimeout(guardarValoracion, 600);
+}
+
+async function guardarValoracion() {
+  if (!inscripcionActual) return;
+  const status = document.getElementById("status");
+
+  const payload = {
+    estado: document.getElementById("f_estado").value,
+    tecnica: document.getElementById("f_tecnica").value || null,
+    tactica: document.getElementById("f_tactica").value || null,
+    fisico: document.getElementById("f_fisico").value || null,
+    actitud: document.getElementById("f_actitud").value || null,
+    valoracion_comentario: document.getElementById("f_valoracion").value || null,
+  };
+
+  const { data, error } = await client.from("pruebas_inscripciones")
+    .update(payload).eq("id", inscripcionActual.id).select().single();
+
+  if (error) { status.textContent = "Error guardando: " + error.message; return; }
+
+  Object.assign(inscripcionActual, data);
+  const idx = inscritosCache.findIndex(x => x.id === inscripcionActual.id);
+  if (idx >= 0) inscritosCache[idx] = data;
+  status.textContent = "Guardado.";
+  renderLista();
+}
+
+async function eliminarInscripcion() {
+  if (!inscripcionActual) return;
+  if (!confirm("¿Eliminar esta inscripción? No se puede deshacer.")) return;
+
+  const { error } = await client.from("pruebas_inscripciones").delete().eq("id", inscripcionActual.id);
+  if (error) { document.getElementById("status").textContent = "Error eliminando: " + error.message; return; }
+
+  seleccionados.delete(inscripcionActual.id);
+  inscripcionActual = null;
+  document.getElementById("ficha_vacia").style.display = "block";
+  document.getElementById("ficha_contenido").style.display = "none";
+  await cargarInscritos();
+}
+
+function abrirModalConvocatoria() {
+  if (!seleccionados.size) return;
+  const nombres = [...seleccionados].map(id => inscritosCache.find(i => i.id === id)?.nombre).filter(Boolean);
+  document.getElementById("modal_destinatarios").textContent = `Para: ${nombres.join(", ")}`;
+  document.getElementById("mc_dia").value = "";
+  document.getElementById("mc_hora").value = "";
+  document.getElementById("mc_lugar").value = "";
+  document.getElementById("mc_asunto").value = "Convocatoria de pruebas";
+  document.getElementById("mc_cuerpo").value =
+    "Hola {{nombre}},\n\nTe confirmamos tu prueba el día {{dia}} a las {{hora}} en {{lugar}}.\n\n¡Te esperamos!";
+  document.getElementById("modal_status").textContent = "";
+  document.getElementById("modal_convocatoria").style.display = "flex";
+}
+
+function cerrarModalConvocatoria() {
+  document.getElementById("modal_convocatoria").style.display = "none";
+}
+
+async function enviarConvocatoria() {
+  const btn = document.getElementById("btn_enviar_convocatoria");
+  const status = document.getElementById("modal_status");
+  const asunto = document.getElementById("mc_asunto").value.trim();
+  const cuerpo = document.getElementById("mc_cuerpo").value.trim();
+  if (!asunto || !cuerpo) { status.textContent = "Faltan el asunto o el mensaje."; return; }
+
+  btn.disabled = true;
+  status.textContent = "Enviando...";
+
+  const { data, error } = await client.functions.invoke("pruebas-enviar-convocatoria", {
+    body: {
+      inscripcion_ids: [...seleccionados],
+      asunto, cuerpo,
+      dia: document.getElementById("mc_dia").value || null,
+      hora: document.getElementById("mc_hora").value || null,
+      lugar: document.getElementById("mc_lugar").value || null,
+    }
+  });
+
+  btn.disabled = false;
+
+  if (error) { status.textContent = "Error: " + (await mensajeError(error)); return; }
+
+  let resumen = `Enviados: ${data.enviados}.`;
+  if (data.sin_email?.length) resumen += ` Sin email: ${data.sin_email.length}.`;
+  if (data.fallidos?.length) resumen += ` Fallidos: ${data.fallidos.length}.`;
+  status.textContent = resumen;
+
+  seleccionados.clear();
+  actualizarBulkBar();
+  await cargarInscritos();
+  setTimeout(cerrarModalConvocatoria, 1800);
+}
+
+async function mensajeError(error) {
+  if (!error) return "";
+  if (error.context && typeof error.context.json === "function") {
+    try {
+      const body = await error.context.json();
+      if (body?.error) return typeof body.error === "string" ? body.error : JSON.stringify(body.error);
+    } catch (e) {}
+  }
+  return error.message || "Error desconocido";
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const ok = await protegerPagina();
+  if (!ok) return;
+  await cargarClubsSiAdmin();
+  await cargarInscritos();
+});
+</script>
+</body>
+</html>
