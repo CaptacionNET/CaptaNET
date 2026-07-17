@@ -29,8 +29,16 @@ input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-rad
 
 <div id="topbar">
   <div class="brand">CaptaNET · Mi equipo</div>
-  <div style="display:flex;gap:10px;">
-    <button class="secondary" onclick="window.location.href='visor.html'">Volver al visor</button>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <button class="secondary" onclick="atras()">← Atrás</button>
+    <button class="secondary" onclick="window.location.href='visor.html'">Visor</button>
+    <button class="secondary" onclick="window.location.href='jugadores.html'">Jugadores</button>
+    <button class="secondary" onclick="window.location.href='equipos.html'">Equipos</button>
+    <button class="secondary" onclick="window.location.href='plantillas.html'">Plantillas</button>
+    <button class="secondary" onclick="window.location.href='gestion_pruebas.html'">Pruebas</button>
+    <button class="secondary" onclick="window.location.href='usuario.html'">Mi perfil</button>
+    <button class="secondary" onclick="window.location.href='equipo.html'">Mi equipo</button>
+    <button id="btn_admin" class="secondary" style="display:none;" onclick="window.location.href='admin.html'">Panel Admin</button>
     <button class="secondary" onclick="logout()">Cerrar sesión</button>
   </div>
 </div>
@@ -69,12 +77,18 @@ async function protegerPagina() {
   if (!session.session) { window.location.href = "index.html"; return false; }
 
   const { data: perfil } = await client
-    .from("profiles").select("is_club_admin, club_id").eq("id", session.session.user.id).single();
+    .from("profiles").select("is_admin, is_club_admin, club_id").eq("id", session.session.user.id).single();
 
   if (!perfil?.is_club_admin) { window.location.href = "visor.html"; return false; }
 
   miClubId = perfil.club_id;
+  if (perfil?.is_admin) document.getElementById("btn_admin").style.display = "inline-block";
   return true;
+}
+
+function atras() {
+  if (window.history.length > 1) window.history.back();
+  else window.location.href = "visor.html";
 }
 
 async function logout() {

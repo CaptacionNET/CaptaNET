@@ -38,15 +38,17 @@ input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-rad
 
 <div id="topbar">
   <div class="brand">CaptaNET <span id="brand_extra" style="color:var(--muted);font-weight:400;"></span></div>
-  <div style="display:flex;gap:10px;">
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <button class="secondary" onclick="atras()">← Atrás</button>
+    <button class="secondary" onclick="window.location.href='visor.html'">Visor</button>
     <button class="secondary" onclick="window.location.href='jugadores.html'">Jugadores</button>
     <button class="secondary" onclick="window.location.href='equipos.html'">Equipos</button>
     <button class="secondary" onclick="window.location.href='plantillas.html'">Plantillas</button>
     <button class="secondary" onclick="window.location.href='gestion_pruebas.html'">Pruebas</button>
     <button class="secondary" onclick="window.location.href='usuario.html'">Mi perfil</button>
-    <button class="secondary" onclick="logout()">Cerrar sesión</button>
     <button id="btn_equipo" class="secondary" style="display:none;" onclick="window.location.href='equipo.html'">Mi equipo</button>
     <button id="btn_admin" class="secondary" style="display:none;" onclick="window.location.href='admin.html'">Panel Admin</button>
+    <button class="secondary" onclick="logout()">Cerrar sesión</button>
   </div>
 </div>
 
@@ -197,6 +199,11 @@ async function protegerPagina() {
 async function logout() {
   await client.auth.signOut();
   window.location.href = "index.html";
+}
+
+function atras() {
+  if (window.history.length > 1) window.history.back();
+  else window.location.href = "visor.html";
 }
 
 // Con miles de equipos importados de FFCV, cargarlos TODOS de golpe en cada

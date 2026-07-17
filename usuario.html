@@ -28,8 +28,16 @@ button.secondary{background:#fff;color:var(--text);border:1px solid var(--border
 <body>
   <div id="topbar">
     <div class="brand">CaptaNET · Mi perfil</div>
-    <div style="display:flex;gap:10px;">
-      <button class="secondary" onclick="volver()">Volver al visor</button>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="secondary" onclick="atras()">← Atrás</button>
+      <button class="secondary" onclick="window.location.href='visor.html'">Visor</button>
+      <button class="secondary" onclick="window.location.href='jugadores.html'">Jugadores</button>
+      <button class="secondary" onclick="window.location.href='equipos.html'">Equipos</button>
+      <button class="secondary" onclick="window.location.href='plantillas.html'">Plantillas</button>
+      <button class="secondary" onclick="window.location.href='gestion_pruebas.html'">Pruebas</button>
+      <button class="secondary" onclick="window.location.href='usuario.html'">Mi perfil</button>
+      <button id="btn_equipo" class="secondary" style="display:none;" onclick="window.location.href='equipo.html'">Mi equipo</button>
+      <button id="btn_admin" class="secondary" style="display:none;" onclick="window.location.href='admin.html'">Panel Admin</button>
       <button class="secondary" onclick="logout()">Cerrar sesión</button>
     </div>
   </div>
@@ -67,10 +75,14 @@ button.secondary{background:#fff;color:var(--text);border:1px solid var(--border
         <div class="fila"><span>Club</span><b>${perfil.clubs?.nombre || "(sin asignar)"}</b></div>
         <div class="fila"><span>Admin</span><b>${perfil.is_admin ? "Sí" : "No"}</b></div>
       `;
+
+      if (perfil.is_admin) document.getElementById("btn_admin").style.display = "inline-block";
+      if (perfil.is_club_admin) document.getElementById("btn_equipo").style.display = "inline-block";
     }
 
-    function volver() {
-      window.location.href = "visor.html";
+    function atras() {
+      if (window.history.length > 1) window.history.back();
+      else window.location.href = "visor.html";
     }
 
     async function logout() {
