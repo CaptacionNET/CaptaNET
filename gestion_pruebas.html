@@ -72,6 +72,9 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
   <div id="campo_club_wrap" style="display:none;">
     <select id="filtro_club" onchange="onClubChange()"></select>
   </div>
+  <select id="filtro_anio" onchange="aplicarFiltros()">
+    <option value="">Todos los años</option>
+  </select>
   <select id="filtro_estado" onchange="aplicarFiltros()">
     <option value="">Todos los estados</option>
     <option value="pendiente">Pendiente</option>
@@ -95,13 +98,51 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 <div class="ficha" id="ficha" style="display:none;">
   <div id="ficha_contenido">
     <div class="ficha-info">
-      <h2 id="f_nombre"></h2>
-      <p id="f_sub"></p>
+      <input id="f_nombre" type="text" style="font-size:20px;font-weight:700;padding:6px 8px;width:100%;max-width:420px;" oninput="guardarValoracionDebounced()">
+      <p id="f_creado" style="margin:6px 0 0;"></p>
     </div>
 
     <div id="f_cita" style="margin-top:14px;"></div>
 
     <div class="campos-grid">
+      <div>
+        <label>Fecha de nacimiento</label>
+        <input id="f_fecha_nacimiento" type="date" oninput="guardarValoracionDebounced()">
+      </div>
+      <div>
+        <label>Posición</label>
+        <select id="f_posicion" onchange="guardarValoracion()">
+          <option value="">-</option>
+          <option>Portero</option>
+          <option>Defensa</option>
+          <option>Centrocampista</option>
+          <option>Delantero</option>
+        </select>
+      </div>
+      <div>
+        <label>Email</label>
+        <input id="f_email" type="email" oninput="guardarValoracionDebounced()">
+      </div>
+      <div>
+        <label>Teléfono</label>
+        <input id="f_telefono" type="tel" oninput="guardarValoracionDebounced()">
+      </div>
+      <div>
+        <label>Nombre del padre/madre/tutor</label>
+        <input id="f_nombre_contacto" type="text" oninput="guardarValoracionDebounced()">
+      </div>
+      <div>
+        <label>Club actual</label>
+        <input id="f_club_actual" type="text" oninput="guardarValoracionDebounced()">
+      </div>
+      <div>
+        <label>Equipo propuesto</label>
+        <input id="f_equipo_propuesto" type="text" placeholder="Ej. Cadete A" oninput="guardarValoracionDebounced()">
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <a id="link_enviar_plantillas" onclick="abrirModalPlantillas()" style="display:inline-block;font-size:13px;color:var(--primary);cursor:pointer;text-decoration:underline;margin-top:8px;">→ Enviar a plantillas</a>
+      </div>
       <div>
         <label>Estado</label>
         <select id="f_estado" onchange="guardarValoracion()">
@@ -142,7 +183,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
       </div>
       <div class="campo-full">
         <label>Comentario del jugador (formulario)</label>
-        <p id="f_comentario_jugador" style="margin:0;font-size:13px;color:var(--muted);"></p>
+        <textarea id="f_comentario_jugador" style="width:100%;min-height:60px;" oninput="guardarValoracionDebounced()"></textarea>
       </div>
       <div class="campo-full">
         <label>Valoración del día de la prueba</label>
@@ -158,6 +199,22 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
       <p id="status" class="status"></p>
       <button class="danger" style="font-size:12px;padding:6px 12px;margin-top:12px;" onclick="eliminarInscripcion()">Eliminar inscripción</button>
       <button class="secondary" style="font-size:12px;padding:6px 12px;margin-top:12px;" onclick="cerrarFicha()">Cerrar ficha</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal_plantillas">
+  <div class="modal-box" style="max-width:380px;">
+    <h3>Enviar a plantillas</h3>
+    <p class="ayuda" style="margin-top:-8px;">Se añadirá como jugador manual al campograma de la plantilla elegida.</p>
+    <div class="field">
+      <label>Plantilla</label>
+      <select id="ep_plantilla" style="width:100%;"></select>
+    </div>
+    <p id="ep_status" style="font-size:13px;color:var(--muted);min-height:18px;"></p>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="secondary" onclick="cerrarModalPlantillas()">Cancelar</button>
+      <button onclick="enviarAPlantilla()">Enviar</button>
     </div>
   </div>
 </div>
@@ -351,13 +408,24 @@ async function cargarInscritos() {
     .select("*").eq("club_id", miClubId).order("anio_nacimiento", { ascending: false });
   if (error) { console.error("[CaptaNET] cargarInscritos:", error); return; }
   tabla.setData(data || []);
+  poblarFiltroAnio(data || []);
+}
+
+function poblarFiltroAnio(datos) {
+  const sel = document.getElementById("filtro_anio");
+  const actual = sel.value;
+  const anios = [...new Set(datos.map(d => d.anio_nacimiento).filter(Boolean))].sort((a, b) => b - a);
+  sel.innerHTML = '<option value="">Todos los años</option>' + anios.map(a => `<option value="${a}">${a}</option>`).join("");
+  if (anios.map(String).includes(actual)) sel.value = actual;
 }
 
 function aplicarFiltros() {
   const q = document.getElementById("buscador").value.trim();
   const estado = document.getElementById("filtro_estado").value;
+  const anio = document.getElementById("filtro_anio").value;
 
   tabla.setFilter((fila) => {
+    if (anio && String(fila.anio_nacimiento) !== anio) return false;
     if (estado && fila.estado !== estado) return false;
     if (q && !coincideNombre(fila.nombre, q)) return false;
     return true;
@@ -376,10 +444,18 @@ async function abrirInscripcion(id) {
   document.getElementById("ficha").style.display = "block";
   document.getElementById("ficha").scrollIntoView({ behavior: "smooth", block: "start" });
 
-  document.getElementById("f_nombre").textContent = i.nombre;
-  document.getElementById("f_sub").textContent =
-    [i.anio_nacimiento, i.posicion, i.club_actual, i.email, i.telefono, i.nombre_contacto ? "Contacto: " + i.nombre_contacto : null]
-      .filter(Boolean).join(" · ");
+  document.getElementById("f_nombre").value = i.nombre || "";
+  document.getElementById("f_creado").textContent = i.creado_at
+    ? "Inscrito el " + new Date(i.creado_at).toLocaleDateString("es-ES")
+    : "";
+
+  document.getElementById("f_fecha_nacimiento").value = i.fecha_nacimiento || "";
+  document.getElementById("f_posicion").value = i.posicion || "";
+  document.getElementById("f_email").value = i.email || "";
+  document.getElementById("f_telefono").value = i.telefono || "";
+  document.getElementById("f_nombre_contacto").value = i.nombre_contacto || "";
+  document.getElementById("f_club_actual").value = i.club_actual || "";
+  document.getElementById("f_equipo_propuesto").value = i.equipo_propuesto || "";
 
   const cita = document.getElementById("f_cita");
   if (i.dia_prueba || i.hora_prueba || i.lugar_prueba) {
@@ -394,7 +470,7 @@ async function abrirInscripcion(id) {
   document.getElementById("f_tactica").value = i.tactica ?? "";
   document.getElementById("f_fisico").value = i.fisico || "";
   document.getElementById("f_actitud").value = i.actitud ?? "";
-  document.getElementById("f_comentario_jugador").textContent = i.comentario || "(sin comentario)";
+  document.getElementById("f_comentario_jugador").value = i.comentario || "";
   document.getElementById("f_valoracion").value = i.valoracion_comentario || "";
 
   const respuesta = document.getElementById("f_respuesta");
@@ -499,12 +575,29 @@ async function guardarValoracion() {
 
   const payload = {
     estado: document.getElementById("f_estado").value,
+    email: document.getElementById("f_email").value.trim() || null,
+    telefono: document.getElementById("f_telefono").value.trim() || null,
+    nombre_contacto: document.getElementById("f_nombre_contacto").value.trim() || null,
+    posicion: document.getElementById("f_posicion").value || null,
+    club_actual: document.getElementById("f_club_actual").value.trim() || null,
+    equipo_propuesto: document.getElementById("f_equipo_propuesto").value.trim() || null,
+    comentario: document.getElementById("f_comentario_jugador").value.trim() || null,
     tecnica: document.getElementById("f_tecnica").value || null,
     tactica: document.getElementById("f_tactica").value || null,
     fisico: document.getElementById("f_fisico").value || null,
     actitud: document.getElementById("f_actitud").value || null,
     valoracion_comentario: document.getElementById("f_valoracion").value || null,
   };
+
+  // Nombre y fecha de nacimiento son obligatorios en la base de datos:
+  // si el campo se queda vacío, no se envía y se conserva el valor anterior.
+  const nombre = document.getElementById("f_nombre").value.trim();
+  if (nombre) payload.nombre = nombre;
+  const fechaNac = document.getElementById("f_fecha_nacimiento").value;
+  if (fechaNac) {
+    payload.fecha_nacimiento = fechaNac;
+    payload.anio_nacimiento = new Date(fechaNac + "T00:00:00").getFullYear();
+  }
 
   const { data, error } = await client.from("pruebas_inscripciones")
     .update(payload).eq("id", inscripcionActual.id).select().single();
@@ -514,6 +607,43 @@ async function guardarValoracion() {
   inscripcionActual = data;
   status.textContent = "Guardado.";
   await cargarInscritos();
+}
+
+async function abrirModalPlantillas() {
+  if (!inscripcionActual) return;
+  const { data, error } = await client.from("plantillas").select("id, nombre").eq("club_id", miClubId).order("created_at");
+  if (error) { alert("Error cargando plantillas: " + error.message); return; }
+  if (!data || !data.length) {
+    alert("Este club aún no tiene ninguna plantilla creada. Créala primero en la sección Plantillas.");
+    return;
+  }
+  document.getElementById("ep_plantilla").innerHTML = data.map(p => `<option value="${p.id}">${p.nombre}</option>`).join("");
+  document.getElementById("ep_status").textContent = "";
+  document.getElementById("modal_plantillas").style.display = "flex";
+}
+
+function cerrarModalPlantillas() {
+  document.getElementById("modal_plantillas").style.display = "none";
+}
+
+async function enviarAPlantilla() {
+  if (!inscripcionActual) return;
+  const plantillaId = document.getElementById("ep_plantilla").value;
+  const status = document.getElementById("ep_status");
+
+  const { error } = await client.from("plantilla_jugadores").insert({
+    plantilla_id: plantillaId,
+    nombre_manual: inscripcionActual.nombre,
+    club_manual: inscripcionActual.equipo_propuesto || inscripcionActual.club_actual || null,
+    posicion_manual: inscripcionActual.posicion || null,
+    anio_manual: inscripcionActual.anio_nacimiento || null,
+    pos_x: 50, pos_y: 50
+  });
+
+  if (error) { status.textContent = "Error: " + error.message; return; }
+
+  status.textContent = "¡Añadido a la plantilla!";
+  setTimeout(cerrarModalPlantillas, 1200);
 }
 
 async function eliminarInscripcion() {
