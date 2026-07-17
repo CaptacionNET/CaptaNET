@@ -214,27 +214,20 @@ button:disabled{opacity:.6;cursor:default;}
       submitBtn.disabled = true;
       submitBtn.textContent = "Entrando...";
 
-      const { data: email, error: emailError } = await client
-        .rpc("get_email_by_username", { p_username: username });
+      const { data: login, error: loginError } = await client
+        .functions.invoke("login-usuario", { body: { username, password } });
 
-      if (emailError || !email) {
-        mostrarError("Usuario no encontrado.");
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Entrar";
-        return;
-      }
-
-      const { error } = await client.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) {
+      if (loginError || !login?.session) {
         mostrarError("Usuario o contraseña incorrectos.");
         submitBtn.disabled = false;
         submitBtn.textContent = "Entrar";
         return;
       }
+
+      await client.auth.setSession({
+        access_token: login.session.access_token,
+        refresh_token: login.session.refresh_token
+      });
 
       const slug = getClubSlug();
       const { data: { user } } = await client.auth.getUser();
@@ -273,15 +266,12 @@ button:disabled{opacity:.6;cursor:default;}
       recuperarBtn.disabled = true;
       recuperarBtn.textContent = "Enviando...";
 
-      const { data: email } = await client.rpc("get_email_by_username", { p_username: username });
-
-      // Se manda el mismo aviso exista o no ese usuario, para no revelar
-      // qué nombres de usuario están registrados.
-      if (email) {
-        await client.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin + "/restablecer.html"
-        });
-      }
+      // El email nunca vuelve al navegador (ni siquiera al comprobar si
+      // el usuario existe): la función siempre responde igual, exista o
+      // no ese nombre de usuario.
+      await client.functions.invoke("recuperar-password", {
+        body: { username, redirectTo: window.location.origin + "/restablecer.html" }
+      });
 
       mostrarAviso("Si el usuario existe, te hemos enviado un email con un enlace para elegir una contraseña nueva.");
       recuperarBtn.disabled = false;
