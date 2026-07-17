@@ -29,7 +29,8 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 .resultado .nombre{font-weight:600;}
 .resultado .meta{color:var(--muted);font-size:12px;}
 .resultado button{width:100%;margin-top:6px;padding:5px;font-size:12px;}
-.campo-wrap{flex:1;display:flex;justify-content:center;}
+.campo-wrap{flex:1;display:flex;flex-direction:column;align-items:center;}
+.notas-wrap{width:100%;max-width:1600px;margin-top:16px;}
 .campo{
   position:relative;width:100%;max-width:1600px;aspect-ratio:1180/620;
   background:#fff;
@@ -111,7 +112,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
   .panel-izda,.panel-detalle,.panel,.campo-wrap{width:100%;}
   .barra{padding:12px;}
   .status{margin:0 12px 12px;}
-  .notas-wrap{margin:0 12px 24px !important;}
+  .notas-wrap{margin-top:12px;}
 }
 @media (max-width:500px){
   #topbar{padding:12px 16px;}
@@ -214,6 +215,10 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
       <div class="area-arriba"></div>
       <div class="area-abajo"></div>
     </div>
+    <div class="notas-wrap">
+      <label>Notas de la plantilla</label>
+      <textarea id="notas_plantilla" style="width:100%;min-height:90px;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;" oninput="guardarNotasDebounced()"></textarea>
+    </div>
   </div>
 
   <div class="panel panel-detalle">
@@ -227,11 +232,6 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
       <div id="det_extra"></div>
     </div>
   </div>
-</div>
-
-<div class="notas-wrap" style="margin:0 24px 24px;">
-  <label>Notas de la plantilla</label>
-  <textarea id="notas_plantilla" style="width:100%;min-height:90px;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;" oninput="guardarNotasDebounced()"></textarea>
 </div>
 
 <div class="tooltip" id="tooltip"></div>
