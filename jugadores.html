@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CaptaNET - Jugadores</title>
+<title>CaptaNET - Informes</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--primary:#2563eb;--bg:#f5f6fa;--card:#fff;--border:#e2e4eb;--text:#1f2430;--muted:#6b7280;}
@@ -56,11 +56,11 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 <body>
 
 <div id="topbar">
-  <div class="brand">CaptaNET · Jugadores</div>
+  <div class="brand">CaptaNET · Informes</div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;">
     <button class="secondary" onclick="atras()">← Atrás</button>
     <button class="secondary" onclick="window.location.href='visor.html'">Visor</button>
-    <button class="secondary" onclick="window.location.href='jugadores.html'">Jugadores</button>
+    <button class="secondary" onclick="window.location.href='jugadores.html'">Informes</button>
     <button class="secondary" onclick="window.location.href='equipos.html'">Equipos</button>
     <button class="secondary" onclick="window.location.href='plantillas.html'">Plantillas</button>
     <button class="secondary" onclick="window.location.href='gestion_pruebas.html'">Pruebas</button>
@@ -124,6 +124,10 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
           <label class="tick"><input id="f_contactado" type="checkbox" style="width:auto;" onchange="guardarInformeDebounced()"> Contactado</label>
         </div>
         <div>
+          <label>&nbsp;</label>
+          <a onclick="abrirModalPlantillas()" style="display:inline-block;font-size:13px;color:var(--primary);cursor:pointer;text-decoration:underline;margin-top:8px;">→ Enviar a plantillas</a>
+        </div>
+        <div>
           <label>Técnica (1-10)</label>
           <input id="f_tecnica" type="number" min="1" max="10" oninput="guardarInformeDebounced()">
         </div>
@@ -160,6 +164,23 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
         <p id="status" class="status" style="margin:12px 0 0;"></p>
         <button class="danger" id="btn_eliminar_informe" style="display:none;font-size:12px;padding:6px 12px;margin-top:12px;" onclick="eliminarInforme()">Eliminar informe</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal_plantillas" style="position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:200;padding:20px;">
+  <div class="modal-box" style="background:#fff;border-radius:10px;padding:24px;width:100%;max-width:380px;box-shadow:0 20px 50px rgba(0,0,0,.3);">
+    <h3 style="margin:0 0 14px;">Enviar a plantillas</h3>
+    <p style="color:var(--muted);font-size:11px;margin:-8px 0 12px;">Se añadirá al campograma de la plantilla elegida.</p>
+    <div style="margin-bottom:12px;">
+      <label>Plantilla</label>
+      <select id="ep_plantilla" style="width:100%;" onchange="actualizarAvisoPlantilla()"></select>
+    </div>
+    <p id="ep_aviso" style="display:none;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:8px 10px;font-size:12px;margin:-4px 0 12px;"></p>
+    <p id="ep_status" style="font-size:13px;color:var(--muted);min-height:18px;"></p>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="secondary" onclick="cerrarModalPlantillas()">Cancelar</button>
+      <button onclick="enviarAPlantilla()">Enviar</button>
     </div>
   </div>
 </div>
@@ -426,6 +447,65 @@ async function guardarInforme() {
   jugadorActual.privado = data;
   status.textContent = "Guardado.";
   cargarInformes();
+}
+
+let plantillasCacheModal = [];
+
+async function abrirModalPlantillas() {
+  if (!jugadorActual) return;
+  const { data, error } = await client.from("plantillas").select("id, nombre, anio_min, anio_max").eq("club_id", miClubId).order("created_at");
+  if (error) { alert("Error cargando plantillas: " + error.message); return; }
+  if (!data || !data.length) {
+    alert("Este club aún no tiene ninguna plantilla creada. Créala primero en la sección Plantillas.");
+    return;
+  }
+  plantillasCacheModal = data;
+  document.getElementById("ep_plantilla").innerHTML = data.map(p => `<option value="${p.id}">${p.nombre}</option>`).join("");
+  document.getElementById("ep_status").textContent = "";
+  document.getElementById("modal_plantillas").style.display = "flex";
+  actualizarAvisoPlantilla();
+}
+
+function cerrarModalPlantillas() {
+  document.getElementById("modal_plantillas").style.display = "none";
+}
+
+function avisoAnioPlantilla(plantilla) {
+  const anio = jugadorActual?.fecha_nacimiento ? new Date(jugadorActual.fecha_nacimiento).getFullYear() : null;
+  if (!anio || !plantilla) return null;
+  const fueraDeRango =
+    (plantilla.anio_min && anio < plantilla.anio_min) ||
+    (plantilla.anio_max && anio > plantilla.anio_max);
+  if (!fueraDeRango) return null;
+  const rango = [plantilla.anio_min, plantilla.anio_max].filter(Boolean).join("-");
+  return `⚠️ Este jugador es de ${anio}, pero la plantilla es para ${rango || "otro rango"}.`;
+}
+
+function actualizarAvisoPlantilla() {
+  const plantillaId = document.getElementById("ep_plantilla").value;
+  const plantilla = plantillasCacheModal.find(p => p.id === plantillaId);
+  const aviso = document.getElementById("ep_aviso");
+  const mensaje = avisoAnioPlantilla(plantilla);
+  aviso.textContent = mensaje || "";
+  aviso.style.display = mensaje ? "block" : "none";
+}
+
+async function enviarAPlantilla() {
+  if (!jugadorActual) return;
+  const plantillaId = document.getElementById("ep_plantilla").value;
+  const plantilla = plantillasCacheModal.find(p => p.id === plantillaId);
+  const status = document.getElementById("ep_status");
+
+  const mensajeAviso = avisoAnioPlantilla(plantilla);
+  if (mensajeAviso && !confirm(mensajeAviso + " ¿Enviar de todas formas?")) return;
+
+  const { error } = await client.from("plantilla_jugadores")
+    .insert({ plantilla_id: plantillaId, jugador_id: jugadorActual.id, pos_x: 50, pos_y: 50 });
+
+  if (error) { status.textContent = "Error: " + error.message; return; }
+
+  status.textContent = "¡Añadido a la plantilla!";
+  setTimeout(cerrarModalPlantillas, 1200);
 }
 
 async function eliminarInforme() {

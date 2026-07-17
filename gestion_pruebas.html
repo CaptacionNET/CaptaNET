@@ -25,10 +25,10 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 .barra input#buscador{flex:1;min-width:180px;}
 .bulk-bar{display:none;align-items:center;gap:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 14px;font-size:13px;}
 .contenedor{padding:0 24px 24px;}
-.badge{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;padding:2px 7px;border-radius:4px;}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;}
 .badge-pendiente{background:#f1f5f9;color:#475569;}
 .badge-citado{background:#dbeafe;color:#1d4ed8;}
-.badge-valorado{background:#ede9fe;color:#6d28d9;}
+.badge-volver_a_citar{background:#ffedd5;color:#c2410c;}
 .badge-descartado{background:#fee2e2;color:#b91c1c;}
 .badge-fichado{background:#dcfce7;color:#15803d;}
 .badge-si{background:#dcfce7;color:#15803d;}
@@ -64,7 +64,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
   <div style="display:flex;gap:10px;flex-wrap:wrap;">
     <button class="secondary" onclick="atras()">← Atrás</button>
     <button class="secondary" onclick="window.location.href='visor.html'">Visor</button>
-    <button class="secondary" onclick="window.location.href='jugadores.html'">Jugadores</button>
+    <button class="secondary" onclick="window.location.href='jugadores.html'">Informes</button>
     <button class="secondary" onclick="window.location.href='equipos.html'">Equipos</button>
     <button class="secondary" onclick="window.location.href='plantillas.html'">Plantillas</button>
     <button class="secondary" onclick="window.location.href='gestion_pruebas.html'">Pruebas</button>
@@ -87,7 +87,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
     <option value="">Todos los estados</option>
     <option value="pendiente">Pendiente</option>
     <option value="citado">Citado</option>
-    <option value="valorado">Valorado</option>
+    <option value="volver_a_citar">Volver a citar</option>
     <option value="descartado">Descartado</option>
     <option value="fichado">Fichado</option>
   </select>
@@ -122,8 +122,16 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
         <select id="f_posicion" onchange="guardarValoracion()">
           <option value="">-</option>
           <option>Portero</option>
-          <option>Defensa</option>
-          <option>Centrocampista</option>
+          <option>Lateral derecho</option>
+          <option>Lateral izquierdo</option>
+          <option>Central (diestro)</option>
+          <option>Central (zurdo)</option>
+          <option>Pivote</option>
+          <option>Mediocentro</option>
+          <option>Interior</option>
+          <option>Mediapunta</option>
+          <option>Extremo (zurdo)</option>
+          <option>Extremo (diestro)</option>
           <option>Delantero</option>
         </select>
       </div>
@@ -156,7 +164,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
         <select id="f_estado" onchange="guardarValoracion()">
           <option value="pendiente">Pendiente</option>
           <option value="citado">Citado</option>
-          <option value="valorado">Valorado</option>
+          <option value="volver_a_citar">Volver a citar</option>
           <option value="descartado">Descartado</option>
           <option value="fichado">Fichado</option>
         </select>
@@ -279,6 +287,14 @@ function coincideNombre(nombre, consulta) {
   return palabras.every(p => nombreNorm.includes(p));
 }
 
+const ESTADOS = {
+  pendiente: "Pendiente",
+  citado: "Citado",
+  volver_a_citar: "Volver a citar",
+  descartado: "Descartado",
+  fichado: "Fichado",
+};
+
 let esAdmin = false;
 let miClubId = null;
 let miClubSlug = null;
@@ -372,8 +388,8 @@ function crearTabla() {
         { title: "Email", field: "email", width: 190 },
         {
           title: "Estado", field: "estado", width: 130, editor: "list",
-          editorParams: { values: { pendiente: "pendiente", citado: "citado", valorado: "valorado", descartado: "descartado", fichado: "fichado" } },
-          formatter: cell => `<span class="badge badge-${cell.getValue()}">${cell.getValue()}</span>`
+          editorParams: { values: ESTADOS },
+          formatter: cell => `<span class="badge badge-${cell.getValue()}">${ESTADOS[cell.getValue()] || cell.getValue()}</span>`
         },
         {
           title: "Asistencia", field: "respuesta_asistencia", width: 110, hozAlign: "center",
@@ -395,7 +411,10 @@ function crearTabla() {
         {
           title: "FFCV", field: "jugador_ffcv_id", width: 70, hozAlign: "center",
           formatter: cell => cell.getValue() ? "✅" : ""
-        }
+        },
+        { title: "Liga (FFCV)", field: "liga_ffcv", width: 160 },
+        { title: "Equipo (FFCV)", field: "equipo_ffcv", width: 160 },
+        { title: "Goles (FFCV)", field: "goles_ffcv", sorter: "number", width: 100, hozAlign: "center" }
       ]
     });
 
@@ -425,8 +444,27 @@ async function cargarInscritos() {
   const { data, error } = await client.from("pruebas_inscripciones")
     .select("*").eq("club_id", miClubId).order("anio_nacimiento", { ascending: false });
   if (error) { console.error("[CaptaNET] cargarInscritos:", error); return; }
-  tabla.setData(data || []);
-  poblarFiltroAnio(data || []);
+
+  const filas = data || [];
+  const jugadorIds = [...new Set(filas.map(f => f.jugador_ffcv_id).filter(Boolean))];
+
+  if (jugadorIds.length) {
+    const { data: jugadoresFfcv, error: errJ } = await client
+      .from("jugadores").select("id, goles, equipos(nombre, grupos(ligas(nombre)))").in("id", jugadorIds);
+    if (errJ) { console.error("[CaptaNET] jugadores FFCV:", errJ); }
+    else {
+      filas.forEach(f => {
+        const j = (jugadoresFfcv || []).find(x => x.id === f.jugador_ffcv_id);
+        if (!j) return;
+        f.liga_ffcv = j.equipos?.grupos?.ligas?.nombre || null;
+        f.equipo_ffcv = j.equipos?.nombre || null;
+        f.goles_ffcv = j.goles ?? null;
+      });
+    }
+  }
+
+  tabla.setData(filas);
+  poblarFiltroAnio(filas);
 }
 
 function poblarFiltroAnio(datos) {
@@ -568,6 +606,7 @@ async function vincularFfcv(jugadorId) {
     .update({ jugador_ffcv_id: jugadorId }).eq("id", inscripcionActual.id);
   if (error) { alert("Error al vincular: " + error.message); return; }
   inscripcionActual.jugador_ffcv_id = jugadorId;
+  await sincronizarInforme(inscripcionActual);
   await renderFfcvBox();
   await cargarInscritos();
 }
@@ -623,8 +662,39 @@ async function guardarValoracion() {
   if (error) { status.textContent = "Error guardando: " + error.message; return; }
 
   inscripcionActual = data;
+
+  if (inscripcionActual.jugador_ffcv_id) await sincronizarInforme(inscripcionActual);
+
   status.textContent = "Guardado.";
   await cargarInscritos();
+}
+
+// Cuando la inscripción ya está vinculada a un jugador FFCV, su valoración
+// se vuelca también en jugadores_club para que aparezca en Informes y se
+// pueda añadir desde la pestaña "Ya valorados" de Plantillas. Contactado
+// siempre es "sí" porque el contacto ya viene dado por la propia prueba.
+async function sincronizarInforme(inscripcion) {
+  const { data: jugador } = await client.from("jugadores")
+    .select("temporada_id").eq("id", inscripcion.jugador_ffcv_id).single();
+  if (!jugador) return;
+
+  const payload = {
+    jugador_id: inscripcion.jugador_ffcv_id,
+    club_id: miClubId,
+    temporada_id: jugador.temporada_id,
+    posicion: inscripcion.posicion || null,
+    contacto: inscripcion.telefono || null,
+    contactado: true,
+    tecnica: inscripcion.tecnica || null,
+    tactica: inscripcion.tactica || null,
+    fisico: inscripcion.fisico || null,
+    actitud: inscripcion.actitud || null,
+    comentario: inscripcion.valoracion_comentario || null,
+  };
+
+  const { error } = await client.from("jugadores_club")
+    .upsert(payload, { onConflict: "jugador_id,club_id,temporada_id" });
+  if (error) console.error("[CaptaNET] sincronizarInforme:", error);
 }
 
 let plantillasCacheModal = [];
