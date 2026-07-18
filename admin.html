@@ -760,7 +760,10 @@ async function cargarUsuarios() {
   tablaUsuarios = new Tabulator("#tabla-usuarios", {
     data: (data || []).map(u => ({ ...u, contrasena: "", ultimo_acceso: accesos[u.id] || null })),
     layout: window.matchMedia("(max-width:700px)").matches ? "fitData" : "fitColumns",
-    responsiveLayout: "collapse",
+    // "collapse" metía Email y Contraseña dentro de un desplegable de
+    // solo lectura en móvil, sin poder editarlos. Con scroll horizontal
+    // basta para estas columnas.
+    responsiveLayout: false,
     reactiveData: true,
     height: "600px",
     columns: [
