@@ -14,6 +14,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ari
 button{background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px;}
 button:hover{opacity:.9;}
 button.secondary{background:#fff;color:var(--text);border:1px solid var(--border);}
+button.secondary.active{background:#eff6ff;color:var(--primary);border-color:var(--primary);font-weight:700;}
 .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;margin:20px 24px;max-width:420px;}
 .fila{display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border);font-size:14px;}
 .fila:first-child{border-top:none;}
@@ -35,7 +36,7 @@ button.secondary{background:#fff;color:var(--text);border:1px solid var(--border
       <button class="secondary" onclick="window.location.href='equipos.html'">Equipos</button>
       <button class="secondary" onclick="window.location.href='plantillas.html'">Plantillas</button>
       <button class="secondary" onclick="window.location.href='gestion_pruebas.html'">Pruebas</button>
-      <button class="secondary" onclick="window.location.href='usuario.html'">Mi perfil</button>
+      <button class="secondary active" onclick="window.location.href='usuario.html'">Mi perfil</button>
       <button id="btn_equipo" class="secondary" style="display:none;" onclick="window.location.href='equipo.html'">Mi equipo</button>
       <button id="btn_admin" class="secondary" style="display:none;" onclick="window.location.href='admin.html'">Panel Admin</button>
       <button class="secondary" onclick="logout()">Cerrar sesión</button>

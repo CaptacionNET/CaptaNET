@@ -17,6 +17,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ari
 button{background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px;}
 button:hover{opacity:.9;}
 button.secondary{background:#fff;color:var(--text);border:1px solid var(--border);}
+button.secondary.active{background:#eff6ff;color:var(--primary);border-color:var(--primary);font-weight:700;}
 button.danger{background:#dc2626;}
 input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;}
 .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;margin:16px 24px;max-width:480px;}
@@ -55,7 +56,7 @@ label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px;}
     <button class="secondary" onclick="window.location.href='gestion_pruebas.html'">Pruebas</button>
     <button class="secondary" onclick="window.location.href='usuario.html'">Mi perfil</button>
     <button id="btn_equipo" class="secondary" style="display:none;" onclick="window.location.href='equipo.html'">Mi equipo</button>
-    <button class="secondary" onclick="window.location.href='admin.html'">Panel Admin</button>
+    <button class="secondary active" onclick="window.location.href='admin.html'">Panel Admin</button>
     <button class="secondary" onclick="logout()">Cerrar sesión</button>
   </div>
 </div>
