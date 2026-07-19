@@ -105,9 +105,12 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 
 <div class="ficha" id="ficha" style="display:none;">
   <div id="ficha_contenido">
-    <div class="ficha-info">
-      <input id="f_nombre" type="text" style="font-size:20px;font-weight:700;padding:6px 8px;width:100%;max-width:420px;" oninput="guardarValoracionDebounced()">
-      <p id="f_creado" style="margin:6px 0 0;"></p>
+    <div style="display:flex;align-items:flex-start;gap:14px;">
+      <img id="f_foto" style="display:none;width:64px;height:64px;border-radius:8px;object-fit:cover;border:1px solid var(--border);flex-shrink:0;">
+      <div class="ficha-info" style="flex:1;">
+        <input id="f_nombre" type="text" style="font-size:20px;font-weight:700;padding:6px 8px;width:100%;max-width:420px;" oninput="guardarValoracionDebounced()">
+        <p id="f_creado" style="margin:6px 0 0;"></p>
+      </div>
     </div>
 
     <div id="f_cita" style="margin-top:14px;"></div>
@@ -537,6 +540,7 @@ async function abrirInscripcion(id) {
 
   document.getElementById("ficha").style.display = "block";
   document.getElementById("ficha").scrollIntoView({ behavior: "smooth", block: "start" });
+  actualizarFotoPruebas(null);
 
   document.getElementById("f_nombre").value = i.nombre || "";
   document.getElementById("f_creado").textContent = i.creado_at
@@ -584,6 +588,12 @@ function cerrarFicha() {
   inscripcionActual = null;
 }
 
+function actualizarFotoPruebas(url) {
+  const img = document.getElementById("f_foto");
+  if (url) { img.src = url; img.style.display = "block"; }
+  else { img.style.display = "none"; }
+}
+
 async function renderFfcvBox() {
   const box = document.getElementById("ffcv_box");
   if (!inscripcionActual) return;
@@ -591,12 +601,10 @@ async function renderFfcvBox() {
   if (inscripcionActual.jugador_ffcv_id) {
     const { data: j } = await client.from("jugadores").select("id, nombre, foto_url, equipos(nombre)")
       .eq("id", inscripcionActual.jugador_ffcv_id).single();
+    actualizarFotoPruebas(j?.foto_url || null);
     box.innerHTML = j
       ? `<div class="ffcv-resultado">
-           <span style="display:flex;align-items:center;gap:10px;">
-             ${j.foto_url ? `<img src="${escapeHtml(j.foto_url)}" style="width:44px;height:44px;border-radius:6px;object-fit:cover;border:1px solid var(--border);">` : ""}
-             <span>${escapeHtml(j.nombre)} · ${escapeHtml(j.equipos?.nombre || "Sin equipo")}</span>
-           </span>
+           <span>${escapeHtml(j.nombre)} · ${escapeHtml(j.equipos?.nombre || "Sin equipo")}</span>
            <span style="display:flex;gap:6px;">
              <button class="secondary" style="font-size:12px;padding:5px 10px;" onclick="window.open('jugadores.html?jugador_id=${j.id}','_blank')">Ver ficha</button>
              <button class="danger" style="font-size:12px;padding:5px 10px;" onclick="quitarVinculoFfcv()">Quitar</button>
@@ -605,6 +613,8 @@ async function renderFfcvBox() {
       : "<p style='color:var(--muted);font-size:13px;margin:0;'>Jugador vinculado no encontrado.</p>";
     return;
   }
+
+  actualizarFotoPruebas(null);
 
   if (inscripcionActual.jugador_ffcv_sugerido_id) {
     const { data: s } = await client.from("jugadores").select("id, nombre, foto_url, equipos(nombre)")

@@ -69,9 +69,11 @@ input,select{padding:8px 10px;border:1px solid var(--border);border-radius:6px;f
     <select id="filtro_club" onchange="onClubChange()"></select>
   </div>
   <input id="buscador_equipos" type="text" placeholder="Buscar equipo por nombre..." oninput="buscarEquipos()">
-  <div id="clubes_detectados" class="clubes-detectados"></div>
   <button class="secondary" id="btn_volver_busqueda" style="display:none;" onclick="volverABusqueda()">‹ Volver a la búsqueda</button>
 </div>
+
+<div id="modalidades_detectados" class="clubes-detectados" style="padding:0 24px 8px;"></div>
+<div id="clubes_detectados" class="clubes-detectados" style="padding:0 24px 8px;"></div>
 
 <p id="aviso_busqueda" class="aviso">Escribe el nombre de un equipo para empezar a buscar.</p>
 <div id="resultados_equipos"></div>
@@ -192,6 +194,8 @@ let tablaRoster = null;
 let ultimaBusquedaTexto = "";
 let ultimaBusquedaEquipos = [];
 let clubSeleccionado = null;
+let modalidadSeleccionada = null;
+let equiposClubSeleccionado = null;
 
 async function protegerPagina() {
   const { data: session } = await client.auth.getSession();
@@ -250,14 +254,18 @@ function buscarEquipos() {
 
 async function ejecutarBusquedaEquipos() {
   clubSeleccionado = null;
+  modalidadSeleccionada = null;
+  equiposClubSeleccionado = null;
   const q = document.getElementById("buscador_equipos").value.trim();
   const aviso = document.getElementById("aviso_busqueda");
   const cont = document.getElementById("resultados_equipos");
   const clubesCont = document.getElementById("clubes_detectados");
+  const modalidadesCont = document.getElementById("modalidades_detectados");
 
   if (!q) {
     cont.innerHTML = "";
     clubesCont.innerHTML = "";
+    modalidadesCont.innerHTML = "";
     aviso.style.display = "block";
     aviso.textContent = "Escribe el nombre de un equipo para empezar a buscar.";
     return;
@@ -270,21 +278,25 @@ async function ejecutarBusquedaEquipos() {
   palabras.forEach(p => { consulta = consulta.ilike("nombre_normalizado", `%${p}%`); });
   const { data: equipos, error } = await consulta;
 
-  if (error) { aviso.style.display = "block"; aviso.textContent = "Error al buscar: " + error.message; cont.innerHTML = ""; clubesCont.innerHTML = ""; return; }
+  if (error) {
+    aviso.style.display = "block"; aviso.textContent = "Error al buscar: " + error.message;
+    cont.innerHTML = ""; clubesCont.innerHTML = ""; modalidadesCont.innerHTML = "";
+    return;
+  }
 
   if (!equipos || !equipos.length) {
     aviso.style.display = "block";
     aviso.textContent = "Sin resultados.";
-    cont.innerHTML = "";
-    clubesCont.innerHTML = "";
+    cont.innerHTML = ""; clubesCont.innerHTML = ""; modalidadesCont.innerHTML = "";
     return;
   }
 
   aviso.style.display = "none";
   ultimaBusquedaTexto = q;
   ultimaBusquedaEquipos = equipos;
-  renderResultadosEquipos(equipos, equipos.length === 50);
+  renderModalidadesDetectadas();
   renderClubesDetectados();
+  renderizarResultadosFinales();
 }
 
 // Secciones reales: una cabecera (Amateur, Juveniles, Cadetes...) por cada
@@ -292,6 +304,14 @@ async function ejecutarBusquedaEquipos() {
 function renderResultadosEquipos(equipos, huboLimite) {
   const cont = document.getElementById("resultados_equipos");
   cont.innerHTML = "";
+
+  if (!equipos.length) {
+    const nota = document.createElement("p");
+    nota.style.cssText = "color:var(--muted);font-size:13px;margin:0 24px;";
+    nota.textContent = "Sin resultados con estos filtros.";
+    cont.appendChild(nota);
+    return;
+  }
 
   let seccionActual = null;
   let grid = null;
@@ -328,62 +348,75 @@ function modalidadDeEquipo(e) {
   return e.grupos?.ligas?.categorias?.nombre || null;
 }
 
+// Con la lista de resultados actual (antes de aplicar ningún filtro) se
+// calculan dos filas de chips independientes: una por modalidad y otra por
+// club. Cada una solo aparece si hace falta elegir entre más de una opción
+// (p.ej. si buscas "Mislata" y solo tiene equipos de Masculí, no sale nada
+// que separar; si tiene también Futsal, sí).
+function renderModalidadesDetectadas() {
+  const cont = document.getElementById("modalidades_detectados");
+  cont.innerHTML = "";
+
+  const modalidades = [...new Set(ultimaBusquedaEquipos.map(modalidadDeEquipo).filter(Boolean))].sort();
+  if (modalidades.length < 2) return;
+
+  const etiqueta = document.createElement("span");
+  etiqueta.className = "etiqueta";
+  etiqueta.textContent = "Modalidad:";
+  cont.appendChild(etiqueta);
+
+  modalidades.forEach(m => {
+    const pill = document.createElement("button");
+    pill.type = "button";
+    pill.className = "club-pill" + (modalidadSeleccionada === m ? " active" : "");
+    pill.textContent = m;
+    pill.onclick = () => seleccionarModalidad(m);
+    cont.appendChild(pill);
+  });
+}
+
+function seleccionarModalidad(m) {
+  modalidadSeleccionada = modalidadSeleccionada === m ? null : m;
+  renderModalidadesDetectadas();
+  renderizarResultadosFinales();
+}
+
 // A la derecha del buscador, con 5 caracteres o más, se muestran los nombres
 // de club distintos entre los resultados. Al pulsar uno se filtra a sus
 // equipos exactos (todas sus categorías), pidiéndolos de nuevo a la base de
 // datos para no depender del límite de 50 de la búsqueda de texto libre.
-//
-// Si el mismo nombre de club aparece en más de una modalidad (p.ej. un
-// "C.F. Mislata" en Masculí F11 y otro en Futsal — hoy no pasa porque solo
-// importamos F11/F8, pero el panel de Admin ya permite traer otras
-// modalidades), se separan en chips distintos por modalidad: si no, un
-// solo clic mezclaría equipos de deportes distintos que solo comparten
-// nombre.
 function renderClubesDetectados() {
   const cont = document.getElementById("clubes_detectados");
   cont.innerHTML = "";
   if (normalizarTexto(ultimaBusquedaTexto).length < 5) return;
 
   const basesUnicas = [...new Set(ultimaBusquedaEquipos.map(e => nombreBaseClub(e.nombre)))];
-  const gruposBase = agruparClubesParecidos(basesUnicas);
-
-  const chips = [];
-  gruposBase.forEach(grupoBase => {
-    const equiposDelGrupo = ultimaBusquedaEquipos.filter(e => grupoBase.variantes.includes(nombreBaseClub(e.nombre)));
-    const modalidades = [...new Set(equiposDelGrupo.map(modalidadDeEquipo))];
-    if (modalidades.length <= 1) {
-      chips.push({ representante: grupoBase.representante, variantes: grupoBase.variantes, modalidad: modalidades[0] || null });
-    } else {
-      modalidades.sort().forEach(m => {
-        chips.push({ representante: `${grupoBase.representante} (${m || "Sin modalidad"})`, variantes: grupoBase.variantes, modalidad: m });
-      });
-    }
-  });
-
-  chips.sort((a, b) => a.representante.localeCompare(b.representante));
-  if (chips.length < 2) return;
+  const grupos = agruparClubesParecidos(basesUnicas).sort((a, b) => a.representante.localeCompare(b.representante));
+  if (grupos.length < 2) return;
 
   const etiqueta = document.createElement("span");
   etiqueta.className = "etiqueta";
   etiqueta.textContent = "Clubes:";
   cont.appendChild(etiqueta);
 
-  chips.forEach(chip => {
+  grupos.forEach(grupo => {
     const pill = document.createElement("button");
     pill.type = "button";
-    pill.className = "club-pill" + (clubSeleccionado === chip.representante ? " active" : "");
-    pill.textContent = chip.representante;
-    pill.onclick = () => seleccionarClub(chip);
+    pill.className = "club-pill" + (clubSeleccionado === grupo.representante ? " active" : "");
+    pill.textContent = grupo.representante;
+    pill.onclick = () => seleccionarClub(grupo);
     cont.appendChild(pill);
   });
 }
 
 async function seleccionarClub(grupo) {
-  clubSeleccionado = clubSeleccionado === grupo.representante ? null : grupo.representante;
+  const yaSeleccionado = clubSeleccionado === grupo.representante;
+  clubSeleccionado = yaSeleccionado ? null : grupo.representante;
+  equiposClubSeleccionado = null;
   renderClubesDetectados();
 
   if (!clubSeleccionado) {
-    renderResultadosEquipos(ultimaBusquedaEquipos, ultimaBusquedaEquipos.length === 50);
+    renderizarResultadosFinales();
     return;
   }
 
@@ -399,15 +432,19 @@ async function seleccionarClub(grupo) {
 
   if (error) { aviso.style.display = "block"; aviso.textContent = "Error al buscar: " + error.message; return; }
 
-  // El filtro por nombre ya trae solo este club, pero si el chip es de una
-  // modalidad concreta (porque el nombre se repite en varias), hay que
-  // quedarse solo con los equipos de esa modalidad.
-  const filtrados = grupo.modalidad
-    ? (equipos || []).filter(e => modalidadDeEquipo(e) === grupo.modalidad)
-    : (equipos || []);
-
   aviso.style.display = "none";
-  renderResultadosEquipos(filtrados, false);
+  equiposClubSeleccionado = equipos || [];
+  renderizarResultadosFinales();
+}
+
+// Aplica el filtro de modalidad (si hay uno elegido) sobre la base que
+// corresponda: los equipos del club elegido si hay uno, o si no, el
+// resultado bruto de la búsqueda de texto.
+function renderizarResultadosFinales() {
+  const base = clubSeleccionado ? (equiposClubSeleccionado || []) : ultimaBusquedaEquipos;
+  const filtrados = modalidadSeleccionada ? base.filter(e => modalidadDeEquipo(e) === modalidadSeleccionada) : base;
+  const huboLimite = !clubSeleccionado && !modalidadSeleccionada && ultimaBusquedaEquipos.length === 50;
+  renderResultadosEquipos(filtrados, huboLimite);
 }
 
 function tieneInforme(p) {
@@ -485,6 +522,7 @@ async function abrirEquipo(equipoId) {
   document.getElementById("aviso_busqueda").style.display = "none";
   document.getElementById("buscador_equipos").style.display = "none";
   document.getElementById("clubes_detectados").style.display = "none";
+  document.getElementById("modalidades_detectados").style.display = "none";
   document.getElementById("btn_volver_busqueda").style.display = "inline-block";
   document.getElementById("vista_detalle").style.display = "block";
   document.getElementById("d_nombre").textContent = equipo.nombre;
@@ -538,6 +576,7 @@ function volverABusqueda() {
   document.getElementById("vista_detalle").style.display = "none";
   document.getElementById("buscador_equipos").style.display = "block";
   document.getElementById("clubes_detectados").style.display = "flex";
+  document.getElementById("modalidades_detectados").style.display = "flex";
   document.getElementById("btn_volver_busqueda").style.display = "none";
   document.getElementById("resultados_equipos").style.display = "grid";
   ejecutarBusquedaEquipos();
