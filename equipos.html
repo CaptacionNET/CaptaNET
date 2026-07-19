@@ -252,10 +252,12 @@ function buscarEquipos() {
   buscarTimeout = setTimeout(ejecutarBusquedaEquipos, 300);
 }
 
-async function ejecutarBusquedaEquipos() {
-  clubSeleccionado = null;
-  modalidadSeleccionada = null;
-  equiposClubSeleccionado = null;
+async function ejecutarBusquedaEquipos(preservarFiltros) {
+  if (!preservarFiltros) {
+    clubSeleccionado = null;
+    modalidadSeleccionada = null;
+    equiposClubSeleccionado = null;
+  }
   const q = document.getElementById("buscador_equipos").value.trim();
   const aviso = document.getElementById("aviso_busqueda");
   const cont = document.getElementById("resultados_equipos");
@@ -295,6 +297,16 @@ async function ejecutarBusquedaEquipos() {
   ultimaBusquedaTexto = q;
   ultimaBusquedaEquipos = equipos;
   renderModalidadesDetectadas();
+
+  // Al volver de la ficha de un equipo con un club ya elegido, se vuelve a
+  // buscar ese mismo club (en vez de perder la selección y mostrar todo
+  // mezclado otra vez).
+  if (clubSeleccionado) {
+    const grupo = calcularGruposClub().find(g => g.representante === clubSeleccionado);
+    if (grupo) { await seleccionarClub(grupo, true); return; }
+    clubSeleccionado = null;
+  }
+
   renderClubesDetectados();
   renderizarResultadosFinales();
 }
@@ -385,13 +397,17 @@ function seleccionarModalidad(m) {
 // de club distintos entre los resultados. Al pulsar uno se filtra a sus
 // equipos exactos (todas sus categorías), pidiéndolos de nuevo a la base de
 // datos para no depender del límite de 50 de la búsqueda de texto libre.
+function calcularGruposClub() {
+  const basesUnicas = [...new Set(ultimaBusquedaEquipos.map(e => nombreBaseClub(e.nombre)))];
+  return agruparClubesParecidos(basesUnicas).sort((a, b) => a.representante.localeCompare(b.representante));
+}
+
 function renderClubesDetectados() {
   const cont = document.getElementById("clubes_detectados");
   cont.innerHTML = "";
   if (normalizarTexto(ultimaBusquedaTexto).length < 5) return;
 
-  const basesUnicas = [...new Set(ultimaBusquedaEquipos.map(e => nombreBaseClub(e.nombre)))];
-  const grupos = agruparClubesParecidos(basesUnicas).sort((a, b) => a.representante.localeCompare(b.representante));
+  const grupos = calcularGruposClub();
   if (grupos.length < 2) return;
 
   const etiqueta = document.createElement("span");
@@ -409,9 +425,9 @@ function renderClubesDetectados() {
   });
 }
 
-async function seleccionarClub(grupo) {
+async function seleccionarClub(grupo, forzar) {
   const yaSeleccionado = clubSeleccionado === grupo.representante;
-  clubSeleccionado = yaSeleccionado ? null : grupo.representante;
+  clubSeleccionado = (yaSeleccionado && !forzar) ? null : grupo.representante;
   equiposClubSeleccionado = null;
   renderClubesDetectados();
 
@@ -579,7 +595,7 @@ function volverABusqueda() {
   document.getElementById("modalidades_detectados").style.display = "flex";
   document.getElementById("btn_volver_busqueda").style.display = "none";
   document.getElementById("resultados_equipos").style.display = "grid";
-  ejecutarBusquedaEquipos();
+  ejecutarBusquedaEquipos(true);
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
