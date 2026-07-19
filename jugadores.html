@@ -391,23 +391,41 @@ async function abrirJugador(jugadorId) {
 
   document.getElementById("btn_eliminar_informe").style.display = tieneDatosPrivado(priv || {}) ? "inline-block" : "none";
 
-  // Estadísticas de la última temporada importada (viene de FFCV)
+  // Estadísticas de la temporada (viene de FFCV). La FFCV solo deja
+  // consultar las de la temporada activa del jugador, así que en cuanto
+  // empieza una temporada nueva las de la anterior se guardan aparte
+  // (columnas "_anterior") la primera vez que se detecta el cambio,
+  // porque después ya no se pueden volver a pedir.
   const contStats = document.getElementById("f_stats");
+  const tarjetaStat = (valor, label) => `<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 4px;text-align:center;"><div style="font-size:18px;font-weight:700;">${valor ?? "-"}</div><div style="font-size:11px;color:var(--muted);">${label}</div></div>`;
+  const gridStats = (d) =>
+    "<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:8px;'>" +
+    tarjetaStat(d.partidos_jugados, "Jugados") +
+    tarjetaStat(d.partidos_titular, "Titular") +
+    tarjetaStat(d.partidos_suplente, "Suplente") +
+    tarjetaStat(d.goles, "Goles") +
+    tarjetaStat(d.minutos_jugados, "Minutos") +
+    tarjetaStat(d.tarjetas_amarillas, "Amarillas") +
+    tarjetaStat(d.tarjetas_rojas, "Rojas") +
+    "</div>";
+
   const hayStats = j.partidos_jugados != null || j.goles != null;
-  if (hayStats) {
-    const tarjeta = (valor, label) => `<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 4px;text-align:center;"><div style="font-size:18px;font-weight:700;">${valor ?? "-"}</div><div style="font-size:11px;color:var(--muted);">${label}</div></div>`;
+  const hayStatsAnterior = j.partidos_jugados_anterior != null || j.goles_anterior != null;
+  if (hayStats || hayStatsAnterior) {
     contStats.style.display = "block";
     contStats.innerHTML =
-      "<h3 style='font-size:14px;margin:18px 0 8px;'>Estadísticas (última temporada)</h3>" +
-      "<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:8px;'>" +
-      tarjeta(j.partidos_jugados, "Jugados") +
-      tarjeta(j.partidos_titular, "Titular") +
-      tarjeta(j.partidos_suplente, "Suplente") +
-      tarjeta(j.goles, "Goles") +
-      tarjeta(j.minutos_jugados, "Minutos") +
-      tarjeta(j.tarjetas_amarillas, "Amarillas") +
-      tarjeta(j.tarjetas_rojas, "Rojas") +
-      "</div>";
+      (hayStats
+        ? `<h3 style='font-size:14px;margin:18px 0 8px;'>Estadísticas${j.temporada_stats_nombre ? " " + j.temporada_stats_nombre : ""}</h3>` + gridStats(j)
+        : "") +
+      (hayStatsAnterior
+        ? `<h3 style='font-size:14px;margin:18px 0 8px;'>Temporada anterior${j.temporada_anterior_nombre ? " " + j.temporada_anterior_nombre : ""}</h3>` +
+          gridStats({
+            partidos_jugados: j.partidos_jugados_anterior, partidos_titular: j.partidos_titular_anterior,
+            partidos_suplente: j.partidos_suplente_anterior, goles: j.goles_anterior,
+            minutos_jugados: j.minutos_jugados_anterior, tarjetas_amarillas: j.tarjetas_amarillas_anterior,
+            tarjetas_rojas: j.tarjetas_rojas_anterior,
+          })
+        : "");
   } else {
     contStats.style.display = "none";
     contStats.innerHTML = "";

@@ -456,7 +456,8 @@ function urlEscudo(ruta: string | null | undefined): string | null {
 // ------------------------------------------------------------
 async function procesarEquipo(admin: any, codEquipo: string): Promise<{ nuevos: number; actualizados: number }> {
   const equipo = await db("leer equipo",
-    admin.from("equipos").select("id, temporada_id, ffcv_cod_temporada").eq("cod_ffcv", codEquipo).single());
+    admin.from("equipos").select("id, temporada_id, ffcv_cod_temporada, temporadas(nombre)").eq("cod_ffcv", codEquipo).single());
+  const nombreTemporadaActual = (equipo as any).temporadas?.nombre || null;
 
   const pl = await ffcvGet(`equipos/plantilla_home.php?cod_equipo=${codEquipo}`);
   const jugadores = pl.jugadores_equipo || [];
@@ -476,7 +477,14 @@ async function procesarEquipo(admin: any, codEquipo: string): Promise<{ nuevos: 
       }));
     } catch { /* si falla la ficha, seguimos con lo básico de la plantilla */ }
 
-    // Estadísticas de la temporada (partidos, goles, tarjetas, minutos)
+    // Estadísticas de la temporada (partidos, goles, tarjetas, minutos). La FFCV
+    // no deja consultar las de temporadas pasadas (jugador_api.php siempre
+    // responde con las de la temporada activa, ignorando cod_temporada si no
+    // coincide) — comprobado a mano el 2026-07-19. Por eso, si detectamos que
+    // cambia la temporada respecto a lo que ya teníamos guardado, guardamos
+    // antes "una foto" de esos números en los campos "_anterior": es la única
+    // oportunidad de conservarlos, porque en cuanto pase la temporada dejan
+    // de poder consultarse.
     let stats: Record<string, unknown> = {};
     if (equipo.ffcv_cod_temporada) {
       try {
@@ -486,10 +494,32 @@ async function procesarEquipo(admin: any, codEquipo: string): Promise<{ nuevos: 
     }
 
     const existente = await db("buscar jugador existente",
-      admin.from("jugadores").select("id, foto_url").eq("cod_ffcv", codLic).maybeSingle());
+      admin.from("jugadores").select(
+        "id, foto_url, temporada_stats_cod, temporada_stats_nombre, goles, partidos_convocados, " +
+        "partidos_titular, partidos_suplente, partidos_jugados, minutos_jugados, tarjetas_amarillas, " +
+        "tarjetas_rojas, tarjetas_doble_amarilla, tarjetas_verde"
+      ).eq("cod_ffcv", codLic).maybeSingle());
     let fotoUrl = existente?.foto_url || null;
     if (!fotoUrl && jug.foto) {
       fotoUrl = await subirFotoR2(jug.foto, `ffcv/${codLic}.jpg`);
+    }
+
+    let snapshotAnterior: Record<string, unknown> = {};
+    if (existente?.temporada_stats_cod && equipo.ffcv_cod_temporada && existente.temporada_stats_cod !== equipo.ffcv_cod_temporada) {
+      snapshotAnterior = {
+        temporada_anterior_cod: existente.temporada_stats_cod,
+        temporada_anterior_nombre: existente.temporada_stats_nombre,
+        goles_anterior: existente.goles,
+        partidos_convocados_anterior: existente.partidos_convocados,
+        partidos_titular_anterior: existente.partidos_titular,
+        partidos_suplente_anterior: existente.partidos_suplente,
+        partidos_jugados_anterior: existente.partidos_jugados,
+        minutos_jugados_anterior: existente.minutos_jugados,
+        tarjetas_amarillas_anterior: existente.tarjetas_amarillas,
+        tarjetas_rojas_anterior: existente.tarjetas_rojas,
+        tarjetas_doble_amarilla_anterior: existente.tarjetas_doble_amarilla,
+        tarjetas_verde_anterior: existente.tarjetas_verde,
+      };
     }
 
     const registro = {
@@ -503,6 +533,9 @@ async function procesarEquipo(admin: any, codEquipo: string): Promise<{ nuevos: 
       foto_url: fotoUrl,
       historial,
       ffcv_actualizado: new Date().toISOString(),
+      temporada_stats_cod: equipo.ffcv_cod_temporada || null,
+      temporada_stats_nombre: nombreTemporadaActual,
+      ...snapshotAnterior,
       ...stats,
     };
     await db("upsert jugador", admin.from("jugadores").upsert(registro, { onConflict: "cod_ffcv" }));
