@@ -291,6 +291,12 @@ function coincideNombre(nombre, consulta) {
   return palabras.every(p => nombreNorm.includes(p));
 }
 
+// El código 23505 de Postgres es "unique_violation": aquí salta cuando
+// el jugador ya está en la plantilla (restricción plantilla_jugadores_unicos).
+function esErrorDuplicado(error) {
+  return error?.code === "23505" || /plantilla_jugadores_unicos/.test(error?.message || "");
+}
+
 // El nombre lo escribe libremente quien rellena el formulario público, así
 // que hay que escaparlo antes de meterlo en innerHTML (si no, alguien
 // podría inyectar HTML/JS que se ejecutaría en el navegador del club).
@@ -397,6 +403,7 @@ function crearTabla() {
         { title: "Año", field: "anio_nacimiento", sorter: "number", width: 80, hozAlign: "center" },
         { title: "Posición", field: "posicion", width: 130 },
         { title: "Club actual", field: "club_actual", width: 160 },
+        { title: "Equipo propuesto", field: "equipo_propuesto", width: 160 },
         { title: "Teléfono", field: "telefono", width: 120 },
         { title: "Email", field: "email", width: 190 },
         {
@@ -422,8 +429,16 @@ function crearTabla() {
           }
         },
         {
-          title: "FFCV", field: "jugador_ffcv_id", width: 70, hozAlign: "center",
-          formatter: cell => cell.getValue() ? "✅" : ""
+          title: "FFCV", field: "jugador_ffcv_id", width: 170, hozAlign: "left",
+          formatter: cell => {
+            if (cell.getValue()) return "✅ Vinculado";
+            const sugerido = cell.getRow().getData().sugerencia_nombre;
+            return sugerido ? `<span class="nombre-link">🔍 ${escapeHtml(sugerido)}</span>` : "";
+          },
+          cellClick: (e, cell) => {
+            if (cell.getValue() || !cell.getRow().getData().sugerencia_nombre) return;
+            abrirInscripcion(cell.getRow().getData().id);
+          }
         },
         { title: "Liga (FFCV)", field: "liga_ffcv", width: 160 },
         { title: "Equipo (FFCV)", field: "equipo_ffcv", width: 160 },
@@ -474,6 +489,16 @@ async function cargarInscritos() {
         f.goles_ffcv = j.goles ?? null;
       });
     }
+  }
+
+  const sugeridoIds = [...new Set(filas.filter(f => !f.jugador_ffcv_id).map(f => f.jugador_ffcv_sugerido_id).filter(Boolean))];
+  if (sugeridoIds.length) {
+    const { data: sugeridos } = await client.from("jugadores").select("id, nombre, equipos(nombre)").in("id", sugeridoIds);
+    filas.forEach(f => {
+      if (f.jugador_ffcv_id || !f.jugador_ffcv_sugerido_id) return;
+      const j = (sugeridos || []).find(x => x.id === f.jugador_ffcv_sugerido_id);
+      if (j) f.sugerencia_nombre = `${j.nombre} · ${j.equipos?.nombre || "Sin equipo"}`;
+    });
   }
 
   tabla.setData(filas);
@@ -564,11 +589,14 @@ async function renderFfcvBox() {
   if (!inscripcionActual) return;
 
   if (inscripcionActual.jugador_ffcv_id) {
-    const { data: j } = await client.from("jugadores").select("id, nombre, equipos(nombre)")
+    const { data: j } = await client.from("jugadores").select("id, nombre, foto_url, equipos(nombre)")
       .eq("id", inscripcionActual.jugador_ffcv_id).single();
     box.innerHTML = j
       ? `<div class="ffcv-resultado">
-           <span>${escapeHtml(j.nombre)} · ${escapeHtml(j.equipos?.nombre || "Sin equipo")}</span>
+           <span style="display:flex;align-items:center;gap:10px;">
+             ${j.foto_url ? `<img src="${escapeHtml(j.foto_url)}" style="width:44px;height:44px;border-radius:6px;object-fit:cover;border:1px solid var(--border);">` : ""}
+             <span>${escapeHtml(j.nombre)} · ${escapeHtml(j.equipos?.nombre || "Sin equipo")}</span>
+           </span>
            <span style="display:flex;gap:6px;">
              <button class="secondary" style="font-size:12px;padding:5px 10px;" onclick="window.open('jugadores.html?jugador_id=${j.id}','_blank')">Ver ficha</button>
              <button class="danger" style="font-size:12px;padding:5px 10px;" onclick="quitarVinculoFfcv()">Quitar</button>
@@ -576,6 +604,27 @@ async function renderFfcvBox() {
          </div>`
       : "<p style='color:var(--muted);font-size:13px;margin:0;'>Jugador vinculado no encontrado.</p>";
     return;
+  }
+
+  if (inscripcionActual.jugador_ffcv_sugerido_id) {
+    const { data: s } = await client.from("jugadores").select("id, nombre, foto_url, equipos(nombre)")
+      .eq("id", inscripcionActual.jugador_ffcv_sugerido_id).single();
+    if (s) {
+      box.innerHTML = `
+        <p style="margin:0 0 8px;font-size:13px;color:var(--muted);">Posible coincidencia encontrada automáticamente:</p>
+        <div class="ffcv-resultado">
+          <span style="display:flex;align-items:center;gap:10px;">
+            ${s.foto_url ? `<img src="${escapeHtml(s.foto_url)}" style="width:44px;height:44px;border-radius:6px;object-fit:cover;border:1px solid var(--border);">` : ""}
+            <span>${escapeHtml(s.nombre)} · ${escapeHtml(s.equipos?.nombre || "Sin equipo")}</span>
+          </span>
+          <span style="display:flex;gap:6px;">
+            <button style="font-size:12px;padding:5px 10px;" onclick="vincularFfcv('${s.id}')">Sí, es él</button>
+            <button class="secondary" style="font-size:12px;padding:5px 10px;" onclick="buscarCoincidenciasFfcv()">No, buscar otro</button>
+          </span>
+        </div>
+        <div id="ffcv_resultados"></div>`;
+      return;
+    }
   }
 
   box.innerHTML = `<button class="secondary" style="font-size:13px;" onclick="buscarCoincidenciasFfcv()">Buscar coincidencias en FFCV</button>
@@ -771,7 +820,10 @@ async function enviarAPlantilla() {
 
   const { error } = await client.from("plantilla_jugadores").insert(payload);
 
-  if (error) { status.textContent = "Error: " + error.message; return; }
+  if (error) {
+    status.textContent = esErrorDuplicado(error) ? "El jugador ya está añadido a la plantilla." : "Error: " + error.message;
+    return;
+  }
 
   status.textContent = "¡Añadido a la plantilla!";
   setTimeout(cerrarModalPlantillas, 1200);

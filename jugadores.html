@@ -100,9 +100,14 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 
     <div id="ficha_contenido" style="display:none;">
       <div class="ficha-cab">
-        <div class="foto-wrap" id="foto_wrap">
-          <div class="foto-placeholder" id="foto_placeholder">Sin foto</div>
-          <img id="foto_img" style="display:none;">
+        <div>
+          <div class="foto-wrap" id="foto_wrap">
+            <div class="foto-placeholder" id="foto_placeholder">Sin foto</div>
+            <img id="foto_img" style="display:none;">
+          </div>
+          <label for="f_foto_input" style="display:block;margin-top:6px;font-size:11px;color:var(--primary);cursor:pointer;text-decoration:underline;text-align:center;">📷 Subir foto</label>
+          <input id="f_foto_input" type="file" accept="image/*" style="display:none;" onchange="subirFotoInforme(event)">
+          <p id="foto_status" style="font-size:11px;color:var(--muted);margin:2px 0 0;text-align:center;"></p>
         </div>
         <div class="ficha-info">
           <h2 id="f_nombre"></h2>
@@ -150,6 +155,10 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
         <div>
           <label>Actitud (1-10)</label>
           <input id="f_actitud" type="number" min="1" max="10" oninput="guardarInformeDebounced()">
+        </div>
+        <div class="campo-full">
+          <label>Link VEO</label>
+          <input id="f_link_veo" type="url" placeholder="https://app.veo.co/matches/..." oninput="guardarInformeDebounced()">
         </div>
         <div class="campo-full">
           <label>Comentario</label>
@@ -200,6 +209,12 @@ function coincideNombre(nombre, consulta) {
   const nombreNorm = normalizarTexto(nombre);
   const palabras = normalizarTexto(consulta).trim().split(/\s+/).filter(Boolean);
   return palabras.every(p => nombreNorm.includes(p));
+}
+
+// El código 23505 de Postgres es "unique_violation": aquí salta cuando
+// el jugador ya está en la plantilla (restricción plantilla_jugadores_unicos).
+function esErrorDuplicado(error) {
+  return error?.code === "23505" || /plantilla_jugadores_unicos/.test(error?.message || "");
 }
 
 let esAdmin = false;
@@ -257,7 +272,8 @@ function cambiarPanel(nombre) {
 
 function tieneDatosPrivado(p) {
   return !!(p.posicion || p.contacto || p.contactado ||
-    p.tecnica || p.tactica || p.fisico || p.actitud || (p.comentario && String(p.comentario).trim()));
+    p.tecnica || p.tactica || p.fisico || p.actitud || (p.comentario && String(p.comentario).trim()) ||
+    p.foto_url || p.link_veo);
 }
 
 async function cargarInformes() {
@@ -366,6 +382,8 @@ async function abrirJugador(jugadorId) {
   document.getElementById("f_fisico").value = priv?.fisico || "";
   document.getElementById("f_actitud").value = priv?.actitud ?? "";
   document.getElementById("f_comentario").value = priv?.comentario || "";
+  document.getElementById("f_link_veo").value = priv?.link_veo || "";
+  document.getElementById("foto_status").textContent = "";
 
   // Foto: la del club si la tiene guardada de antes; si no, la de FFCV
   actualizarFotoUI(priv?.foto_url || j.foto_url || null);
@@ -434,7 +452,8 @@ async function guardarInforme() {
     tactica: document.getElementById("f_tactica").value || null,
     fisico: document.getElementById("f_fisico").value || null,
     actitud: document.getElementById("f_actitud").value || null,
-    comentario: document.getElementById("f_comentario").value || null
+    comentario: document.getElementById("f_comentario").value || null,
+    link_veo: document.getElementById("f_link_veo").value || null
   };
 
   if (jugadorActual.privado?.foto_url) payload.foto_url = jugadorActual.privado.foto_url;
@@ -502,7 +521,10 @@ async function enviarAPlantilla() {
   const { error } = await client.from("plantilla_jugadores")
     .insert({ plantilla_id: plantillaId, jugador_id: jugadorActual.id, pos_x: 50, pos_y: 50 });
 
-  if (error) { status.textContent = "Error: " + error.message; return; }
+  if (error) {
+    status.textContent = esErrorDuplicado(error) ? "El jugador ya está añadido a la plantilla." : "Error: " + error.message;
+    return;
+  }
 
   status.textContent = "¡Añadido a la plantilla!";
   setTimeout(cerrarModalPlantillas, 1200);
@@ -527,6 +549,7 @@ async function eliminarInforme() {
   document.getElementById("f_fisico").value = "";
   document.getElementById("f_actitud").value = "";
   document.getElementById("f_comentario").value = "";
+  document.getElementById("f_link_veo").value = "";
   document.getElementById("btn_eliminar_informe").style.display = "none";
   actualizarFotoUI(jugadorActual.foto_url || null);
 
@@ -545,6 +568,67 @@ function actualizarFotoUI(url) {
   } else {
     fotoImg.style.display = "none";
     fotoPlaceholder.style.display = "flex";
+  }
+}
+
+// Se reduce en el propio navegador antes de subirla (máx. 800px de lado,
+// calidad 0.8): así la subida es rápida incluso con mala cobertura en un
+// campo de fútbol, y ocupa poco en el almacenamiento.
+function redimensionarImagen(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 800;
+      const escala = Math.min(1, max / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * escala);
+      canvas.height = Math.round(img.height * escala);
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", 0.8));
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+async function subirFotoInforme(event) {
+  const file = event.target.files[0];
+  event.target.value = "";
+  if (!file || !jugadorActual) return;
+
+  const status = document.getElementById("foto_status");
+  status.textContent = "Subiendo...";
+
+  try {
+    const dataUri = await redimensionarImagen(file);
+
+    const { data, error } = await client.functions.invoke("subir-foto-informe", {
+      body: { jugador_id: jugadorActual.id, data_uri: dataUri }
+    });
+
+    if (error || !data?.url) {
+      status.textContent = "Error: " + (error ? await mensajeError(error) : "no se pudo subir la foto.");
+      return;
+    }
+
+    const payload = {
+      jugador_id: jugadorActual.id,
+      club_id: miClubId,
+      temporada_id: jugadorActual.temporada_id,
+      foto_url: data.url
+    };
+    const { data: fila, error: errGuardar } = await client.from("jugadores_club")
+      .upsert(payload, { onConflict: "jugador_id,club_id,temporada_id" }).select().single();
+
+    if (errGuardar) { status.textContent = "Error guardando: " + errGuardar.message; return; }
+
+    jugadorActual.privado = fila;
+    actualizarFotoUI(data.url);
+    document.getElementById("btn_eliminar_informe").style.display = "inline-block";
+    status.textContent = "Foto actualizada.";
+    cargarInformes();
+  } catch (e) {
+    status.textContent = "Error al procesar la imagen.";
   }
 }
 

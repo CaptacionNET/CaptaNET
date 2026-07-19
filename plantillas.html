@@ -409,6 +409,8 @@ async function cargarPlantillas() {
     actualizarRangoLabel();
     cargarLeyendaYNotas();
     cargarTablero();
+    document.getElementById("buscador").value = "";
+    ejecutarBusqueda();
   } else {
     plantillaActual = null;
     plantillaActualId = null;
@@ -426,6 +428,8 @@ function onPlantillaChange() {
   actualizarRangoLabel();
   cargarLeyendaYNotas();
   cargarTablero();
+  document.getElementById("buscador").value = "";
+  ejecutarBusqueda();
 }
 
 let modoModalPlantilla = "crear";
@@ -1065,6 +1069,12 @@ function siguientePosicion() {
   return { pos_x: 30 + (n % 3) * 20, pos_y: 15 + Math.floor(n / 3) * 18 };
 }
 
+// El código 23505 de Postgres es "unique_violation": aquí salta cuando
+// el jugador ya está en la plantilla (restricción plantilla_jugadores_unicos).
+function esErrorDuplicado(error) {
+  return error?.code === "23505" || /plantilla_jugadores_unicos/.test(error?.message || "");
+}
+
 async function anadirExistente(jugadorId) {
   if (!plantillaActualId) { alert("Crea o selecciona una plantilla primero."); return; }
   const { pos_x, pos_y } = siguientePosicion();
@@ -1072,7 +1082,10 @@ async function anadirExistente(jugadorId) {
   const { error } = await client.from("plantilla_jugadores").insert({
     plantilla_id: plantillaActualId, jugador_id: jugadorId, pos_x, pos_y
   });
-  if (error) { alert("Error añadiendo: " + error.message); return; }
+  if (error) {
+    alert(esErrorDuplicado(error) ? "El jugador ya está añadido a la plantilla." : "Error añadiendo: " + error.message);
+    return;
+  }
   cargarTablero();
 }
 
@@ -1090,7 +1103,10 @@ async function anadirManual() {
     plantilla_id: plantillaActualId, nombre_manual: nombre, club_manual: club || null,
     posicion_manual: posicion || null, anio_manual: anio, pos_x, pos_y
   });
-  if (error) { alert("Error añadiendo: " + error.message); return; }
+  if (error) {
+    alert(esErrorDuplicado(error) ? "El jugador ya está añadido a la plantilla." : "Error añadiendo: " + error.message);
+    return;
+  }
 
   document.getElementById("manual_nombre").value = "";
   document.getElementById("manual_club").value = "";

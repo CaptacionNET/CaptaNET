@@ -322,30 +322,58 @@ function renderResultadosEquipos(equipos, huboLimite) {
   }
 }
 
+// La modalidad (Masculí F11, Futsal, Valenta...) vive en "categorias", el
+// nivel más alto de la jerarquía FFCV en CaptaNET.
+function modalidadDeEquipo(e) {
+  return e.grupos?.ligas?.categorias?.nombre || null;
+}
+
 // A la derecha del buscador, con 5 caracteres o más, se muestran los nombres
 // de club distintos entre los resultados. Al pulsar uno se filtra a sus
 // equipos exactos (todas sus categorías), pidiéndolos de nuevo a la base de
 // datos para no depender del límite de 50 de la búsqueda de texto libre.
+//
+// Si el mismo nombre de club aparece en más de una modalidad (p.ej. un
+// "C.F. Mislata" en Masculí F11 y otro en Futsal — hoy no pasa porque solo
+// importamos F11/F8, pero el panel de Admin ya permite traer otras
+// modalidades), se separan en chips distintos por modalidad: si no, un
+// solo clic mezclaría equipos de deportes distintos que solo comparten
+// nombre.
 function renderClubesDetectados() {
   const cont = document.getElementById("clubes_detectados");
   cont.innerHTML = "";
   if (normalizarTexto(ultimaBusquedaTexto).length < 5) return;
 
   const basesUnicas = [...new Set(ultimaBusquedaEquipos.map(e => nombreBaseClub(e.nombre)))];
-  const grupos = agruparClubesParecidos(basesUnicas).sort((a, b) => a.representante.localeCompare(b.representante));
-  if (grupos.length < 2) return;
+  const gruposBase = agruparClubesParecidos(basesUnicas);
+
+  const chips = [];
+  gruposBase.forEach(grupoBase => {
+    const equiposDelGrupo = ultimaBusquedaEquipos.filter(e => grupoBase.variantes.includes(nombreBaseClub(e.nombre)));
+    const modalidades = [...new Set(equiposDelGrupo.map(modalidadDeEquipo))];
+    if (modalidades.length <= 1) {
+      chips.push({ representante: grupoBase.representante, variantes: grupoBase.variantes, modalidad: modalidades[0] || null });
+    } else {
+      modalidades.sort().forEach(m => {
+        chips.push({ representante: `${grupoBase.representante} (${m || "Sin modalidad"})`, variantes: grupoBase.variantes, modalidad: m });
+      });
+    }
+  });
+
+  chips.sort((a, b) => a.representante.localeCompare(b.representante));
+  if (chips.length < 2) return;
 
   const etiqueta = document.createElement("span");
   etiqueta.className = "etiqueta";
   etiqueta.textContent = "Clubes:";
   cont.appendChild(etiqueta);
 
-  grupos.forEach(grupo => {
+  chips.forEach(chip => {
     const pill = document.createElement("button");
     pill.type = "button";
-    pill.className = "club-pill" + (clubSeleccionado === grupo.representante ? " active" : "");
-    pill.textContent = grupo.representante;
-    pill.onclick = () => seleccionarClub(grupo);
+    pill.className = "club-pill" + (clubSeleccionado === chip.representante ? " active" : "");
+    pill.textContent = chip.representante;
+    pill.onclick = () => seleccionarClub(chip);
     cont.appendChild(pill);
   });
 }
@@ -371,8 +399,15 @@ async function seleccionarClub(grupo) {
 
   if (error) { aviso.style.display = "block"; aviso.textContent = "Error al buscar: " + error.message; return; }
 
+  // El filtro por nombre ya trae solo este club, pero si el chip es de una
+  // modalidad concreta (porque el nombre se repite en varias), hay que
+  // quedarse solo con los equipos de esa modalidad.
+  const filtrados = grupo.modalidad
+    ? (equipos || []).filter(e => modalidadDeEquipo(e) === grupo.modalidad)
+    : (equipos || []);
+
   aviso.style.display = "none";
-  renderResultadosEquipos(equipos || [], false);
+  renderResultadosEquipos(filtrados, false);
 }
 
 function tieneInforme(p) {
