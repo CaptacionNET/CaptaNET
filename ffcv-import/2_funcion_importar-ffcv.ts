@@ -473,6 +473,10 @@ async function procesarEquipo(admin: any, codEquipo: string): Promise<{ nuevos: 
       const h = await ffcvGet(`jugadores/historial_deportivo.php?cod_licencia=${codLic}`);
       fechaNac = parseFecha(h.fecha_nacimiento);
       historial = (h.datos_historico || []).map((x: any) => ({
+        // cod_temporada permite casar cada fila del historial con las
+        // estadísticas guardadas (temporada_stats_cod / temporada_anterior_cod),
+        // para poder desplegarlas dentro de su fila en vez de aparte.
+        cod_temporada: limpiar(x.cod_temporada),
         temporada: limpiar(x.temporada), equipo: limpiar(x.equipo), categoria: limpiar(x.categoria),
       }));
     } catch { /* si falla la ficha, seguimos con lo básico de la plantilla */ }
