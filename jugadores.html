@@ -427,7 +427,7 @@ async function abrirJugador(jugadorId) {
 
       const idFila = `hist_stats_${i}`;
       const flecha = stats
-        ? `<button type="button" onclick="toggleHistorialStats('${idFila}')" title="Ver estadísticas" style="background:none;border:none;cursor:pointer;color:var(--primary);font-size:13px;padding:2px 4px;">▾</button>`
+        ? `<button type="button" onclick="toggleHistorialStats('${idFila}')" title="Ver estadísticas" style="background:#eff6ff;border:1px solid var(--primary);border-radius:6px;cursor:pointer;color:var(--primary);font-size:16px;line-height:1;padding:6px 10px;flex-shrink:0;">▾</button>`
         : "";
       const principal = `<tr style='border-top:1px solid var(--border);'><td style='padding:5px 8px;'>${h.temporada || ""}</td><td style='padding:5px 8px;'>${h.equipo || ""}</td><td style='padding:5px 8px;'><div style='display:flex;align-items:center;justify-content:space-between;gap:8px;'><span>${h.categoria || ""}</span>${flecha}</div></td></tr>`;
       const desplegable = stats
