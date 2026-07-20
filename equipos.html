@@ -594,7 +594,7 @@ async function abrirEquipo(equipoId) {
       minutos_jugados: j.minutos_jugados,
       es_portero: !!j.es_portero,
       tiene_informe: tieneInforme(priv),
-      valoracion: priv.valoracion || null
+      valoracion: priv.valoracion_scouting || null
     };
   }).sort((a, b) => a.nombre.localeCompare(b.nombre));
 

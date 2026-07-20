@@ -530,7 +530,7 @@ async function cargarJugadores() {
       anio_nacimiento: j.fecha_nacimiento ? new Date(j.fecha_nacimiento).getFullYear() : (priv.anio_nacimiento || ""),
       goles: j.goles ?? "",
       tiene_informe: tieneInforme(priv),
-      valoracion: priv.valoracion || null
+      valoracion: priv.valoracion_scouting || null
     };
   });
 

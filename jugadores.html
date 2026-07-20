@@ -290,7 +290,7 @@ function cambiarPanel(nombre) {
 function tieneDatosPrivado(p) {
   return !!(p.posicion || p.contacto || p.contactado ||
     p.tecnica || p.tactica || p.fisico || p.actitud || (p.comentario && String(p.comentario).trim()) ||
-    p.foto_url || p.link_veo || p.valoracion);
+    p.foto_url || p.link_veo || p.valoracion_scouting);
 }
 
 const ETIQUETA_VALORACION = { descartar: "Descartar", seguir: "Seguir", interesante: "Interesante", firmar: "Firmar", firmado: "Firmado" };
@@ -313,7 +313,7 @@ async function cargarInformes() {
     const equipo = (equipos || []).find(e => e.id === j.equipo_id);
     const priv = conDatos.find(p => p.jugador_id === j.id);
     const anio = priv?.anio_nacimiento || (j.fecha_nacimiento ? new Date(j.fecha_nacimiento).getFullYear() : null);
-    return { id: j.id, nombre: j.nombre, equipo: equipo?.nombre || "", anio, valoracion: priv?.valoracion || null };
+    return { id: j.id, nombre: j.nombre, equipo: equipo?.nombre || "", anio, valoracion: priv?.valoracion_scouting || null };
   }).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   renderListaInformes(informesCache);
@@ -394,7 +394,7 @@ async function abrirJugador(jugadorId) {
      j.fecha_nacimiento ? new Date(j.fecha_nacimiento).getFullYear() : null]
       .filter(Boolean).join(" · ");
 
-  document.getElementById("f_valoracion").value = priv?.valoracion || "";
+  document.getElementById("f_valoracion").value = priv?.valoracion_scouting || "";
   document.getElementById("f_posicion").value = priv?.posicion || "";
   document.getElementById("f_contacto").value = priv?.contacto || "";
   document.getElementById("f_contactado").checked = !!priv?.contactado;
@@ -485,7 +485,7 @@ async function guardarInforme() {
     jugador_id: jugadorActual.id,
     club_id: miClubId,
     temporada_id: jugadorActual.temporada_id,
-    valoracion: document.getElementById("f_valoracion").value || null,
+    valoracion_scouting: document.getElementById("f_valoracion").value || null,
     posicion: document.getElementById("f_posicion").value || null,
     contacto: document.getElementById("f_contacto").value || null,
     contactado: document.getElementById("f_contactado").checked,
