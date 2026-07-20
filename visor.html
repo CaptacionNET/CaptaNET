@@ -101,6 +101,18 @@ input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-rad
     <input id="filtro_min_goles" type="number" min="0" placeholder="0" style="min-width:90px;" oninput="aplicarFiltrosLocalesDebounced()">
   </div>
   <div class="field">
+    <label>Valoración</label>
+    <select id="filtro_valoracion" onchange="aplicarFiltrosLocales()">
+      <option value="">Todas</option>
+      <option value="sin_valorar">Con informe, sin valorar</option>
+      <option value="descartar">Descartar</option>
+      <option value="seguir">Seguir</option>
+      <option value="interesante">Interesante</option>
+      <option value="firmar">Firmar</option>
+      <option value="firmado">Firmado</option>
+    </select>
+  </div>
+  <div class="field">
     <label>&nbsp;</label>
     <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text);">
       <input id="filtro_con_informe" type="checkbox" onchange="aplicarFiltrosLocales()" style="width:16px;min-width:16px;flex-shrink:0;">
@@ -565,6 +577,7 @@ async function aplicarFiltrosLocales() {
   const anioDesde = document.getElementById("filtro_anio_desde").value;
   const anioHasta = document.getElementById("filtro_anio_hasta").value;
   const minGoles = document.getElementById("filtro_min_goles").value;
+  const valoracion = document.getElementById("filtro_valoracion").value;
 
   let filas = basefilas;
   if (nombreFiltro) filas = filas.filter(f => coincideNombre(f.nombre, nombreFiltro));
@@ -572,6 +585,8 @@ async function aplicarFiltrosLocales() {
   if (anioDesde) filas = filas.filter(f => f.anio_nacimiento && Number(f.anio_nacimiento) >= Number(anioDesde));
   if (anioHasta) filas = filas.filter(f => f.anio_nacimiento && Number(f.anio_nacimiento) <= Number(anioHasta));
   if (minGoles) filas = filas.filter(f => Number(f.goles || 0) >= Number(minGoles));
+  if (valoracion === "sin_valorar") filas = filas.filter(f => f.tiene_informe && !f.valoracion);
+  else if (valoracion) filas = filas.filter(f => f.valoracion === valoracion);
 
   await tabla.setData(filas);
   // Sin esto, si estabas en la página 3 y el nuevo filtro solo tiene un

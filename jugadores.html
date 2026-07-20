@@ -93,6 +93,20 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 
     <div id="panel_informes">
       <input id="buscador_informes" type="text" placeholder="Buscar..." style="width:100%;margin-bottom:10px;" oninput="filtrarInformes()">
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <select id="filtro_informes_valoracion" style="flex:1;min-width:0;" onchange="filtrarInformes()">
+          <option value="">Todas las valoraciones</option>
+          <option value="sin_valorar">Sin valorar</option>
+          <option value="descartar">Descartar</option>
+          <option value="seguir">Seguir</option>
+          <option value="interesante">Interesante</option>
+          <option value="firmar">Firmar</option>
+          <option value="firmado">Firmado</option>
+        </select>
+        <select id="filtro_informes_anio" style="flex:1;min-width:0;" onchange="filtrarInformes()">
+          <option value="">Todos los años</option>
+        </select>
+      </div>
       <div id="lista_informes"></div>
     </div>
 
@@ -316,7 +330,16 @@ async function cargarInformes() {
     return { id: j.id, nombre: j.nombre, equipo: equipo?.nombre || "", anio, valoracion: priv?.valoracion_scouting || null };
   }).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-  renderListaInformes(informesCache);
+  poblarFiltroAnioInformes();
+  filtrarInformes();
+}
+
+function poblarFiltroAnioInformes() {
+  const sel = document.getElementById("filtro_informes_anio");
+  const actual = sel.value;
+  const anios = [...new Set(informesCache.map(j => j.anio).filter(Boolean))].sort((a, b) => b - a);
+  sel.innerHTML = '<option value="">Todos los años</option>' + anios.map(a => `<option value="${a}">${a}</option>`).join("");
+  if (anios.map(String).includes(actual)) sel.value = actual;
 }
 
 function renderListaInformes(lista) {
@@ -335,7 +358,16 @@ function renderListaInformes(lista) {
 
 function filtrarInformes() {
   const q = document.getElementById("buscador_informes").value.trim();
-  renderListaInformes(q ? informesCache.filter(j => coincideNombre(j.nombre, q)) : informesCache);
+  const valoracion = document.getElementById("filtro_informes_valoracion").value;
+  const anio = document.getElementById("filtro_informes_anio").value;
+
+  let lista = informesCache;
+  if (q) lista = lista.filter(j => coincideNombre(j.nombre, q));
+  if (valoracion === "sin_valorar") lista = lista.filter(j => !j.valoracion);
+  else if (valoracion) lista = lista.filter(j => j.valoracion === valoracion);
+  if (anio) lista = lista.filter(j => String(j.anio) === anio);
+
+  renderListaInformes(lista);
 }
 
 let buscarNuevoTimeout = null;

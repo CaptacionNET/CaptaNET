@@ -97,6 +97,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
   <div class="bulk-bar" id="bulk_bar">
     <span id="bulk_texto"></span>
     <button style="font-size:12px;padding:6px 10px;" onclick="abrirModalConvocatoria()">Enviar convocatoria</button>
+    <button class="secondary" style="font-size:12px;padding:6px 10px;" onclick="abrirModalAdmitido()">Informar equipo admitido</button>
   </div>
 </div>
 
@@ -280,6 +281,41 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
     <div style="display:flex;gap:10px;justify-content:flex-end;">
       <button class="secondary" onclick="cerrarModalConvocatoria()">Cancelar</button>
       <button id="btn_enviar_convocatoria" onclick="enviarConvocatoria()">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal_admitido">
+  <div class="modal-box">
+    <h3>Informar equipo admitido</h3>
+    <p id="modal_admitido_destinatarios" class="ayuda" style="margin-top:-8px;"></p>
+
+    <div class="field">
+      <label>Equipo admitido</label>
+      <input id="ma_equipo" type="text" style="width:100%;" placeholder="Ej. Benjamín G" oninput="actualizarPreviaAdmitido()">
+    </div>
+    <div class="field">
+      <label>Horarios de entrenamiento (opcional)</label>
+      <textarea id="ma_horarios" style="width:100%;min-height:60px;" placeholder="Ej. Lunes y miércoles de 18:00 a 19:30" oninput="actualizarPreviaAdmitido()"></textarea>
+    </div>
+    <div class="field">
+      <label>Link de matrícula (opcional)</label>
+      <input id="ma_link_matricula" type="url" style="width:100%;" placeholder="https://..." oninput="actualizarPreviaAdmitido()">
+    </div>
+    <div class="field">
+      <label>Asunto del email</label>
+      <input id="ma_asunto" type="text" style="width:100%;">
+    </div>
+    <div class="field">
+      <label>Así lo verá el jugador</label>
+      <div id="ma_previa" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;line-height:1.6;"></div>
+    </div>
+
+    <p id="modal_admitido_status" style="font-size:13px;color:var(--muted);min-height:18px;"></p>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="secondary" onclick="cerrarModalAdmitido()">Cancelar</button>
+      <button id="btn_enviar_admitido" onclick="enviarAdmitido()">Enviar</button>
     </div>
   </div>
 </div>
@@ -946,6 +982,80 @@ async function mensajeError(error) {
     } catch (e) {}
   }
   return error.message || "Error desconocido";
+}
+
+let nombreEjemploAdmitido = "";
+
+function abrirModalAdmitido() {
+  const seleccion = tabla.getSelectedData();
+  if (!seleccion.length) return;
+  const nombres = seleccion.map(i => i.nombre);
+  nombreEjemploAdmitido = nombres[0];
+  document.getElementById("modal_admitido_destinatarios").textContent = `Para: ${nombres.join(", ")}`;
+  document.getElementById("ma_equipo").value = seleccion.length === 1 ? (seleccion[0].equipo_propuesto || "") : "";
+  document.getElementById("ma_horarios").value = "";
+  document.getElementById("ma_link_matricula").value = "";
+  document.getElementById("ma_asunto").value = "¡Enhorabuena! Has sido admitido en el equipo";
+  document.getElementById("modal_admitido_status").textContent = "";
+  document.getElementById("modal_admitido").style.display = "flex";
+  actualizarPreviaAdmitido();
+}
+
+function cerrarModalAdmitido() {
+  document.getElementById("modal_admitido").style.display = "none";
+}
+
+// Igual que la convocatoria: enseña exactamente el email que se va a
+// mandar, con el nombre del primer jugador seleccionado como ejemplo.
+function actualizarPreviaAdmitido() {
+  const equipo = document.getElementById("ma_equipo").value.trim();
+  const horarios = document.getElementById("ma_horarios").value.trim();
+  const link = document.getElementById("ma_link_matricula").value.trim();
+
+  let html = `Hola <b>${escapeHtml(nombreEjemploAdmitido || "Jugador")}</b>,<br>¡Enhorabuena! Has sido admitido en el equipo <b>${equipo ? escapeHtml(equipo) : "<i>(sin indicar)</i>"}</b>.<br>`;
+  if (horarios) html += `🕒 Horarios de entrenamiento: ${escapeHtml(horarios).replace(/\n/g, "<br>")}<br>`;
+  html += "<button style='margin-top:6px;font-size:12px;padding:6px 10px;' disabled>Rellenar matrícula</button>";
+  if (!link) html += " <span style='color:var(--muted);font-size:11px;'>(sin enlace todavía)</span>";
+
+  document.getElementById("ma_previa").innerHTML = html;
+}
+
+async function enviarAdmitido() {
+  const btn = document.getElementById("btn_enviar_admitido");
+  const status = document.getElementById("modal_admitido_status");
+  const equipo = document.getElementById("ma_equipo").value.trim();
+  if (!equipo) { status.textContent = "Falta el equipo admitido."; return; }
+  const asunto = document.getElementById("ma_asunto").value.trim();
+  if (!asunto) { status.textContent = "Falta el asunto."; return; }
+
+  const seleccion = tabla.getSelectedData();
+  if (!seleccion.length) { status.textContent = "No hay inscritos seleccionados."; return; }
+
+  btn.disabled = true;
+  status.textContent = "Enviando...";
+
+  const { data, error } = await client.functions.invoke("pruebas-informar-admitido", {
+    body: {
+      inscripcion_ids: seleccion.map(i => i.id),
+      asunto,
+      equipo,
+      horarios: document.getElementById("ma_horarios").value.trim() || null,
+      link_matricula: document.getElementById("ma_link_matricula").value.trim() || null,
+    }
+  });
+
+  btn.disabled = false;
+
+  if (error) { status.textContent = "Error: " + (await mensajeError(error)); return; }
+
+  let resumen = `Enviados: ${data.enviados}.`;
+  if (data.sin_email?.length) resumen += ` Sin email: ${data.sin_email.length}.`;
+  if (data.fallidos?.length) resumen += ` Fallidos: ${data.fallidos.length}.`;
+  status.textContent = resumen;
+
+  tabla.deselectRow();
+  await cargarInscritos();
+  setTimeout(cerrarModalAdmitido, 1800);
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
