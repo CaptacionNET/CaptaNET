@@ -251,24 +251,28 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 
     <div class="field">
       <label>Día de la prueba</label>
-      <input id="mc_dia" type="date" style="width:100%;">
+      <input id="mc_dia" type="date" style="width:100%;" oninput="actualizarPreviaConvocatoria()">
     </div>
     <div class="field">
       <label>Hora</label>
-      <input id="mc_hora" type="time" style="width:100%;">
+      <input id="mc_hora" type="time" style="width:100%;" oninput="actualizarPreviaConvocatoria()">
     </div>
     <div class="field">
       <label>Lugar</label>
-      <input id="mc_lugar" type="text" style="width:100%;" placeholder="Campo municipal, dirección...">
+      <input id="mc_lugar" type="text" style="width:100%;" placeholder="Campo municipal, dirección..." oninput="actualizarPreviaConvocatoria()">
     </div>
     <div class="field">
       <label>Asunto del email</label>
       <input id="mc_asunto" type="text" style="width:100%;">
     </div>
     <div class="field">
-      <label>Mensaje</label>
-      <textarea id="mc_cuerpo" style="width:100%;min-height:140px;"></textarea>
-      <p class="ayuda">Puedes usar {{nombre}}, {{dia}}, {{hora}} y {{lugar}} — se rellenan solos por jugador. El email incluye automáticamente un botón para que confirme su asistencia, con el nombre de tu club como remitente.</p>
+      <label>Mensaje adicional (opcional)</label>
+      <textarea id="mc_nota" style="width:100%;min-height:70px;" placeholder="Por ejemplo: trae ropa deportiva y botas de tacos." oninput="actualizarPreviaConvocatoria()"></textarea>
+      <p class="ayuda">El día, la hora y el lugar se añaden solos al email — no hace falta escribirlos aquí. Este campo es solo por si quieres contarles algo más.</p>
+    </div>
+    <div class="field">
+      <label>Así lo verá el jugador</label>
+      <div id="mc_previa" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;line-height:1.6;"></div>
     </div>
 
     <p id="modal_status" style="font-size:13px;color:var(--muted);min-height:18px;"></p>
@@ -851,31 +855,56 @@ async function eliminarInscripcion() {
   await cargarInscritos();
 }
 
+let nombreEjemploConvocatoria = "";
+
 function abrirModalConvocatoria() {
   const seleccion = tabla.getSelectedData();
   if (!seleccion.length) return;
   const nombres = seleccion.map(i => i.nombre);
+  nombreEjemploConvocatoria = nombres[0];
   document.getElementById("modal_destinatarios").textContent = `Para: ${nombres.join(", ")}`;
   document.getElementById("mc_dia").value = "";
   document.getElementById("mc_hora").value = "";
   document.getElementById("mc_lugar").value = "";
   document.getElementById("mc_asunto").value = "Convocatoria de pruebas";
-  document.getElementById("mc_cuerpo").value =
-    "Hola {{nombre}},\n\nTe confirmamos tu prueba el día {{dia}} a las {{hora}} en {{lugar}}.\n\n¡Te esperamos!";
+  document.getElementById("mc_nota").value = "";
   document.getElementById("modal_status").textContent = "";
   document.getElementById("modal_convocatoria").style.display = "flex";
+  actualizarPreviaConvocatoria();
 }
 
 function cerrarModalConvocatoria() {
   document.getElementById("modal_convocatoria").style.display = "none";
 }
 
+// Enseña exactamente el email que se va a mandar, con el nombre del
+// primer jugador seleccionado como ejemplo — así no hace falta entender
+// ningún código ni marcador para saber qué van a recibir.
+function actualizarPreviaConvocatoria() {
+  const dia = document.getElementById("mc_dia").value;
+  const hora = document.getElementById("mc_hora").value;
+  const lugar = document.getElementById("mc_lugar").value.trim();
+  const nota = document.getElementById("mc_nota").value.trim();
+
+  const diaFmt = dia ? new Date(dia + "T00:00:00").toLocaleDateString("es-ES") : null;
+
+  let html = `Hola <b>${escapeHtml(nombreEjemploConvocatoria || "Jugador")}</b>,<br>Te confirmamos tu prueba:<br>`;
+  html += "<ul style='margin:6px 0;padding-left:18px;'>";
+  html += `<li>📅 Día: ${diaFmt ? escapeHtml(diaFmt) : "<i>(sin indicar)</i>"}</li>`;
+  html += `<li>🕒 Hora: ${hora ? escapeHtml(hora) : "<i>(sin indicar)</i>"}</li>`;
+  html += `<li>📍 Lugar: ${lugar ? escapeHtml(lugar) : "<i>(sin indicar)</i>"}</li>`;
+  html += "</ul>";
+  if (nota) html += `${escapeHtml(nota).replace(/\n/g, "<br>")}<br>`;
+  html += "<button style='margin-top:6px;font-size:12px;padding:6px 10px;' disabled>Confirmar asistencia</button>";
+
+  document.getElementById("mc_previa").innerHTML = html;
+}
+
 async function enviarConvocatoria() {
   const btn = document.getElementById("btn_enviar_convocatoria");
   const status = document.getElementById("modal_status");
   const asunto = document.getElementById("mc_asunto").value.trim();
-  const cuerpo = document.getElementById("mc_cuerpo").value.trim();
-  if (!asunto || !cuerpo) { status.textContent = "Faltan el asunto o el mensaje."; return; }
+  if (!asunto) { status.textContent = "Falta el asunto."; return; }
 
   const seleccion = tabla.getSelectedData();
   if (!seleccion.length) { status.textContent = "No hay inscritos seleccionados."; return; }
@@ -886,7 +915,8 @@ async function enviarConvocatoria() {
   const { data, error } = await client.functions.invoke("pruebas-enviar-convocatoria", {
     body: {
       inscripcion_ids: seleccion.map(i => i.id),
-      asunto, cuerpo,
+      asunto,
+      nota: document.getElementById("mc_nota").value.trim() || null,
       dia: document.getElementById("mc_dia").value || null,
       hora: document.getElementById("mc_hora").value || null,
       lugar: document.getElementById("mc_lugar").value || null,

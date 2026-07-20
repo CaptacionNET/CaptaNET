@@ -38,6 +38,12 @@ input,select{padding:8px 10px;border:1px solid var(--border);border-radius:6px;f
 .detalle-cab p{margin:0;color:var(--muted);font-size:13px;}
 .escudo{width:56px;height:56px;object-fit:contain;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px;}
 .tabla-scroll{margin:0 24px 24px;overflow-x:auto;}
+.badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;padding:2px 7px;border-radius:4px;}
+.badge-descartar{background:#fee2e2;color:#b91c1c;}
+.badge-seguir{background:#f1f5f9;color:#475569;}
+.badge-interesante{background:#fef3c7;color:#a8791f;}
+.badge-firmar{background:#dbeafe;color:#1d4ed8;}
+.badge-firmado{background:#dcfce7;color:#15803d;}
 @media (max-width:700px){
   #topbar{padding:12px 16px;}
   .barra{padding:12px;}
@@ -469,6 +475,8 @@ function tieneInforme(p) {
     p.tecnica || p.tactica || p.fisico || p.actitud || (p.comentario && String(p.comentario).trim()));
 }
 
+const ETIQUETA_VALORACION = { descartar: "Descartar", seguir: "Seguir", interesante: "Interesante", firmar: "Firmar", firmado: "Firmado" };
+
 async function crearTablaRoster() {
   return new Promise(resolve => {
     tablaRoster = new Tabulator("#tabla_roster", {
@@ -499,7 +507,15 @@ async function crearTablaRoster() {
         { title: "Verde", field: "tarjetas_verde", sorter: "number", width: 85, hozAlign: "center" },
         { title: "Minutos", field: "minutos_jugados", sorter: "number", width: 95, hozAlign: "center" },
         { title: "Portero", field: "es_portero", formatter: "tickCross", width: 90, hozAlign: "center" },
-        { title: "Con informe", field: "tiene_informe", formatter: "tickCross", width: 130, hozAlign: "center" }
+        {
+          title: "Con informe", field: "tiene_informe", width: 160, hozAlign: "center",
+          formatter: cell => {
+            const fila = cell.getRow().getData();
+            if (!fila.tiene_informe) return "";
+            if (fila.valoracion) return `<span class="badge badge-${fila.valoracion}">${ETIQUETA_VALORACION[fila.valoracion] || fila.valoracion}</span>`;
+            return `✅ <span style="color:var(--muted);font-size:11px;">SIN VALORACIÓN</span>`;
+          }
+        }
       ]
     });
     tablaRoster.on("tableBuilt", resolve);
@@ -577,7 +593,8 @@ async function abrirEquipo(equipoId) {
       tarjetas_verde: j.tarjetas_verde,
       minutos_jugados: j.minutos_jugados,
       es_portero: !!j.es_portero,
-      tiene_informe: tieneInforme(priv)
+      tiene_informe: tieneInforme(priv),
+      valoracion: priv.valoracion || null
     };
   }).sort((a, b) => a.nombre.localeCompare(b.nombre));
 

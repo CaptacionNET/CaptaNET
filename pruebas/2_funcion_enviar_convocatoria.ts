@@ -10,11 +10,14 @@
 //   {
 //     inscripcion_ids: string[],
 //     asunto: string,
-//     cuerpo: string,   // admite {{nombre}}, {{dia}}, {{hora}}, {{lugar}}
+//     nota?: string,    // texto libre opcional, sin marcadores que rellenar
 //     dia?: string,     // "YYYY-MM-DD", opcional: si viene, se guarda en la fila
 //     hora?: string,    // "HH:MM", opcional
 //     lugar?: string,   // opcional
 //   }
+// El cuerpo del email (saludo, día/hora/lugar, botón de confirmar) se
+// construye aquí siempre igual — el panel ya no pide escribir ningún
+// marcador tipo {{nombre}}, solo rellenar los campos normales.
 // ============================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -35,8 +38,21 @@ function formatearFecha(iso: string | null): string {
   return `${d}/${m}/${y}`;
 }
 
-function personalizar(plantilla: string, datos: Record<string, string>): string {
-  return plantilla.replace(/\{\{(\w+)\}\}/g, (_, clave) => datos[clave] ?? "");
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+function construirCuerpo(nombre: string, diaFmt: string, hora: string, lugar: string, nota: string): string {
+  let html = `<p>Hola <b>${escapeHtml(nombre)}</b>,</p><p>Te confirmamos tu prueba:</p>`;
+  html += "<ul style='margin:6px 0;padding-left:18px;'>";
+  html += `<li>📅 Día: ${diaFmt ? escapeHtml(diaFmt) : "por confirmar"}</li>`;
+  html += `<li>🕒 Hora: ${hora ? escapeHtml(hora) : "por confirmar"}</li>`;
+  html += `<li>📍 Lugar: ${lugar ? escapeHtml(lugar) : "por confirmar"}</li>`;
+  html += "</ul>";
+  if (nota) html += `<p>${escapeHtml(nota).replace(/\n/g, "<br>")}</p>`;
+  return html;
 }
 
 // El nombre del club va como "display name" del remitente, para que el
@@ -71,11 +87,11 @@ Deno.serve(async (req) => {
     const { data: u } = await userClient.auth.getUser();
     if (!u?.user) return json({ error: "No autenticado" }, 401);
 
-    const { inscripcion_ids, asunto, cuerpo, dia, hora, lugar } = await req.json();
+    const { inscripcion_ids, asunto, nota, dia, hora, lugar } = await req.json();
     if (!Array.isArray(inscripcion_ids) || !inscripcion_ids.length) {
       return json({ error: "Faltan inscripcion_ids" }, 400);
     }
-    if (!asunto || !cuerpo) return json({ error: "Faltan asunto o cuerpo" }, 400);
+    if (!asunto) return json({ error: "Falta el asunto" }, 400);
 
     // RLS filtra automáticamente a las filas del club del que llama.
     const { data: filas, error: errFilas } = await userClient
@@ -99,9 +115,8 @@ Deno.serve(async (req) => {
 
       const club = (clubes || []).find(c => c.id === fila.club_id);
 
-      const html = personalizar(cuerpo, {
-        nombre: fila.nombre, dia: diaFmt, hora: hora || "", lugar: lugar || "",
-      }).replace(/\n/g, "<br>") + bloqueConfirmacion(club?.slug || null, fila.id);
+      const html = construirCuerpo(fila.nombre, diaFmt, hora || "", lugar || "", nota || "")
+        + bloqueConfirmacion(club?.slug || null, fila.id);
 
       const resp = await fetch("https://api.resend.com/emails", {
         method: "POST",

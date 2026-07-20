@@ -41,6 +41,12 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 .campo-full{grid-column:1 / -1;}
 .status{font-weight:600;color:var(--muted);margin:12px 0 0;}
 .tick{display:flex;align-items:center;gap:8px;}
+.badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;padding:2px 7px;border-radius:4px;margin-top:3px;}
+.badge-descartar{background:#fee2e2;color:#b91c1c;}
+.badge-seguir{background:#f1f5f9;color:#475569;}
+.badge-interesante{background:#fef3c7;color:#a8791f;}
+.badge-firmar{background:#dbeafe;color:#1d4ed8;}
+.badge-firmado{background:#dcfce7;color:#15803d;}
 @media (max-width:800px){
   .layout{flex-direction:column;padding:0 12px 24px;}
   .panel,.ficha{width:100%;}
@@ -117,6 +123,17 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
       </div>
 
       <div class="campos-grid">
+        <div>
+          <label>Valoración</label>
+          <select id="f_valoracion" onchange="guardarInformeDebounced()">
+            <option value="">-</option>
+            <option value="descartar">Descartar</option>
+            <option value="seguir">Seguir</option>
+            <option value="interesante">Interesante</option>
+            <option value="firmar">Firmar</option>
+            <option value="firmado">Firmado</option>
+          </select>
+        </div>
         <div>
           <label>Posición</label>
           <input id="f_posicion" type="text" oninput="guardarInformeDebounced()">
@@ -273,8 +290,10 @@ function cambiarPanel(nombre) {
 function tieneDatosPrivado(p) {
   return !!(p.posicion || p.contacto || p.contactado ||
     p.tecnica || p.tactica || p.fisico || p.actitud || (p.comentario && String(p.comentario).trim()) ||
-    p.foto_url || p.link_veo);
+    p.foto_url || p.link_veo || p.valoracion);
 }
+
+const ETIQUETA_VALORACION = { descartar: "Descartar", seguir: "Seguir", interesante: "Interesante", firmar: "Firmar", firmado: "Firmado" };
 
 async function cargarInformes() {
   const { data: privados } = await client.from("jugadores_club").select("*").eq("club_id", miClubId);
@@ -294,7 +313,7 @@ async function cargarInformes() {
     const equipo = (equipos || []).find(e => e.id === j.equipo_id);
     const priv = conDatos.find(p => p.jugador_id === j.id);
     const anio = priv?.anio_nacimiento || (j.fecha_nacimiento ? new Date(j.fecha_nacimiento).getFullYear() : null);
-    return { id: j.id, nombre: j.nombre, equipo: equipo?.nombre || "", anio };
+    return { id: j.id, nombre: j.nombre, equipo: equipo?.nombre || "", anio, valoracion: priv?.valoracion || null };
   }).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   renderListaInformes(informesCache);
@@ -308,7 +327,8 @@ function renderListaInformes(lista) {
     const div = document.createElement("div");
     div.className = "resultado";
     div.onclick = () => abrirJugador(j.id);
-    div.innerHTML = `<div class="nombre">${j.nombre}${j.anio ? " · " + j.anio : ""}</div><div class="meta">${j.equipo}</div>`;
+    div.innerHTML = `<div class="nombre">${j.nombre}${j.anio ? " · " + j.anio : ""}</div><div class="meta">${j.equipo}</div>` +
+      (j.valoracion ? `<span class="badge badge-${j.valoracion}">${ETIQUETA_VALORACION[j.valoracion] || j.valoracion}</span>` : "");
     cont.appendChild(div);
   });
 }
@@ -374,6 +394,7 @@ async function abrirJugador(jugadorId) {
      j.fecha_nacimiento ? new Date(j.fecha_nacimiento).getFullYear() : null]
       .filter(Boolean).join(" · ");
 
+  document.getElementById("f_valoracion").value = priv?.valoracion || "";
   document.getElementById("f_posicion").value = priv?.posicion || "";
   document.getElementById("f_contacto").value = priv?.contacto || "";
   document.getElementById("f_contactado").checked = !!priv?.contactado;
@@ -464,6 +485,7 @@ async function guardarInforme() {
     jugador_id: jugadorActual.id,
     club_id: miClubId,
     temporada_id: jugadorActual.temporada_id,
+    valoracion: document.getElementById("f_valoracion").value || null,
     posicion: document.getElementById("f_posicion").value || null,
     contacto: document.getElementById("f_contacto").value || null,
     contactado: document.getElementById("f_contactado").checked,
@@ -560,6 +582,7 @@ async function eliminarInforme() {
   if (error) { status.textContent = "Error eliminando: " + error.message; return; }
 
   jugadorActual.privado = {};
+  document.getElementById("f_valoracion").value = "";
   document.getElementById("f_posicion").value = "";
   document.getElementById("f_contacto").value = "";
   document.getElementById("f_contactado").checked = false;

@@ -26,6 +26,12 @@ input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-rad
 .field select,.field input{min-width:160px;}
 .aviso{margin:24px;color:var(--muted);}
 .tabla-scroll{margin:0 24px;overflow-x:auto;}
+.badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;padding:2px 7px;border-radius:4px;}
+.badge-descartar{background:#fee2e2;color:#b91c1c;}
+.badge-seguir{background:#f1f5f9;color:#475569;}
+.badge-interesante{background:#fef3c7;color:#a8791f;}
+.badge-firmar{background:#dbeafe;color:#1d4ed8;}
+.badge-firmado{background:#dcfce7;color:#15803d;}
 @media (max-width:700px){
   #topbar{padding:12px 16px;}
   .filtros{margin:12px;flex-direction:column;align-items:stretch;}
@@ -447,7 +453,15 @@ function crearTabla() {
       { title: "Año", field: "anio_nacimiento", sorter: "number", width: 70, hozAlign: "center" },
       { title: "Dorsal", field: "dorsal", width: 85, hozAlign: "center" },
       { title: "Goles", field: "goles", sorter: "number", width: 85, hozAlign: "center" },
-      { title: "Con informe", field: "tiene_informe", formatter: "tickCross", width: 130, hozAlign: "center" }
+      {
+        title: "Con informe", field: "tiene_informe", width: 160, hozAlign: "center",
+        formatter: cell => {
+          const fila = cell.getRow().getData();
+          if (!fila.tiene_informe) return "";
+          if (fila.valoracion) return `<span class="badge badge-${fila.valoracion}">${ETIQUETA_VALORACION[fila.valoracion] || fila.valoracion}</span>`;
+          return `✅ <span style="color:var(--muted);font-size:11px;">SIN VALORACIÓN</span>`;
+        }
+      }
     ];
 
     tabla = new Tabulator("#tabla", {
@@ -515,12 +529,15 @@ async function cargarJugadores() {
       dorsal: j.dorsal,
       anio_nacimiento: j.fecha_nacimiento ? new Date(j.fecha_nacimiento).getFullYear() : (priv.anio_nacimiento || ""),
       goles: j.goles ?? "",
-      tiene_informe: tieneInforme(priv)
+      tiene_informe: tieneInforme(priv),
+      valoracion: priv.valoracion || null
     };
   });
 
   aplicarFiltrosLocales();
 }
+
+const ETIQUETA_VALORACION = { descartar: "Descartar", seguir: "Seguir", interesante: "Interesante", firmar: "Firmar", firmado: "Firmado" };
 
 function tieneInforme(p) {
   return !!(p.posicion || p.contacto || p.contactado ||
