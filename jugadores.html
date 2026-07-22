@@ -60,6 +60,15 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
   .ficha-cab{flex-wrap:wrap;}
   .foto-wrap{width:90px;height:90px;}
 }
+/* Modo embebido en ventana emergente (desde la Ruta): solo los campos del informe. */
+body.modal-embebido{background:#fff;}
+body.modal-embebido #topbar,
+body.modal-embebido .barra,
+body.modal-embebido .panel,
+body.modal-embebido .ficha-cab,
+body.modal-embebido #f_historial{display:none !important;}
+body.modal-embebido .layout{padding:12px;gap:0;}
+body.modal-embebido .ficha{border:0;padding:0;}
 </style>
 </head>
 <body>
@@ -125,7 +134,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 
     <div id="ficha_contenido" style="display:none;">
       <div class="ficha-cab">
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <div id="foto_bloque" style="display:flex;gap:10px;flex-wrap:wrap;">
           <div>
             <div class="foto-wrap" id="foto_ffcv_wrap">
               <div class="foto-placeholder" id="foto_ffcv_placeholder">Sin foto FFCV</div>
@@ -801,12 +810,10 @@ function volverAlPartido() {
 async function abrirDesdeUrl() {
   const params = new URLSearchParams(window.location.search);
   // Modo modal (embebido en una ventana emergente, p.ej. desde la Ruta):
-  // se oculta la navegación para que solo se vea la ficha del informe.
+  // se deja SOLO los campos del informe — sin navegación, sin el panel de
+  // "Mis informes / Nuevo informe", sin fotos ni historial.
   if (params.get("modal") === "1") {
-    document.getElementById("topbar").style.display = "none";
-    const barra = document.querySelector(".barra");
-    if (barra) barra.style.display = "none";
-    document.body.style.background = "#fff";
+    document.body.classList.add("modal-embebido");
   }
   if (params.get("volver") === "ruta") {
     document.getElementById("btn_volver_partido").style.display = "inline-block";

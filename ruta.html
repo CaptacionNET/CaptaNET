@@ -185,10 +185,10 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 </div>
 
 <!-- MODAL INFORME (ventana emergente con la ficha de Informes) -->
-<div class="modal-overlay" id="modal_informe" style="padding:0;align-items:stretch;">
-  <div style="background:#fff;width:100%;max-width:900px;display:flex;flex-direction:column;">
+<div class="modal-overlay" id="modal_informe">
+  <div style="background:#fff;border-radius:10px;width:100%;max-width:520px;height:85vh;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.3);">
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0;">
-      <strong style="font-size:15px;">Informe del jugador</strong>
+      <strong id="mi_titulo" style="font-size:15px;">Informe del jugador</strong>
       <button class="secondary" onclick="cerrarInformeModal()" style="font-size:18px;padding:2px 12px;line-height:1;">✕</button>
     </div>
     <iframe id="informe_iframe" title="Informe del jugador" style="flex:1;width:100%;border:0;"></iframe>
@@ -588,6 +588,15 @@ async function eliminarPartido(id) {
 // embebida), para no salir del partido — sobre todo en móvil viendo el
 // partido en directo. La X cierra y vuelve a las alineaciones.
 function abrirInformeModal(jugadorId) {
+  // Nombre del jugador para la cabecera del pop-up (la ficha embebida ya no la muestra).
+  let nombre = "";
+  if (detalleAlineacion) {
+    const cod = Object.keys(detalleAlineacion.mapaId || {}).find(c => detalleAlineacion.mapaId[c] === jugadorId);
+    const todos = [...(detalleAlineacion.jugadores_local || []), ...(detalleAlineacion.jugadores_visitante || [])];
+    const j = cod ? todos.find(x => x.codjugador === cod) : null;
+    nombre = j ? j.nombre : "";
+  }
+  document.getElementById("mi_titulo").textContent = nombre ? "Informe · " + nombre : "Informe del jugador";
   document.getElementById("informe_iframe").src = "jugadores.html?jugador_id=" + encodeURIComponent(jugadorId) + "&modal=1";
   document.getElementById("modal_informe").style.display = "flex";
 }
