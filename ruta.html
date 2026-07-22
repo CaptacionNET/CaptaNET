@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CaptaNET - Ruta</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#2563eb;--bg:#f5f6fa;--card:#fff;--border:#e2e4eb;--text:#1f2430;--muted:#6b7280;}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
+#topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;background:var(--card);border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px;}
+#topbar .brand{font-weight:700;font-size:18px;color:var(--primary);}
+button{background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px;}
+button:hover{opacity:.9;}
+button.secondary{background:#fff;color:var(--text);border:1px solid var(--border);}
+button.secondary.active{background:#eff6ff;color:var(--primary);border-color:var(--primary);font-weight:700;}
+button.danger{background:#fff;color:#dc2626;border:1px solid #fecaca;}
+button:disabled{opacity:.5;cursor:default;}
+input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;}
+label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
+
+.sub-tabs{display:flex;gap:6px;margin:16px 24px 0;}
+.sub-tab{padding:8px 18px;border:1px solid var(--border);background:#fff;border-radius:8px 8px 0 0;cursor:pointer;font-size:14px;font-weight:600;}
+.sub-tab.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+
+.contenedor{margin:0 24px 24px;background:var(--card);border:1px solid var(--border);border-radius:0 10px 10px 10px;padding:20px;}
+.filtros{display:flex;gap:12px;flex-wrap:wrap;align-items:end;margin-bottom:16px;}
+.filtros .campo select{min-width:180px;}
+
+.partido{border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.partido .equipos{flex:1;min-width:200px;font-weight:600;}
+.partido .meta{color:var(--muted);font-size:13px;}
+.partido .resultado{font-weight:700;color:var(--primary);}
+.partido-clic{cursor:pointer;}
+.partido-clic:hover{border-color:var(--primary);}
+
+.vacio{color:var(--muted);font-size:14px;padding:20px 4px;text-align:center;}
+.status{font-weight:600;color:var(--muted);margin:10px 0 0;font-size:13px;}
+
+.detalle-cab{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+.detalle-cab h2{margin:0;font-size:20px;}
+.alineaciones{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px;}
+.alin-col h4{margin:0 0 8px;font-size:14px;}
+.jug-fila{display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid var(--border);font-size:13px;}
+.jug-fila .dorsal{width:26px;height:26px;flex-shrink:0;border-radius:6px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;}
+.jug-fila .nombre{flex:1;min-width:0;}
+.jug-fila.es-titular{background:#eff6ff;border-radius:6px;}
+.badge-fuente{font-size:11px;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:2px 10px;}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:200;padding:20px;}
+.modal-box{background:#fff;border-radius:10px;padding:24px;width:100%;max-width:440px;box-shadow:0 20px 50px rgba(0,0,0,.3);max-height:90vh;overflow-y:auto;}
+.modal-box h3{margin:0 0 14px;}
+.modal-box .field{margin-bottom:12px;}
+
+@media (max-width:800px){
+  #topbar{padding:12px 16px;}
+  .sub-tabs{margin:12px;}
+  .contenedor{margin:0 12px 24px;}
+  .filtros .campo,.filtros .campo select{width:100%;min-width:0;}
+  .alineaciones{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="brand">CaptaNET · Ruta</div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <button class="secondary" onclick="atras()">← Atrás</button>
+    <button class="secondary" onclick="window.location.href='visor.html'">Visor</button>
+    <button class="secondary" onclick="window.location.href='jugadores.html'">Informes</button>
+    <button class="secondary" onclick="window.location.href='equipos.html'">Equipos</button>
+    <button class="secondary" onclick="window.location.href='plantillas.html'">Plantillas</button>
+    <button class="secondary" onclick="window.location.href='gestion_pruebas.html'">Pruebas</button>
+    <button class="secondary active" onclick="window.location.href='ruta.html'">Ruta</button>
+    <button class="secondary" onclick="window.location.href='usuario.html'">Mi perfil</button>
+    <button id="btn_equipo" class="secondary" style="display:none;" onclick="window.location.href='equipo.html'">Mi equipo</button>
+    <button id="btn_admin" class="secondary" style="display:none;" onclick="window.location.href='admin.html'">Panel Admin</button>
+    <button class="secondary" onclick="logout()">Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="sub-tabs">
+  <div class="sub-tab active" id="tab_horarios" onclick="cambiarSeccion('horarios')">Horarios</div>
+  <div class="sub-tab" id="tab_ruta" onclick="cambiarSeccion('ruta')">Mi ruta</div>
+</div>
+
+<!-- HORARIOS -->
+<div class="contenedor" id="seccion_horarios">
+  <div class="filtros">
+    <div class="campo">
+      <label>Modalidad</label>
+      <select id="f_modalidad" onchange="onModalidadChange()"><option value="">-</option></select>
+    </div>
+    <div class="campo">
+      <label>Competición</label>
+      <select id="f_competicion" onchange="onCompeticionChange()"><option value="">-</option></select>
+    </div>
+    <div class="campo" id="campo_grupo" style="display:none;">
+      <label>Grupo</label>
+      <select id="f_grupo" onchange="onGrupoChange()"></select>
+    </div>
+    <div class="campo">
+      <label>Jornada</label>
+      <select id="f_jornada" onchange="cargarPartidos()"><option value="">-</option></select>
+    </div>
+  </div>
+  <p id="horarios_status" class="status"></p>
+  <div id="horarios_lista"></div>
+</div>
+
+<!-- MI RUTA -->
+<div class="contenedor" id="seccion_ruta" style="display:none;">
+  <div id="ruta_lista_wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+      <h2 style="margin:0;font-size:18px;">Mis partidos</h2>
+      <button onclick="abrirModalManual()">+ Añadir partido manual</button>
+    </div>
+    <p id="ruta_status" class="status"></p>
+    <div id="ruta_lista"></div>
+  </div>
+
+  <div id="ruta_detalle" style="display:none;"></div>
+</div>
+
+<!-- MODAL PARTIDO MANUAL -->
+<div class="modal-overlay" id="modal_manual">
+  <div class="modal-box">
+    <h3>Añadir partido manual</h3>
+    <p style="color:var(--muted);font-size:12px;margin:-8px 0 14px;">Para amistosos o partidos que no están en la FFCV.</p>
+    <div class="field">
+      <label>Equipo local</label>
+      <input id="mm_local" type="text" style="width:100%;">
+    </div>
+    <div class="field">
+      <label>Equipo visitante</label>
+      <input id="mm_visitante" type="text" style="width:100%;">
+    </div>
+    <div style="display:flex;gap:12px;">
+      <div class="field" style="flex:1;">
+        <label>Fecha</label>
+        <input id="mm_fecha" type="date" style="width:100%;">
+      </div>
+      <div class="field" style="flex:1;">
+        <label>Hora</label>
+        <input id="mm_hora" type="time" style="width:100%;">
+      </div>
+    </div>
+    <div class="field">
+      <label>Campo</label>
+      <input id="mm_campo" type="text" style="width:100%;">
+    </div>
+    <p id="mm_status" style="font-size:13px;color:var(--muted);min-height:18px;"></p>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="secondary" onclick="cerrarModalManual()">Cancelar</button>
+      <button id="mm_btn" onclick="guardarManual()">Añadir</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const client = supabase.createClient(
+  "https://bnqoisjvboytiphiwosj.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJucW9pc2p2Ym95dGlwaGl3b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDgwMTcsImV4cCI6MjA5OTE4NDAxN30.RpTr0Z17ZRFwTpBvsmNwyqtEm0nLVWxM96mxaLxDbes"
+);
+
+let miClubId = null;
+let catalogo = { cod_temporada: null, competiciones: [] };
+let gruposActuales = [];
+
+function escapeHtml(s) {
+  return (s ?? "").toString()
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+async function protegerPagina() {
+  const { data: session } = await client.auth.getSession();
+  if (!session.session) { window.location.href = "index.html"; return false; }
+  const { data: perfil } = await client
+    .from("profiles").select("is_admin, is_club_admin, club_id").eq("id", session.session.user.id).single();
+  miClubId = perfil?.club_id || null;
+  if (perfil?.is_admin) document.getElementById("btn_admin").style.display = "inline-block";
+  if (perfil?.is_club_admin) document.getElementById("btn_equipo").style.display = "inline-block";
+  return true;
+}
+
+function atras() {
+  if (window.history.length > 1) window.history.back();
+  else window.location.href = "visor.html";
+}
+async function logout() { await client.auth.signOut(); window.location.href = "index.html"; }
+
+async function mensajeError(error) {
+  if (!error) return "";
+  if (error.context && typeof error.context.json === "function") {
+    try { const b = await error.context.json(); if (b?.error) return typeof b.error === "string" ? b.error : JSON.stringify(b.error); } catch (e) {}
+  }
+  return error.message || "Error desconocido";
+}
+
+async function ffcv(accion, extra = {}) {
+  const { data, error } = await client.functions.invoke("ruta-ffcv", { body: { accion, ...extra } });
+  if (error) throw new Error(await mensajeError(error));
+  if (data && data.error) throw new Error(data.error);
+  return data;
+}
+
+function cambiarSeccion(nombre) {
+  document.getElementById("seccion_horarios").style.display = nombre === "horarios" ? "block" : "none";
+  document.getElementById("seccion_ruta").style.display = nombre === "ruta" ? "block" : "none";
+  document.getElementById("tab_horarios").classList.toggle("active", nombre === "horarios");
+  document.getElementById("tab_ruta").classList.toggle("active", nombre === "ruta");
+  if (nombre === "ruta") cargarRuta();
+}
+
+// ---------------- HORARIOS ----------------
+async function cargarCatalogo() {
+  const s = document.getElementById("horarios_status");
+  s.textContent = "Cargando competiciones de la FFCV…";
+  try {
+    catalogo = await ffcv("catalogo");
+    const modalidades = [...new Set((catalogo.competiciones || []).map(c => c.modalidad))].sort();
+    const sel = document.getElementById("f_modalidad");
+    sel.innerHTML = '<option value="">-</option>' + modalidades.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
+    s.textContent = catalogo.temporada ? `Temporada ${catalogo.temporada}. Elige modalidad, competición y jornada.` : "No hay competiciones publicadas ahora mismo en la FFCV.";
+  } catch (e) { s.textContent = "Error cargando competiciones: " + e.message; }
+}
+
+function onModalidadChange() {
+  const mod = document.getElementById("f_modalidad").value;
+  const sel = document.getElementById("f_competicion");
+  const comps = (catalogo.competiciones || []).filter(c => c.modalidad === mod);
+  sel.innerHTML = '<option value="">-</option>' + comps.map(c => `<option value="${c.codigo}">${escapeHtml(c.nombre)}</option>`).join("");
+  document.getElementById("campo_grupo").style.display = "none";
+  document.getElementById("f_jornada").innerHTML = '<option value="">-</option>';
+  document.getElementById("horarios_lista").innerHTML = "";
+}
+
+async function onCompeticionChange() {
+  const codComp = document.getElementById("f_competicion").value;
+  const s = document.getElementById("horarios_status");
+  document.getElementById("horarios_lista").innerHTML = "";
+  if (!codComp) return;
+  s.textContent = "Cargando grupos…";
+  try {
+    gruposActuales = (await ffcv("grupos", { cod_competicion: codComp })).grupos || [];
+    const campoGrupo = document.getElementById("campo_grupo");
+    const selGrupo = document.getElementById("f_grupo");
+    if (gruposActuales.length > 1) {
+      selGrupo.innerHTML = gruposActuales.map(g => `<option value="${g.codigo}">${escapeHtml(g.nombre)}</option>`).join("");
+      campoGrupo.style.display = "block";
+    } else {
+      campoGrupo.style.display = "none";
+    }
+    poblarJornadas();
+    s.textContent = "";
+  } catch (e) { s.textContent = "Error cargando grupos: " + e.message; }
+}
+
+function grupoSeleccionado() {
+  if (!gruposActuales.length) return null;
+  if (gruposActuales.length === 1) return gruposActuales[0];
+  const cod = document.getElementById("f_grupo").value;
+  return gruposActuales.find(g => g.codigo === cod) || gruposActuales[0];
+}
+
+function poblarJornadas() {
+  const g = grupoSeleccionado();
+  const total = (g && g.total_jornadas) ? g.total_jornadas : 38;
+  const sel = document.getElementById("f_jornada");
+  let html = '<option value="">-</option>';
+  for (let j = 1; j <= total; j++) html += `<option value="${j}">Jornada ${j}</option>`;
+  sel.innerHTML = html;
+}
+
+function onGrupoChange() {
+  poblarJornadas();
+  document.getElementById("horarios_lista").innerHTML = "";
+}
+
+async function cargarPartidos() {
+  const codComp = document.getElementById("f_competicion").value;
+  const jornada = document.getElementById("f_jornada").value;
+  const g = grupoSeleccionado();
+  const cont = document.getElementById("horarios_lista");
+  const s = document.getElementById("horarios_status");
+  if (!codComp || !g || !jornada) { cont.innerHTML = ""; return; }
+  s.textContent = "Cargando partidos…";
+  cont.innerHTML = "";
+  try {
+    const d = await ffcv("partidos", {
+      cod_temporada: catalogo.cod_temporada, cod_competicion: codComp, cod_grupo: g.codigo, cod_jornada: jornada
+    });
+    const partidos = d.partidos || [];
+    if (!partidos.length) { s.textContent = "No hay partidos en esta jornada."; return; }
+    s.textContent = "";
+    const modalidad = document.getElementById("f_modalidad").value;
+    const nombreComp = document.getElementById("f_competicion").selectedOptions[0]?.textContent || "";
+    cont.innerHTML = "";
+    partidos.forEach((p, i) => {
+      const div = document.createElement("div");
+      div.className = "partido";
+      div.innerHTML =
+        `<div class="equipos">${escapeHtml(p.local)} <span style="color:var(--muted);font-weight:400;">vs</span> ${escapeHtml(p.visitante)}</div>` +
+        `<div class="meta">${escapeHtml(p.fecha || "")} ${escapeHtml(p.hora || "")}${p.campo ? " · " + escapeHtml(p.campo) : ""}</div>` +
+        (p.jugado ? `<div class="resultado">${escapeHtml(p.resultado)}</div>` : "");
+      const btn = document.createElement("button");
+      btn.className = "secondary";
+      btn.style.cssText = "font-size:12px;padding:6px 10px;";
+      btn.textContent = "+ A mi ruta";
+      btn.onclick = () => anadirARuta(p, modalidad, nombreComp, g, codComp);
+      div.appendChild(btn);
+      cont.appendChild(div);
+    });
+  } catch (e) { s.textContent = "Error cargando partidos: " + e.message; }
+}
+
+function fechaFfcvAIso(f) {
+  // "23/08/2025" -> "2025-08-23"
+  if (!f || !/^\d{2}\/\d{2}\/\d{4}$/.test(f)) return null;
+  const [d, m, a] = f.split("/");
+  return `${a}-${m}-${d}`;
+}
+
+async function anadirARuta(p, modalidad, nombreComp, grupo, codComp) {
+  const registro = {
+    club_id: miClubId,
+    cod_partido: p.cod_partido,
+    es_manual: false,
+    cod_equipo_local: p.cod_equipo_local || null,
+    cod_equipo_visitante: p.cod_equipo_visitante || null,
+    local: p.local, visitante: p.visitante,
+    fecha: fechaFfcvAIso(p.fecha), hora: p.hora || null, campo: p.campo || null,
+    competicion: nombreComp || null, categoria: modalidad || null,
+    // guardamos el contexto FFCV para poder cargar alineaciones/dorsales luego
+    alineacion: { ctx: { cod_temporada: catalogo.cod_temporada, cod_competicion: codComp, cod_grupo: grupo.codigo, cod_jornada: document.getElementById("f_jornada").value } }
+  };
+  const { error } = await client.from("ruta_partidos").insert(registro);
+  const s = document.getElementById("horarios_status");
+  if (error) {
+    s.textContent = /duplicate|unique|23505/i.test(error.message) ? "Ese partido ya está en tu ruta." : "Error: " + error.message;
+    return;
+  }
+  s.textContent = `Añadido a tu ruta: ${p.local} vs ${p.visitante}.`;
+}
+
+// ---------------- MI RUTA ----------------
+async function cargarRuta() {
+  document.getElementById("ruta_lista_wrap").style.display = "block";
+  document.getElementById("ruta_detalle").style.display = "none";
+  const cont = document.getElementById("ruta_lista");
+  const { data, error } = await client.from("ruta_partidos").select("*")
+    .order("fecha", { ascending: true, nullsFirst: false }).order("hora", { ascending: true, nullsFirst: true });
+  if (error) { cont.innerHTML = `<p class="vacio">Error: ${escapeHtml(error.message)}</p>`; return; }
+  if (!data || !data.length) { cont.innerHTML = '<p class="vacio">Aún no tienes partidos en tu ruta. Añádelos desde Horarios o crea uno manual.</p>'; return; }
+  cont.innerHTML = "";
+  data.forEach(rp => {
+    const div = document.createElement("div");
+    div.className = "partido partido-clic";
+    const fecha = rp.fecha ? new Date(rp.fecha + "T00:00:00").toLocaleDateString("es-ES") : "Sin fecha";
+    div.innerHTML =
+      `<div class="equipos">${escapeHtml(rp.local || "")} <span style="color:var(--muted);font-weight:400;">vs</span> ${escapeHtml(rp.visitante || "")}` +
+      (rp.es_manual ? ' <span class="badge-fuente">manual</span>' : "") + `</div>` +
+      `<div class="meta">${fecha}${rp.hora ? " · " + escapeHtml(rp.hora) : ""}${rp.campo ? " · " + escapeHtml(rp.campo) : ""}` +
+      (rp.objetivos ? ` · 🎯` : "") + `</div>`;
+    div.onclick = () => abrirDetalle(rp.id);
+    cont.appendChild(div);
+  });
+}
+
+let detalleActual = null;
+
+async function abrirDetalle(id) {
+  const { data: rp, error } = await client.from("ruta_partidos").select("*").eq("id", id).single();
+  if (error || !rp) return;
+  detalleActual = rp;
+
+  document.getElementById("ruta_lista_wrap").style.display = "none";
+  const cont = document.getElementById("ruta_detalle");
+  cont.style.display = "block";
+  const fecha = rp.fecha ? new Date(rp.fecha + "T00:00:00").toLocaleDateString("es-ES") : "Sin fecha";
+
+  cont.innerHTML = `
+    <div class="detalle-cab">
+      <button class="secondary" onclick="cargarRuta()">← Volver a mi ruta</button>
+      <button class="danger" style="font-size:12px;padding:6px 12px;" onclick="eliminarPartido('${rp.id}')">Eliminar partido</button>
+    </div>
+    <h2 style="margin:0 0 2px;">${escapeHtml(rp.local || "")} vs ${escapeHtml(rp.visitante || "")}</h2>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 16px;">${fecha}${rp.hora ? " · " + escapeHtml(rp.hora) : ""}${rp.campo ? " · " + escapeHtml(rp.campo) : ""}${rp.competicion ? " · " + escapeHtml(rp.competicion) : ""}</p>
+
+    <label>Objetivos del partido <span style="color:var(--muted);">(¿por qué vas?)</span></label>
+    <textarea id="d_objetivos" style="width:100%;min-height:80px;" oninput="guardarObjetivosDebounced()">${escapeHtml(rp.objetivos || "")}</textarea>
+    <p id="d_obj_status" class="status"></p>
+
+    <div id="d_alineaciones_wrap" style="margin-top:18px;">
+      ${rp.es_manual
+        ? '<p class="vacio">Los partidos manuales no tienen plantillas de la FFCV.</p>'
+        : '<button class="secondary" onclick="cargarAlineaciones()">Ver plantillas y titulares</button>'}
+    </div>
+  `;
+}
+
+let objetivosTimeout = null;
+function guardarObjetivosDebounced() { clearTimeout(objetivosTimeout); objetivosTimeout = setTimeout(guardarObjetivos, 600); }
+async function guardarObjetivos() {
+  if (!detalleActual) return;
+  const val = document.getElementById("d_objetivos").value || null;
+  const { error } = await client.from("ruta_partidos").update({ objetivos: val }).eq("id", detalleActual.id);
+  document.getElementById("d_obj_status").textContent = error ? "Error guardando: " + error.message : "Guardado.";
+}
+
+async function cargarAlineaciones() {
+  if (!detalleActual) return;
+  const wrap = document.getElementById("d_alineaciones_wrap");
+  wrap.innerHTML = '<p class="status">Cargando plantillas… (puede tardar unos segundos)</p>';
+  const ctx = (detalleActual.alineacion && detalleActual.alineacion.ctx) || {};
+  try {
+    const d = await ffcv("detalle_partido", {
+      cod_partido: detalleActual.cod_partido,
+      cod_equipo_local: detalleActual.cod_equipo_local, cod_equipo_visitante: detalleActual.cod_equipo_visitante,
+      cod_temporada: ctx.cod_temporada, cod_competicion: ctx.cod_competicion, cod_grupo: ctx.cod_grupo, cod_jornada: ctx.cod_jornada,
+    });
+    // resolver qué codjugadores existen en nuestra base para enlazar con Informes
+    const todos = [...(d.jugadores_local || []), ...(d.jugadores_visitante || [])].map(j => j.codjugador).filter(Boolean);
+    let mapaId = {};
+    if (todos.length) {
+      const { data: jugs } = await client.from("jugadores").select("id, cod_ffcv").in("cod_ffcv", todos);
+      (jugs || []).forEach(j => { mapaId[j.cod_ffcv] = j.id; });
+    }
+    // marcas de titular guardadas previamente
+    const guardado = (detalleActual.alineacion && detalleActual.alineacion.marcas) || {};
+    renderAlineaciones(d, mapaId, guardado);
+  } catch (e) {
+    wrap.innerHTML = `<p class="status">Error cargando plantillas: ${escapeHtml(e.message)}</p><button class="secondary" onclick="cargarAlineaciones()">Reintentar</button>`;
+  }
+}
+
+function renderAlineaciones(d, mapaId, guardado) {
+  const wrap = document.getElementById("d_alineaciones_wrap");
+  const fuenteTxt = d.fuente === "acta"
+    ? "Titulares y dorsales del acta (partido ya jugado)."
+    : "Plantillas de la FFCV con dorsales precargados del último partido. Marca tú los titulares.";
+
+  const columna = (titulo, jugadores, lado) => {
+    const filas = (jugadores || []).map((j, i) => {
+      const marcado = d.fuente === "acta" ? !!j.titular : !!(guardado[lado] && guardado[lado][j.codjugador]);
+      const idJug = mapaId[j.codjugador];
+      const informe = idJug
+        ? `<a href="jugadores.html?jugador_id=${idJug}" target="_blank" title="Informe" style="color:var(--primary);text-decoration:none;">📝</a>`
+        : `<span title="No está en la base de datos" style="color:var(--border);">📝</span>`;
+      return `<div class="jug-fila ${marcado ? "es-titular" : ""}" id="jf_${lado}_${i}">
+        <span class="dorsal">${escapeHtml(j.dorsal || "-")}</span>
+        <span class="nombre">${escapeHtml(j.nombre)}${j.capitan ? " ©" : ""}${j.portero ? " 🧤" : ""}</span>
+        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);cursor:pointer;">
+          <input type="checkbox" ${marcado ? "checked" : ""} onchange="toggleTitular('${lado}','${escapeHtml(j.codjugador)}',this)"> titular
+        </label>
+        ${informe}
+      </div>`;
+    }).join("");
+    return `<div class="alin-col"><h4>${escapeHtml(titulo)}${d["esquema_" + lado] ? ` <span style="color:var(--muted);font-weight:400;">${escapeHtml(d["esquema_" + lado])}</span>` : ""}</h4>${filas || '<p class="vacio">Sin datos.</p>'}</div>`;
+  };
+
+  wrap.innerHTML =
+    `<p class="status" style="margin-bottom:6px;">${fuenteTxt}</p>` +
+    `<div class="alineaciones">` +
+    columna(detalleActual.local || "Local", d.jugadores_local, "local") +
+    columna(detalleActual.visitante || "Visitante", d.jugadores_visitante, "visitante") +
+    `</div>`;
+}
+
+let marcasTimeout = null;
+function toggleTitular(lado, codjugador, input) {
+  input.closest(".jug-fila").classList.toggle("es-titular", input.checked);
+  if (!detalleActual.alineacion) detalleActual.alineacion = {};
+  if (!detalleActual.alineacion.marcas) detalleActual.alineacion.marcas = {};
+  if (!detalleActual.alineacion.marcas[lado]) detalleActual.alineacion.marcas[lado] = {};
+  if (input.checked) detalleActual.alineacion.marcas[lado][codjugador] = true;
+  else delete detalleActual.alineacion.marcas[lado][codjugador];
+  clearTimeout(marcasTimeout);
+  marcasTimeout = setTimeout(guardarMarcas, 500);
+}
+async function guardarMarcas() {
+  if (!detalleActual) return;
+  await client.from("ruta_partidos").update({ alineacion: detalleActual.alineacion }).eq("id", detalleActual.id);
+}
+
+async function eliminarPartido(id) {
+  if (!confirm("¿Eliminar este partido de tu ruta? No se puede deshacer.")) return;
+  const { error } = await client.from("ruta_partidos").delete().eq("id", id);
+  if (error) { alert("Error eliminando: " + error.message); return; }
+  cargarRuta();
+}
+
+// ---------------- MODAL MANUAL ----------------
+function abrirModalManual() {
+  ["mm_local", "mm_visitante", "mm_fecha", "mm_hora", "mm_campo"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("mm_status").textContent = "";
+  document.getElementById("modal_manual").style.display = "flex";
+}
+function cerrarModalManual() { document.getElementById("modal_manual").style.display = "none"; }
+
+async function guardarManual() {
+  const local = document.getElementById("mm_local").value.trim();
+  const visitante = document.getElementById("mm_visitante").value.trim();
+  const s = document.getElementById("mm_status");
+  if (!local || !visitante) { s.textContent = "Pon al menos los dos equipos."; return; }
+  const btn = document.getElementById("mm_btn");
+  btn.disabled = true;
+  const registro = {
+    club_id: miClubId, es_manual: true,
+    local, visitante,
+    fecha: document.getElementById("mm_fecha").value || null,
+    hora: document.getElementById("mm_hora").value || null,
+    campo: document.getElementById("mm_campo").value.trim() || null,
+  };
+  const { error } = await client.from("ruta_partidos").insert(registro);
+  btn.disabled = false;
+  if (error) { s.textContent = "Error: " + error.message; return; }
+  cerrarModalManual();
+  cargarRuta();
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const ok = await protegerPagina();
+  if (!ok) return;
+  await cargarCatalogo();
+});
+</script>
+</body>
+</html>
