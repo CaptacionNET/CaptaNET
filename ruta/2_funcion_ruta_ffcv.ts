@@ -158,6 +158,14 @@ Deno.serve(async (req) => {
       return json({ grupos });
     }
 
+    if (accion === "jornadas") {
+      const codComp = limpiar(body.cod_competicion), codGrupo = limpiar(body.cod_grupo);
+      if (!codComp || !codGrupo) return json({ error: "Falta cod_competicion/cod_grupo" }, 400);
+      const jornadas = ((await ffcvGet(`filtros/jornadas_fetch.php?cod_competicion=${codComp}&cod_grupo=${codGrupo}`)).jornadas || [])
+        .map((j: any) => ({ codjornada: limpiar(j.codjornada), nombre: limpiar(j.nombre), fecha: limpiar(j.fecha_jornada) }));
+      return json({ jornadas });
+    }
+
     if (accion === "partidos") {
       const codTemp = limpiar(body.cod_temporada), codComp = limpiar(body.cod_competicion);
       const codGrupo = limpiar(body.cod_grupo), codJor = limpiar(body.cod_jornada);
@@ -182,9 +190,17 @@ Deno.serve(async (req) => {
       if (codPartido) {
         let acta: any = null;
         try { acta = await ffcvGet(`partidos/ficha_partido_ajax.php?cod_partido=${codPartido}`); } catch { acta = null; }
-        if (acta && limpiar(acta.acta_cerrada) === "1") {
+        // Se usa el acta si el partido ya acabó (acta cerrada) o si el club ya
+        // ha subido la alineación (hay algún titular marcado) — así el ojeador
+        // puede ver "en directo" quién juega en cuanto la suben, poco antes del
+        // inicio, sin esperar al final del partido.
+        const jugActa = [...(acta?.jugadores_equipo_local || []), ...(acta?.jugadores_equipo_visitante || [])];
+        const hayAlineacion = jugActa.some((j: any) => limpiar(j.titular) === "1");
+        if (acta && (limpiar(acta.acta_cerrada) === "1" || hayAlineacion)) {
           return json({
             fuente: "acta",
+            cerrada: limpiar(acta.acta_cerrada) === "1",
+            en_juego: limpiar(acta.partido_en_juego) === "1",
             esquema_local: limpiar(acta.esquema_local), esquema_visitante: limpiar(acta.esquema_visitante),
             jugadores_local: (acta.jugadores_equipo_local || []).map(normalizarJugadorActa),
             jugadores_visitante: (acta.jugadores_equipo_visitante || []).map(normalizarJugadorActa),

@@ -34,18 +34,22 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 .partido .resultado{font-weight:700;color:var(--primary);}
 .partido-clic{cursor:pointer;}
 .partido-clic:hover{border-color:var(--primary);}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
+.chip{font-size:11px;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:1px 9px;}
+.obj-linea{color:var(--text);font-size:12px;margin-top:4px;}
 
 .vacio{color:var(--muted);font-size:14px;padding:20px 4px;text-align:center;}
 .status{font-weight:600;color:var(--muted);margin:10px 0 0;font-size:13px;}
 
 .detalle-cab{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
-.detalle-cab h2{margin:0;font-size:20px;}
-.alineaciones{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px;}
-.alin-col h4{margin:0 0 8px;font-size:14px;}
+.alineaciones{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:14px;}
+.alin-col h4{margin:0 0 6px;font-size:14px;}
+.grupo-tit{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:12px 0 4px;letter-spacing:.03em;}
 .jug-fila{display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid var(--border);font-size:13px;}
 .jug-fila .dorsal{width:26px;height:26px;flex-shrink:0;border-radius:6px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;}
 .jug-fila .nombre{flex:1;min-width:0;}
-.jug-fila.es-titular{background:#eff6ff;border-radius:6px;}
+.jug-fila .anio{color:var(--muted);font-weight:400;}
+.jug-fila.es-titular .dorsal{background:#dbeafe;border-color:var(--primary);color:var(--primary);}
 .badge-fuente{font-size:11px;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:2px 10px;}
 
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:200;padding:20px;}
@@ -124,6 +128,23 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
   <div id="ruta_detalle" style="display:none;"></div>
 </div>
 
+<!-- MODAL OBJETIVOS (al añadir desde Horarios) -->
+<div class="modal-overlay" id="modal_objetivos">
+  <div class="modal-box">
+    <h3>Añadir a mi ruta</h3>
+    <p id="mo_partido" style="color:var(--muted);font-size:13px;margin:-8px 0 14px;"></p>
+    <div class="field">
+      <label>Objetivos del partido <span style="color:var(--muted);">(¿por qué vas?)</span></label>
+      <textarea id="mo_objetivos" style="width:100%;min-height:90px;" placeholder="Ej. ver al 9 del rival y al central zurdo local."></textarea>
+    </div>
+    <p id="mo_status" style="font-size:13px;color:var(--muted);min-height:18px;"></p>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="secondary" onclick="cerrarModalObjetivos()">Cancelar</button>
+      <button id="mo_btn" onclick="confirmarAnadirRuta()">Añadir a mi ruta</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL PARTIDO MANUAL -->
 <div class="modal-overlay" id="modal_manual">
   <div class="modal-box">
@@ -151,6 +172,10 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
       <label>Campo</label>
       <input id="mm_campo" type="text" style="width:100%;">
     </div>
+    <div class="field">
+      <label>Objetivos del partido <span style="color:var(--muted);">(¿por qué vas?)</span></label>
+      <textarea id="mm_objetivos" style="width:100%;min-height:70px;"></textarea>
+    </div>
     <p id="mm_status" style="font-size:13px;color:var(--muted);min-height:18px;"></p>
     <div style="display:flex;gap:10px;justify-content:flex-end;">
       <button class="secondary" onclick="cerrarModalManual()">Cancelar</button>
@@ -168,6 +193,7 @@ const client = supabase.createClient(
 let miClubId = null;
 let catalogo = { cod_temporada: null, competiciones: [] };
 let gruposActuales = [];
+let partidoPendiente = null;   // partido que se va a añadir desde Horarios (a la espera de objetivos)
 
 function escapeHtml(s) {
   return (s ?? "").toString()
@@ -215,6 +241,16 @@ function cambiarSeccion(nombre) {
   if (nombre === "ruta") cargarRuta();
 }
 
+// ---------------- fechas ----------------
+function fechaFfcvAIso(f) { // "23/08/2025" o "23-08-2025" -> "2025-08-23"
+  const m = (f || "").match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+}
+function parseFechaJornada(f) { // "23-08-2025" -> Date (medianoche local)
+  const iso = fechaFfcvAIso(f);
+  return iso ? new Date(iso + "T00:00:00") : null;
+}
+
 // ---------------- HORARIOS ----------------
 async function cargarCatalogo() {
   const s = document.getElementById("horarios_status");
@@ -242,6 +278,7 @@ async function onCompeticionChange() {
   const codComp = document.getElementById("f_competicion").value;
   const s = document.getElementById("horarios_status");
   document.getElementById("horarios_lista").innerHTML = "";
+  document.getElementById("f_jornada").innerHTML = '<option value="">-</option>';
   if (!codComp) return;
   s.textContent = "Cargando grupos…";
   try {
@@ -254,8 +291,7 @@ async function onCompeticionChange() {
     } else {
       campoGrupo.style.display = "none";
     }
-    poblarJornadas();
-    s.textContent = "";
+    await cargarJornadas();
   } catch (e) { s.textContent = "Error cargando grupos: " + e.message; }
 }
 
@@ -266,18 +302,33 @@ function grupoSeleccionado() {
   return gruposActuales.find(g => g.codigo === cod) || gruposActuales[0];
 }
 
-function poblarJornadas() {
+async function cargarJornadas() {
+  const codComp = document.getElementById("f_competicion").value;
   const g = grupoSeleccionado();
-  const total = (g && g.total_jornadas) ? g.total_jornadas : 38;
+  const s = document.getElementById("horarios_status");
   const sel = document.getElementById("f_jornada");
-  let html = '<option value="">-</option>';
-  for (let j = 1; j <= total; j++) html += `<option value="${j}">Jornada ${j}</option>`;
-  sel.innerHTML = html;
+  if (!codComp || !g) return;
+  s.textContent = "Cargando jornadas…";
+  try {
+    const jornadas = (await ffcv("jornadas", { cod_competicion: codComp, cod_grupo: g.codigo })).jornadas || [];
+    if (!jornadas.length) { sel.innerHTML = '<option value="">-</option>'; s.textContent = "Esta competición aún no tiene jornadas publicadas."; return; }
+    sel.innerHTML = jornadas.map(j => {
+      const fecha = j.fecha ? " · " + j.fecha.replace(/-/g, "/") : "";
+      return `<option value="${escapeHtml(j.codjornada)}">Jornada ${escapeHtml(j.codjornada)}${fecha}</option>`;
+    }).join("");
+    // precargar la próxima jornada disponible (primera cuya fecha es hoy o futura)
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    let idx = jornadas.findIndex(j => { const f = parseFechaJornada(j.fecha); return f && f >= hoy; });
+    if (idx < 0) idx = jornadas.length - 1;
+    sel.value = jornadas[idx].codjornada;
+    s.textContent = "";
+    await cargarPartidos();
+  } catch (e) { s.textContent = "Error cargando jornadas: " + e.message; }
 }
 
-function onGrupoChange() {
-  poblarJornadas();
+async function onGrupoChange() {
   document.getElementById("horarios_lista").innerHTML = "";
+  await cargarJornadas();
 }
 
 async function cargarPartidos() {
@@ -299,7 +350,7 @@ async function cargarPartidos() {
     const modalidad = document.getElementById("f_modalidad").value;
     const nombreComp = document.getElementById("f_competicion").selectedOptions[0]?.textContent || "";
     cont.innerHTML = "";
-    partidos.forEach((p, i) => {
+    partidos.forEach(p => {
       const div = document.createElement("div");
       div.className = "partido";
       div.innerHTML =
@@ -310,22 +361,16 @@ async function cargarPartidos() {
       btn.className = "secondary";
       btn.style.cssText = "font-size:12px;padding:6px 10px;";
       btn.textContent = "+ A mi ruta";
-      btn.onclick = () => anadirARuta(p, modalidad, nombreComp, g, codComp);
+      btn.onclick = () => abrirModalObjetivos(p, modalidad, nombreComp, g, codComp, jornada);
       div.appendChild(btn);
       cont.appendChild(div);
     });
   } catch (e) { s.textContent = "Error cargando partidos: " + e.message; }
 }
 
-function fechaFfcvAIso(f) {
-  // "23/08/2025" -> "2025-08-23"
-  if (!f || !/^\d{2}\/\d{2}\/\d{4}$/.test(f)) return null;
-  const [d, m, a] = f.split("/");
-  return `${a}-${m}-${d}`;
-}
-
-async function anadirARuta(p, modalidad, nombreComp, grupo, codComp) {
-  const registro = {
+// ---------------- añadir desde Horarios (con objetivos) ----------------
+function abrirModalObjetivos(p, modalidad, nombreComp, grupo, codComp, jornada) {
+  partidoPendiente = {
     club_id: miClubId,
     cod_partido: p.cod_partido,
     es_manual: false,
@@ -333,17 +378,30 @@ async function anadirARuta(p, modalidad, nombreComp, grupo, codComp) {
     cod_equipo_visitante: p.cod_equipo_visitante || null,
     local: p.local, visitante: p.visitante,
     fecha: fechaFfcvAIso(p.fecha), hora: p.hora || null, campo: p.campo || null,
-    competicion: nombreComp || null, categoria: modalidad || null,
-    // guardamos el contexto FFCV para poder cargar alineaciones/dorsales luego
-    alineacion: { ctx: { cod_temporada: catalogo.cod_temporada, cod_competicion: codComp, cod_grupo: grupo.codigo, cod_jornada: document.getElementById("f_jornada").value } }
+    competicion: nombreComp || null, categoria: modalidad || null, grupo: grupo.nombre || null,
+    alineacion: { ctx: { cod_temporada: catalogo.cod_temporada, cod_competicion: codComp, cod_grupo: grupo.codigo, cod_jornada: jornada } }
   };
+  document.getElementById("mo_partido").textContent = `${p.local} vs ${p.visitante}`;
+  document.getElementById("mo_objetivos").value = "";
+  document.getElementById("mo_status").textContent = "";
+  document.getElementById("modal_objetivos").style.display = "flex";
+}
+function cerrarModalObjetivos() { document.getElementById("modal_objetivos").style.display = "none"; partidoPendiente = null; }
+
+async function confirmarAnadirRuta() {
+  if (!partidoPendiente) return;
+  const btn = document.getElementById("mo_btn");
+  const s = document.getElementById("mo_status");
+  btn.disabled = true;
+  const registro = { ...partidoPendiente, objetivos: document.getElementById("mo_objetivos").value.trim() || null };
   const { error } = await client.from("ruta_partidos").insert(registro);
-  const s = document.getElementById("horarios_status");
+  btn.disabled = false;
   if (error) {
     s.textContent = /duplicate|unique|23505/i.test(error.message) ? "Ese partido ya está en tu ruta." : "Error: " + error.message;
     return;
   }
-  s.textContent = `Añadido a tu ruta: ${p.local} vs ${p.visitante}.`;
+  cerrarModalObjetivos();
+  document.getElementById("horarios_status").textContent = "Añadido a tu ruta.";
 }
 
 // ---------------- MI RUTA ----------------
@@ -359,28 +417,36 @@ async function cargarRuta() {
   data.forEach(rp => {
     const div = document.createElement("div");
     div.className = "partido partido-clic";
+    div.style.flexDirection = "column";
+    div.style.alignItems = "stretch";
     const fecha = rp.fecha ? new Date(rp.fecha + "T00:00:00").toLocaleDateString("es-ES") : "Sin fecha";
+    const chips = [rp.categoria, rp.competicion, rp.grupo].filter(Boolean)
+      .map(c => `<span class="chip">${escapeHtml(c)}</span>`).join("");
     div.innerHTML =
       `<div class="equipos">${escapeHtml(rp.local || "")} <span style="color:var(--muted);font-weight:400;">vs</span> ${escapeHtml(rp.visitante || "")}` +
       (rp.es_manual ? ' <span class="badge-fuente">manual</span>' : "") + `</div>` +
-      `<div class="meta">${fecha}${rp.hora ? " · " + escapeHtml(rp.hora) : ""}${rp.campo ? " · " + escapeHtml(rp.campo) : ""}` +
-      (rp.objetivos ? ` · 🎯` : "") + `</div>`;
+      `<div class="meta">${fecha}${rp.hora ? " · " + escapeHtml(rp.hora) : ""}${rp.campo ? " · " + escapeHtml(rp.campo) : ""}</div>` +
+      (chips ? `<div class="chips">${chips}</div>` : "") +
+      (rp.objetivos ? `<div class="obj-linea">🎯 ${escapeHtml(rp.objetivos)}</div>` : "");
     div.onclick = () => abrirDetalle(rp.id);
     cont.appendChild(div);
   });
 }
 
 let detalleActual = null;
+let detalleAlineacion = null;   // { fuente, jugadores_local, jugadores_visitante, mapaId, mapaAnio }
 
-async function abrirDetalle(id) {
+async function abrirDetalle(id, autoAlineacion = false) {
   const { data: rp, error } = await client.from("ruta_partidos").select("*").eq("id", id).single();
   if (error || !rp) return;
   detalleActual = rp;
+  detalleAlineacion = null;
 
   document.getElementById("ruta_lista_wrap").style.display = "none";
   const cont = document.getElementById("ruta_detalle");
   cont.style.display = "block";
   const fecha = rp.fecha ? new Date(rp.fecha + "T00:00:00").toLocaleDateString("es-ES") : "Sin fecha";
+  const linea2 = [fecha + (rp.hora ? " · " + rp.hora : ""), rp.campo, rp.categoria, rp.competicion, rp.grupo].filter(Boolean).map(escapeHtml).join(" · ");
 
   cont.innerHTML = `
     <div class="detalle-cab">
@@ -388,27 +454,14 @@ async function abrirDetalle(id) {
       <button class="danger" style="font-size:12px;padding:6px 12px;" onclick="eliminarPartido('${rp.id}')">Eliminar partido</button>
     </div>
     <h2 style="margin:0 0 2px;">${escapeHtml(rp.local || "")} vs ${escapeHtml(rp.visitante || "")}</h2>
-    <p style="color:var(--muted);font-size:13px;margin:0 0 16px;">${fecha}${rp.hora ? " · " + escapeHtml(rp.hora) : ""}${rp.campo ? " · " + escapeHtml(rp.campo) : ""}${rp.competicion ? " · " + escapeHtml(rp.competicion) : ""}</p>
-
-    <label>Objetivos del partido <span style="color:var(--muted);">(¿por qué vas?)</span></label>
-    <textarea id="d_objetivos" style="width:100%;min-height:80px;" oninput="guardarObjetivosDebounced()">${escapeHtml(rp.objetivos || "")}</textarea>
-    <p id="d_obj_status" class="status"></p>
-
-    <div id="d_alineaciones_wrap" style="margin-top:18px;">
+    <p style="color:var(--muted);font-size:13px;margin:0 0 6px;">${linea2}</p>
+    <div id="d_alineaciones_wrap" style="margin-top:14px;">
       ${rp.es_manual
         ? '<p class="vacio">Los partidos manuales no tienen plantillas de la FFCV.</p>'
         : '<button class="secondary" onclick="cargarAlineaciones()">Ver plantillas y titulares</button>'}
     </div>
   `;
-}
-
-let objetivosTimeout = null;
-function guardarObjetivosDebounced() { clearTimeout(objetivosTimeout); objetivosTimeout = setTimeout(guardarObjetivos, 600); }
-async function guardarObjetivos() {
-  if (!detalleActual) return;
-  const val = document.getElementById("d_objetivos").value || null;
-  const { error } = await client.from("ruta_partidos").update({ objetivos: val }).eq("id", detalleActual.id);
-  document.getElementById("d_obj_status").textContent = error ? "Error guardando: " + error.message : "Guardado.";
+  if (autoAlineacion && !rp.es_manual) cargarAlineaciones();
 }
 
 async function cargarAlineaciones() {
@@ -422,62 +475,88 @@ async function cargarAlineaciones() {
       cod_equipo_local: detalleActual.cod_equipo_local, cod_equipo_visitante: detalleActual.cod_equipo_visitante,
       cod_temporada: ctx.cod_temporada, cod_competicion: ctx.cod_competicion, cod_grupo: ctx.cod_grupo, cod_jornada: ctx.cod_jornada,
     });
-    // resolver qué codjugadores existen en nuestra base para enlazar con Informes
+    // resolver qué codjugadores existen en nuestra base (para enlazar Informes y sacar el año)
     const todos = [...(d.jugadores_local || []), ...(d.jugadores_visitante || [])].map(j => j.codjugador).filter(Boolean);
-    let mapaId = {};
+    const mapaId = {}, mapaAnio = {};
     if (todos.length) {
-      const { data: jugs } = await client.from("jugadores").select("id, cod_ffcv").in("cod_ffcv", todos);
-      (jugs || []).forEach(j => { mapaId[j.cod_ffcv] = j.id; });
+      const { data: jugs } = await client.from("jugadores").select("id, cod_ffcv, fecha_nacimiento").in("cod_ffcv", todos);
+      (jugs || []).forEach(j => {
+        mapaId[j.cod_ffcv] = j.id;
+        if (j.fecha_nacimiento) mapaAnio[j.cod_ffcv] = new Date(j.fecha_nacimiento).getFullYear();
+      });
     }
-    // marcas de titular guardadas previamente
-    const guardado = (detalleActual.alineacion && detalleActual.alineacion.marcas) || {};
-    renderAlineaciones(d, mapaId, guardado);
+    detalleAlineacion = { ...d, mapaId, mapaAnio };
+    renderAlineaciones();
   } catch (e) {
     wrap.innerHTML = `<p class="status">Error cargando plantillas: ${escapeHtml(e.message)}</p><button class="secondary" onclick="cargarAlineaciones()">Reintentar</button>`;
   }
 }
 
-function renderAlineaciones(d, mapaId, guardado) {
+function dorsalNum(d) { const n = parseInt(d, 10); return isNaN(n) ? 9999 : n; }
+
+function esTitular(lado, j) {
+  const m = (detalleActual.alineacion && detalleActual.alineacion.marcas && detalleActual.alineacion.marcas[lado]) || {};
+  if (Object.prototype.hasOwnProperty.call(m, j.codjugador)) return !!m[j.codjugador];
+  // sin marca del ojeador: si el acta ya trae titulares reales, se respetan; si es plantilla, nadie es titular
+  return detalleAlineacion.fuente === "acta" ? !!j.titular : false;
+}
+
+function renderAlineaciones() {
+  const d = detalleAlineacion;
   const wrap = document.getElementById("d_alineaciones_wrap");
   const fuenteTxt = d.fuente === "acta"
-    ? "Titulares y dorsales del acta (partido ya jugado)."
-    : "Plantillas de la FFCV con dorsales precargados del último partido. Marca tú los titulares.";
+    ? (d.cerrada ? "Alineaciones del acta (partido finalizado)." : "🔴 Alineación en directo del acta (subida por el club).")
+    : "Dorsales precargados del último partido. Marca tú los titulares y subirán arriba.";
+
+  const filaJug = (lado, j) => {
+    const tit = esTitular(lado, j);
+    const anio = d.mapaAnio[j.codjugador];
+    const idJug = d.mapaId[j.codjugador];
+    const informe = idJug
+      ? `<a href="jugadores.html?jugador_id=${idJug}&volver=ruta&rp=${detalleActual.id}" title="Hacer informe" style="text-decoration:none;">📝</a>`
+      : `<span title="No está en la base de datos" style="color:var(--border);">📝</span>`;
+    return `<div class="jug-fila ${tit ? "es-titular" : ""}">
+      <span class="dorsal">${escapeHtml(j.dorsal || "-")}</span>
+      <span class="nombre">${escapeHtml(j.nombre)}${anio ? ` <span class="anio">(${anio})</span>` : ""}${j.capitan ? " ©" : ""}${j.portero ? " 🧤" : ""}</span>
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);cursor:pointer;">
+        <input type="checkbox" ${tit ? "checked" : ""} onchange="toggleTitular('${lado}','${escapeHtml(j.codjugador)}',this.checked)"> titular
+      </label>
+      ${informe}
+    </div>`;
+  };
 
   const columna = (titulo, jugadores, lado) => {
-    const filas = (jugadores || []).map((j, i) => {
-      const marcado = d.fuente === "acta" ? !!j.titular : !!(guardado[lado] && guardado[lado][j.codjugador]);
-      const idJug = mapaId[j.codjugador];
-      const informe = idJug
-        ? `<a href="jugadores.html?jugador_id=${idJug}" target="_blank" title="Informe" style="color:var(--primary);text-decoration:none;">📝</a>`
-        : `<span title="No está en la base de datos" style="color:var(--border);">📝</span>`;
-      return `<div class="jug-fila ${marcado ? "es-titular" : ""}" id="jf_${lado}_${i}">
-        <span class="dorsal">${escapeHtml(j.dorsal || "-")}</span>
-        <span class="nombre">${escapeHtml(j.nombre)}${j.capitan ? " ©" : ""}${j.portero ? " 🧤" : ""}</span>
-        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);cursor:pointer;">
-          <input type="checkbox" ${marcado ? "checked" : ""} onchange="toggleTitular('${lado}','${escapeHtml(j.codjugador)}',this)"> titular
-        </label>
-        ${informe}
-      </div>`;
-    }).join("");
-    return `<div class="alin-col"><h4>${escapeHtml(titulo)}${d["esquema_" + lado] ? ` <span style="color:var(--muted);font-weight:400;">${escapeHtml(d["esquema_" + lado])}</span>` : ""}</h4>${filas || '<p class="vacio">Sin datos.</p>'}</div>`;
+    const lista = (jugadores || []).slice();
+    const titulares = lista.filter(j => esTitular(lado, j)).sort((a, b) => dorsalNum(a.dorsal) - dorsalNum(b.dorsal));
+    const suplentes = lista.filter(j => !esTitular(lado, j)).sort((a, b) => dorsalNum(a.dorsal) - dorsalNum(b.dorsal));
+    const esquema = d["esquema_" + lado];
+    return `<div class="alin-col">
+      <h4>${escapeHtml(titulo)}${esquema ? ` <span style="color:var(--muted);font-weight:400;">${escapeHtml(esquema)}</span>` : ""}</h4>
+      <div class="grupo-tit">Titulares (${titulares.length})</div>
+      ${titulares.map(j => filaJug(lado, j)).join("") || '<p style="color:var(--muted);font-size:12px;margin:4px 0;">Marca abajo quién es titular.</p>'}
+      <div class="grupo-tit">Suplentes (${suplentes.length})</div>
+      ${suplentes.map(j => filaJug(lado, j)).join("") || '<p style="color:var(--muted);font-size:12px;margin:4px 0;">—</p>'}
+    </div>`;
   };
 
   wrap.innerHTML =
-    `<p class="status" style="margin-bottom:6px;">${fuenteTxt}</p>` +
-    `<div class="alineaciones">` +
+    `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+       <p class="status" style="margin:0;">${fuenteTxt}</p>
+       <button class="secondary" style="font-size:12px;padding:6px 10px;" onclick="cargarAlineaciones()">↻ Actualizar (en directo)</button>
+     </div>
+     <div class="alineaciones">` +
     columna(detalleActual.local || "Local", d.jugadores_local, "local") +
     columna(detalleActual.visitante || "Visitante", d.jugadores_visitante, "visitante") +
     `</div>`;
 }
 
 let marcasTimeout = null;
-function toggleTitular(lado, codjugador, input) {
-  input.closest(".jug-fila").classList.toggle("es-titular", input.checked);
+function toggleTitular(lado, codjugador, marcado) {
   if (!detalleActual.alineacion) detalleActual.alineacion = {};
   if (!detalleActual.alineacion.marcas) detalleActual.alineacion.marcas = {};
   if (!detalleActual.alineacion.marcas[lado]) detalleActual.alineacion.marcas[lado] = {};
-  if (input.checked) detalleActual.alineacion.marcas[lado][codjugador] = true;
-  else delete detalleActual.alineacion.marcas[lado][codjugador];
+  detalleActual.alineacion.marcas[lado][codjugador] = marcado;
+  renderAlineaciones();
   clearTimeout(marcasTimeout);
   marcasTimeout = setTimeout(guardarMarcas, 500);
 }
@@ -495,7 +574,7 @@ async function eliminarPartido(id) {
 
 // ---------------- MODAL MANUAL ----------------
 function abrirModalManual() {
-  ["mm_local", "mm_visitante", "mm_fecha", "mm_hora", "mm_campo"].forEach(id => document.getElementById(id).value = "");
+  ["mm_local", "mm_visitante", "mm_fecha", "mm_hora", "mm_campo", "mm_objetivos"].forEach(id => document.getElementById(id).value = "");
   document.getElementById("mm_status").textContent = "";
   document.getElementById("modal_manual").style.display = "flex";
 }
@@ -514,6 +593,7 @@ async function guardarManual() {
     fecha: document.getElementById("mm_fecha").value || null,
     hora: document.getElementById("mm_hora").value || null,
     campo: document.getElementById("mm_campo").value.trim() || null,
+    objetivos: document.getElementById("mm_objetivos").value.trim() || null,
   };
   const { error } = await client.from("ruta_partidos").insert(registro);
   btn.disabled = false;
@@ -525,6 +605,14 @@ async function guardarManual() {
 document.addEventListener("DOMContentLoaded", async () => {
   const ok = await protegerPagina();
   if (!ok) return;
+  // Si venimos de un informe ("volver al partido"), abrir directamente ese partido.
+  const partidoId = new URLSearchParams(window.location.search).get("partido");
+  if (partidoId) {
+    cambiarSeccion("ruta");
+    await abrirDetalle(partidoId, true);
+    cargarCatalogo();
+    return;
+  }
   await cargarCatalogo();
 });
 </script>

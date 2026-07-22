@@ -82,6 +82,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 </div>
 
 <div class="barra">
+  <button id="btn_volver_partido" style="display:none;" onclick="volverAlPartido()">← Volver al partido</button>
   <div id="campo_club_wrap" style="display:none;">
     <select id="filtro_club" onchange="onClubChange()"></select>
   </div>
@@ -790,8 +791,18 @@ async function mensajeError(error) {
   return error.message || "Error desconocido";
 }
 
+// Cuando se llega desde un partido de la Ruta (para hacer el informe), se
+// muestra un botón para volver justo a ese partido donde estabas.
+function volverAlPartido() {
+  const rp = new URLSearchParams(window.location.search).get("rp");
+  window.location.href = rp ? "ruta.html?partido=" + rp : "ruta.html";
+}
+
 async function abrirDesdeUrl() {
   const params = new URLSearchParams(window.location.search);
+  if (params.get("volver") === "ruta") {
+    document.getElementById("btn_volver_partido").style.display = "inline-block";
+  }
   const jugadorId = params.get("jugador_id");
   if (jugadorId) await abrirJugador(jugadorId);
 }
