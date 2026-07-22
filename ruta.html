@@ -129,8 +129,11 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 <div class="contenedor" id="seccion_ruta" style="display:none;">
   <div id="ruta_lista_wrap">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
-      <h2 style="margin:0;font-size:18px;">Mis partidos</h2>
-      <button onclick="abrirModalManual()">+ Añadir partido manual</button>
+      <h2 id="ruta_titulo" style="margin:0;font-size:18px;">Mis partidos</h2>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <select id="filtro_ojeador" style="display:none;" onchange="renderRuta()"></select>
+        <button onclick="abrirModalManual()">+ Añadir partido manual</button>
+      </div>
     </div>
     <p id="ruta_status" class="status"></p>
     <div id="ruta_lista"></div>
@@ -214,6 +217,10 @@ const client = supabase.createClient(
 
 let miClubId = null;
 let miNombre = "";
+let miUserId = null;
+let esAdmin = false, esClubAdmin = false;
+let rutaCache = [];
+let ojeadorNombre = {};
 let catalogo = { cod_temporada: null, competiciones: [] };
 let gruposActuales = [];
 let partidoPendiente = null;   // partido que se va a añadir desde Horarios (a la espera de objetivos)
@@ -227,10 +234,13 @@ function escapeHtml(s) {
 async function protegerPagina() {
   const { data: session } = await client.auth.getSession();
   if (!session.session) { window.location.href = "index.html"; return false; }
+  miUserId = session.session.user.id;
   const { data: perfil } = await client
     .from("profiles").select("is_admin, is_club_admin, club_id, nombre, username").eq("id", session.session.user.id).single();
   miClubId = perfil?.club_id || null;
   miNombre = perfil?.nombre || perfil?.username || "";
+  esAdmin = !!perfil?.is_admin;
+  esClubAdmin = !!perfil?.is_club_admin;
   if (perfil?.is_admin) document.getElementById("btn_admin").style.display = "inline-block";
   if (perfil?.is_club_admin) document.getElementById("btn_equipo").style.display = "inline-block";
   return true;
@@ -429,17 +439,58 @@ async function confirmarAnadirRuta() {
 }
 
 // ---------------- MI RUTA ----------------
+const puedeVerTodas = () => esAdmin || esClubAdmin;
+
 async function cargarRuta() {
   document.getElementById("ruta_lista_wrap").style.display = "block";
   document.getElementById("ruta_detalle").style.display = "none";
-  const cont = document.getElementById("ruta_lista");
+  document.getElementById("ruta_titulo").textContent = puedeVerTodas() ? "Partidos del club" : "Mis partidos";
+
+  // La RLS decide qué filas llegan: el ojeador ve solo las suyas; el admin del
+  // club (o global) ve las de todos sus ojeadores.
   const { data, error } = await client.from("ruta_partidos").select("*")
     .order("fecha", { ascending: true, nullsFirst: false }).order("hora", { ascending: true, nullsFirst: true });
-  if (error) { cont.innerHTML = `<p class="vacio">Error: ${escapeHtml(error.message)}</p>`; return; }
-  if (!data || !data.length) { cont.className = ""; cont.innerHTML = '<p class="vacio">Aún no tienes partidos en tu ruta. Añádelos desde Horarios o crea uno manual.</p>'; return; }
+  if (error) { document.getElementById("ruta_lista").innerHTML = `<p class="vacio">Error: ${escapeHtml(error.message)}</p>`; return; }
+  rutaCache = data || [];
+
+  // Nombres de cada ojeador (para mostrarlos y para el filtro).
+  ojeadorNombre = {};
+  const userIds = [...new Set(rutaCache.map(r => r.user_id).filter(Boolean))];
+  if (userIds.length) {
+    const { data: profs } = await client.from("profiles").select("id, nombre, username").in("id", userIds);
+    (profs || []).forEach(p => { ojeadorNombre[p.id] = p.nombre || p.username || "Ojeador"; });
+  }
+  if (miUserId) ojeadorNombre[miUserId] = ojeadorNombre[miUserId] || miNombre || "Yo";
+
+  // Filtro por ojeador (solo para quien puede ver las de todos).
+  const sel = document.getElementById("filtro_ojeador");
+  if (puedeVerTodas() && userIds.length > 1) {
+    const previo = sel.value;
+    sel.style.display = "";
+    sel.innerHTML = '<option value="">Todos los ojeadores</option>' +
+      userIds.map(id => `<option value="${id}">${escapeHtml(ojeadorNombre[id] || "Ojeador")}</option>`).join("");
+    if ([...sel.options].some(o => o.value === previo)) sel.value = previo;
+  } else {
+    sel.style.display = "none";
+    sel.innerHTML = "";
+  }
+
+  renderRuta();
+}
+
+function renderRuta() {
+  const cont = document.getElementById("ruta_lista");
+  const filtro = document.getElementById("filtro_ojeador").value;
+  const filas = filtro ? rutaCache.filter(r => r.user_id === filtro) : rutaCache;
+
+  if (!filas.length) {
+    cont.className = "";
+    cont.innerHTML = `<p class="vacio">${rutaCache.length ? "Ningún partido para ese ojeador." : "Aún no hay partidos en la ruta. Añádelos desde Horarios o crea uno manual."}</p>`;
+    return;
+  }
   cont.className = "ruta-grid";
   cont.innerHTML = "";
-  data.forEach(rp => {
+  filas.forEach(rp => {
     const card = document.createElement("div");
     card.className = "ruta-card";
     card.onclick = () => abrirDetalle(rp.id);
@@ -452,7 +503,7 @@ async function cargarRuta() {
       `<div class="rc-meta">📅 ${fecha}${rp.hora ? " · 🕒 " + escapeHtml(rp.hora) : ""}${rp.campo ? " · 📍 " + escapeHtml(rp.campo) : ""}</div>` +
       (chips ? `<div class="rc-chips">${chips}</div>` : "") +
       (rp.objetivos ? `<div class="rc-obj">🎯 ${escapeHtml(rp.objetivos)}</div>` : "") +
-      `<div class="rc-ojeador">👤 ${escapeHtml(miNombre || "—")}</div>`;
+      `<div class="rc-ojeador">👤 ${escapeHtml(ojeadorNombre[rp.user_id] || miNombre || "—")}</div>`;
     cont.appendChild(card);
   });
 }
@@ -466,19 +517,26 @@ async function abrirDetalle(id, autoAlineacion = false) {
   detalleActual = rp;
   detalleAlineacion = null;
 
+  // Si el admin abre la ruta de OTRO ojeador, es solo lectura (la RLS no le
+  // deja escribir): se ocultan editar/eliminar y se marca de quién es.
+  const soloLectura = !!(rp.user_id && miUserId && rp.user_id !== miUserId);
+  detalleActual.soloLectura = soloLectura;
+
   document.getElementById("ruta_lista_wrap").style.display = "none";
   const cont = document.getElementById("ruta_detalle");
   cont.style.display = "block";
   const fecha = rp.fecha ? new Date(rp.fecha + "T00:00:00").toLocaleDateString("es-ES") : "Sin fecha";
   const linea2 = [fecha + (rp.hora ? " · " + rp.hora : ""), rp.campo, rp.categoria, rp.competicion, rp.grupo].filter(Boolean).map(escapeHtml).join(" · ");
+  const volverTxt = puedeVerTodas() ? "← Volver a los partidos" : "← Volver a mi ruta";
 
   cont.innerHTML = `
     <div class="detalle-cab">
-      <button class="secondary" onclick="cargarRuta()">← Volver a mi ruta</button>
-      <button class="danger" style="font-size:12px;padding:6px 12px;" onclick="eliminarPartido('${rp.id}')">Eliminar partido</button>
+      <button class="secondary" onclick="cargarRuta()">${volverTxt}</button>
+      ${soloLectura ? "" : `<button class="danger" style="font-size:12px;padding:6px 12px;" onclick="eliminarPartido('${rp.id}')">Eliminar partido</button>`}
     </div>
     <h2 style="margin:0 0 2px;">${escapeHtml(rp.local || "")} vs ${escapeHtml(rp.visitante || "")}</h2>
     <p style="color:var(--muted);font-size:13px;margin:0 0 6px;">${linea2}</p>
+    ${soloLectura ? `<p style="color:var(--muted);font-size:12px;margin:0 0 6px;">👤 Ruta de ${escapeHtml(ojeadorNombre[rp.user_id] || "otro ojeador")} · solo lectura</p>` : ""}
     <div id="d_alineaciones_wrap" style="margin-top:14px;">
       ${rp.es_manual
         ? '<p class="vacio">Los partidos manuales no tienen plantillas de la FFCV.</p>'
@@ -544,7 +602,7 @@ function renderAlineaciones() {
       <span class="dorsal">${escapeHtml(j.dorsal || "-")}</span>
       <span class="nombre">${escapeHtml(j.nombre)}${anio ? ` <span class="anio">(${anio})</span>` : ""}${j.capitan ? " ©" : ""}${j.portero ? " 🧤" : ""}</span>
       <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);cursor:pointer;">
-        <input type="checkbox" ${tit ? "checked" : ""} onchange="toggleTitular('${lado}','${escapeHtml(j.codjugador)}',this.checked)"> titular
+        <input type="checkbox" ${tit ? "checked" : ""} ${detalleActual.soloLectura ? "disabled" : ""} onchange="toggleTitular('${lado}','${escapeHtml(j.codjugador)}',this.checked)"> titular
       </label>
       ${informe}
     </div>`;
@@ -577,6 +635,7 @@ function renderAlineaciones() {
 
 let marcasTimeout = null;
 function toggleTitular(lado, codjugador, marcado) {
+  if (detalleActual.soloLectura) return;
   if (!detalleActual.alineacion) detalleActual.alineacion = {};
   if (!detalleActual.alineacion.marcas) detalleActual.alineacion.marcas = {};
   if (!detalleActual.alineacion.marcas[lado]) detalleActual.alineacion.marcas[lado] = {};
