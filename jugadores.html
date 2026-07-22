@@ -60,15 +60,20 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
   .ficha-cab{flex-wrap:wrap;}
   .foto-wrap{width:90px;height:90px;}
 }
-/* Modo embebido en ventana emergente (desde la Ruta): solo los campos del informe. */
+/* Modo embebido en ventana emergente (desde la Ruta): foto arriba, campos del
+   informe, historial abajo. Sin navegación, panel, nombre (va en la cabecera
+   del pop-up) ni campos que no se rellenan durante el partido. */
 body.modal-embebido{background:#fff;}
 body.modal-embebido #topbar,
 body.modal-embebido .barra,
 body.modal-embebido .panel,
-body.modal-embebido .ficha-cab,
-body.modal-embebido #f_historial{display:none !important;}
+body.modal-embebido .ficha-info,
+body.modal-embebido #campo_contactado,
+body.modal-embebido #campo_plantillas,
+body.modal-embebido #campo_link_veo{display:none !important;}
 body.modal-embebido .layout{padding:12px;gap:0;}
 body.modal-embebido .ficha{border:0;padding:0;}
+body.modal-embebido .ficha-cab{margin-bottom:14px;}
 </style>
 </head>
 <body>
@@ -183,11 +188,11 @@ body.modal-embebido .ficha{border:0;padding:0;}
           <label>Teléfono</label>
           <input id="f_contacto" type="text" oninput="guardarInformeDebounced()">
         </div>
-        <div>
+        <div id="campo_contactado">
           <label>&nbsp;</label>
           <label class="tick"><input id="f_contactado" type="checkbox" style="width:auto;" onchange="guardarInformeDebounced()"> Contactado</label>
         </div>
-        <div>
+        <div id="campo_plantillas">
           <label>&nbsp;</label>
           <a onclick="abrirModalPlantillas()" style="display:inline-block;font-size:13px;color:var(--primary);cursor:pointer;text-decoration:underline;margin-top:8px;">→ Enviar a plantillas</a>
         </div>
@@ -215,7 +220,7 @@ body.modal-embebido .ficha{border:0;padding:0;}
           <label>Actitud (1-10)</label>
           <input id="f_actitud" type="number" min="1" max="10" oninput="guardarInformeDebounced()">
         </div>
-        <div class="campo-full">
+        <div class="campo-full" id="campo_link_veo">
           <label>Link VEO</label>
           <input id="f_link_veo" type="url" placeholder="https://app.veo.co/matches/..." oninput="guardarInformeDebounced()">
         </div>
