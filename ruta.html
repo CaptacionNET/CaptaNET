@@ -41,6 +41,17 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 .vacio{color:var(--muted);font-size:14px;padding:20px 4px;text-align:center;}
 .status{font-weight:600;color:var(--muted);margin:10px 0 0;font-size:13px;}
 
+/* Cuadrícula compacta de "Mis partidos": varias tarjetas por fila de un vistazo. */
+.ruta-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;}
+.ruta-card{border:1px solid var(--border);border-radius:8px;padding:10px 12px;cursor:pointer;background:#fff;display:flex;flex-direction:column;gap:4px;}
+.ruta-card:hover{border-color:var(--primary);}
+.ruta-card .rc-equipos{font-weight:700;font-size:13px;line-height:1.25;}
+.ruta-card .rc-meta{color:var(--muted);font-size:12px;}
+.ruta-card .rc-chips{display:flex;gap:4px;flex-wrap:wrap;}
+.ruta-card .rc-chip{font-size:10px;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:1px 7px;}
+.ruta-card .rc-obj{color:var(--text);font-size:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.ruta-card .rc-ojeador{color:var(--muted);font-size:10px;margin-top:2px;}
+
 .detalle-cab{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
 .alineaciones{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:14px;}
 .alin-col h4{margin:0 0 6px;font-size:14px;}
@@ -202,6 +213,7 @@ const client = supabase.createClient(
 );
 
 let miClubId = null;
+let miNombre = "";
 let catalogo = { cod_temporada: null, competiciones: [] };
 let gruposActuales = [];
 let partidoPendiente = null;   // partido que se va a añadir desde Horarios (a la espera de objetivos)
@@ -216,8 +228,9 @@ async function protegerPagina() {
   const { data: session } = await client.auth.getSession();
   if (!session.session) { window.location.href = "index.html"; return false; }
   const { data: perfil } = await client
-    .from("profiles").select("is_admin, is_club_admin, club_id").eq("id", session.session.user.id).single();
+    .from("profiles").select("is_admin, is_club_admin, club_id, nombre, username").eq("id", session.session.user.id).single();
   miClubId = perfil?.club_id || null;
+  miNombre = perfil?.nombre || perfil?.username || "";
   if (perfil?.is_admin) document.getElementById("btn_admin").style.display = "inline-block";
   if (perfil?.is_club_admin) document.getElementById("btn_equipo").style.display = "inline-block";
   return true;
@@ -423,24 +436,24 @@ async function cargarRuta() {
   const { data, error } = await client.from("ruta_partidos").select("*")
     .order("fecha", { ascending: true, nullsFirst: false }).order("hora", { ascending: true, nullsFirst: true });
   if (error) { cont.innerHTML = `<p class="vacio">Error: ${escapeHtml(error.message)}</p>`; return; }
-  if (!data || !data.length) { cont.innerHTML = '<p class="vacio">Aún no tienes partidos en tu ruta. Añádelos desde Horarios o crea uno manual.</p>'; return; }
+  if (!data || !data.length) { cont.className = ""; cont.innerHTML = '<p class="vacio">Aún no tienes partidos en tu ruta. Añádelos desde Horarios o crea uno manual.</p>'; return; }
+  cont.className = "ruta-grid";
   cont.innerHTML = "";
   data.forEach(rp => {
-    const div = document.createElement("div");
-    div.className = "partido partido-clic";
-    div.style.flexDirection = "column";
-    div.style.alignItems = "stretch";
+    const card = document.createElement("div");
+    card.className = "ruta-card";
+    card.onclick = () => abrirDetalle(rp.id);
     const fecha = rp.fecha ? new Date(rp.fecha + "T00:00:00").toLocaleDateString("es-ES") : "Sin fecha";
     const chips = [rp.categoria, rp.competicion, rp.grupo].filter(Boolean)
-      .map(c => `<span class="chip">${escapeHtml(c)}</span>`).join("");
-    div.innerHTML =
-      `<div class="equipos">${escapeHtml(rp.local || "")} <span style="color:var(--muted);font-weight:400;">vs</span> ${escapeHtml(rp.visitante || "")}` +
+      .map(c => `<span class="rc-chip">${escapeHtml(c)}</span>`).join("");
+    card.innerHTML =
+      `<div class="rc-equipos">${escapeHtml(rp.local || "")} <span style="color:var(--muted);font-weight:400;">vs</span> ${escapeHtml(rp.visitante || "")}` +
       (rp.es_manual ? ' <span class="badge-fuente">manual</span>' : "") + `</div>` +
-      `<div class="meta">${fecha}${rp.hora ? " · " + escapeHtml(rp.hora) : ""}${rp.campo ? " · " + escapeHtml(rp.campo) : ""}</div>` +
-      (chips ? `<div class="chips">${chips}</div>` : "") +
-      (rp.objetivos ? `<div class="obj-linea">🎯 ${escapeHtml(rp.objetivos)}</div>` : "");
-    div.onclick = () => abrirDetalle(rp.id);
-    cont.appendChild(div);
+      `<div class="rc-meta">📅 ${fecha}${rp.hora ? " · 🕒 " + escapeHtml(rp.hora) : ""}${rp.campo ? " · 📍 " + escapeHtml(rp.campo) : ""}</div>` +
+      (chips ? `<div class="rc-chips">${chips}</div>` : "") +
+      (rp.objetivos ? `<div class="rc-obj">🎯 ${escapeHtml(rp.objetivos)}</div>` : "") +
+      `<div class="rc-ojeador">👤 ${escapeHtml(miNombre || "—")}</div>`;
+    cont.appendChild(card);
   });
 }
 
