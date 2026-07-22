@@ -44,6 +44,20 @@ input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-rad
   </div>
 </div>
 
+<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin:16px 24px;max-width:520px;">
+  <h3 style="margin:0 0 4px;font-size:15px;">Formulario de pruebas</h3>
+  <p style="color:var(--muted);font-size:13px;margin:0 0 14px;">Controla si tu formulario público de inscripción a pruebas está abierto.</p>
+  <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text);margin-bottom:12px;">
+    <input id="pf_activo" type="checkbox" style="width:auto;" onchange="guardarConfigPruebas()">
+    Formulario activo
+  </label>
+  <div>
+    <label for="pf_fecha_limite">Fecha límite (opcional)</label>
+    <input id="pf_fecha_limite" type="date" onchange="guardarConfigPruebas()">
+  </div>
+  <p id="pf_status" style="font-size:13px;color:var(--muted);margin:10px 0 0;"></p>
+</div>
+
 <p style="color:var(--muted);font-size:14px;margin:16px 24px 0;">
   Aquí gestionas las cuentas de tu propio club. Para crear una, añade una fila y rellena al menos Email y Nueva contraseña.
 </p>
@@ -197,9 +211,27 @@ function anadirFilaUsuario() {
   tablaUsuarios.addRow({ nombre: "", username: "", email: "", contrasena: "" }, true);
 }
 
+async function cargarConfigPruebas() {
+  const { data, error } = await client.rpc("pruebas_config_club").maybeSingle();
+  if (error) { console.error("[CaptaNET] pruebas_config_club:", error); return; }
+  document.getElementById("pf_activo").checked = data ? !!data.activo : true;
+  document.getElementById("pf_fecha_limite").value = data?.fecha_limite || "";
+}
+
+async function guardarConfigPruebas() {
+  const status = document.getElementById("pf_status");
+  const activo = document.getElementById("pf_activo").checked;
+  const fechaLimite = document.getElementById("pf_fecha_limite").value || null;
+
+  status.textContent = "Guardando...";
+  const { error } = await client.rpc("pruebas_config_actualizar", { p_activo: activo, p_fecha_limite: fechaLimite });
+  status.textContent = error ? "Error guardando: " + error.message : "Guardado.";
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   const ok = await protegerPagina();
   if (!ok) return;
+  await cargarConfigPruebas();
   await cargarUsuarios();
 });
 </script>

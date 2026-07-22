@@ -58,6 +58,8 @@ button:disabled{opacity:.6;cursor:default;}
       No se ha encontrado el club. Accede desde el enlace que te ha facilitado tu club.
     </div>
 
+    <div id="formularioCerrado" style="display:none;color:var(--muted);font-size:14px;text-align:center;"></div>
+
     <form id="inscripcionForm">
       <div class="field">
         <label for="nombre">Nombre completo *</label>
@@ -149,14 +151,24 @@ button:disabled{opacity:.6;cursor:default;}
         document.getElementById("sinClub").style.display = "block";
         return;
       }
-      const { data: nombre, error } = await client.rpc("get_club_nombre_by_slug", { p_slug: clubSlug });
-      if (error) { console.error("[CaptaNET] get_club_nombre_by_slug:", error); return; }
-      if (nombre) {
-        document.getElementById("subtitle").textContent = "Inscripción a pruebas de " + nombre;
-        document.title = "CaptaNET - Pruebas " + nombre;
-      } else {
+      const { data, error } = await client.rpc("pruebas_estado_publico", { p_slug: clubSlug }).maybeSingle();
+      if (error) { console.error("[CaptaNET] pruebas_estado_publico:", error); return; }
+      if (!data || !data.nombre) {
         form.style.display = "none";
         document.getElementById("sinClub").style.display = "block";
+        return;
+      }
+
+      document.getElementById("subtitle").textContent = "Inscripción a pruebas de " + data.nombre;
+      document.title = "CaptaNET - Pruebas " + data.nombre;
+
+      if (data.cerrado) {
+        form.style.display = "none";
+        const cerrado = document.getElementById("formularioCerrado");
+        cerrado.textContent = data.fecha_limite
+          ? `El plazo de inscripción a pruebas de ${data.nombre} terminó el ${new Date(data.fecha_limite + "T00:00:00").toLocaleDateString("es-ES")}.`
+          : `El formulario de inscripción a pruebas de ${data.nombre} no está disponible ahora mismo.`;
+        cerrado.style.display = "block";
       }
     }
 

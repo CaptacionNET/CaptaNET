@@ -143,6 +143,39 @@ button:disabled{opacity:.6;cursor:default;}
       <button id="recuperarBtn" type="submit">Enviar enlace</button>
       <a class="link-secundario" onclick="mostrarLogin()">Volver a iniciar sesión</a>
     </form>
+
+    <a class="link-secundario" onclick="abrirModalContacto()">¿Necesitas ayuda? Contacta con nosotros</a>
+  </div>
+
+  <div id="modal_contacto" style="position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:200;padding:20px;">
+    <div class="card" style="box-shadow:0 20px 50px rgba(0,0,0,.3);">
+      <div class="logo" style="font-size:20px;">Contacta con nosotros</div>
+      <div class="subtitle" style="margin-bottom:20px;">Te responderemos lo antes posible.</div>
+
+      <p id="contactoError" class="error"></p>
+      <p id="contactoOk" class="aviso-ok"></p>
+
+      <form id="contactoForm">
+        <div class="field">
+          <label for="c_nombre">Nombre</label>
+          <input id="c_nombre" type="text" required>
+        </div>
+        <div class="field">
+          <label for="c_email">Email</label>
+          <input id="c_email" type="email" required>
+        </div>
+        <div class="field">
+          <label for="c_mensaje">Mensaje</label>
+          <textarea id="c_mensaje" required rows="4" style="width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:8px;font-size:15px;background:#fafbfe;font-family:inherit;resize:vertical;"></textarea>
+        </div>
+        <div style="position:absolute;left:-9999px;" aria-hidden="true">
+          <label for="c_web">Deja este campo vacío</label>
+          <input id="c_web" type="text" tabindex="-1" autocomplete="off">
+        </div>
+        <button id="contactoBtn" type="submit">Enviar</button>
+        <a class="link-secundario" onclick="cerrarModalContacto()">Cancelar</a>
+      </form>
+    </div>
   </div>
 
   <script>
@@ -277,6 +310,54 @@ button:disabled{opacity:.6;cursor:default;}
       recuperarBtn.disabled = false;
       recuperarBtn.textContent = "Enviar enlace";
       recuperarForm.reset();
+    });
+
+    const contactoForm = document.getElementById("contactoForm");
+    const contactoError = document.getElementById("contactoError");
+    const contactoOk = document.getElementById("contactoOk");
+    const contactoBtn = document.getElementById("contactoBtn");
+
+    function abrirModalContacto() {
+      contactoForm.reset();
+      contactoForm.style.display = "block";
+      contactoError.style.display = "none";
+      contactoOk.style.display = "none";
+      document.getElementById("modal_contacto").style.display = "flex";
+    }
+
+    function cerrarModalContacto() {
+      document.getElementById("modal_contacto").style.display = "none";
+    }
+
+    contactoForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      contactoError.style.display = "none";
+      contactoOk.style.display = "none";
+
+      contactoBtn.disabled = true;
+      contactoBtn.textContent = "Enviando...";
+
+      const { data, error } = await client.functions.invoke("enviar-contacto", {
+        body: {
+          nombre: document.getElementById("c_nombre").value.trim(),
+          email: document.getElementById("c_email").value.trim(),
+          mensaje: document.getElementById("c_mensaje").value.trim(),
+          honeypot: document.getElementById("c_web").value,
+        }
+      });
+
+      contactoBtn.disabled = false;
+      contactoBtn.textContent = "Enviar";
+
+      if (error || !data?.ok) {
+        contactoError.textContent = "No se ha podido enviar. Inténtalo de nuevo.";
+        contactoError.style.display = "block";
+        return;
+      }
+
+      contactoForm.style.display = "none";
+      contactoOk.textContent = "¡Mensaje enviado! Te responderemos lo antes posible.";
+      contactoOk.style.display = "block";
     });
   </script>
 </body>

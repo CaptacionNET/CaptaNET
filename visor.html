@@ -469,7 +469,7 @@ function crearTabla() {
         title: "Con informe", field: "tiene_informe", width: 160, hozAlign: "center",
         formatter: cell => {
           const fila = cell.getRow().getData();
-          if (!fila.tiene_informe) return "";
+          if (!fila.tiene_informe) return `<span style="color:var(--muted);">NO</span>`;
           if (fila.valoracion) return `<span class="badge badge-${fila.valoracion}">${ETIQUETA_VALORACION[fila.valoracion] || fila.valoracion}</span>`;
           return `✅ <span style="color:var(--muted);font-size:11px;">SIN VALORACIÓN</span>`;
         }

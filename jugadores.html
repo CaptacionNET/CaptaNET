@@ -121,14 +121,23 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 
     <div id="ficha_contenido" style="display:none;">
       <div class="ficha-cab">
-        <div>
-          <div class="foto-wrap" id="foto_wrap">
-            <div class="foto-placeholder" id="foto_placeholder">Sin foto</div>
-            <img id="foto_img" style="display:none;">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <div>
+            <div class="foto-wrap" id="foto_ffcv_wrap">
+              <div class="foto-placeholder" id="foto_ffcv_placeholder">Sin foto FFCV</div>
+              <img id="foto_ffcv_img" style="display:none;">
+            </div>
+            <p style="font-size:10px;color:var(--muted);text-align:center;margin:4px 0 0;">FFCV</p>
           </div>
-          <label for="f_foto_input" style="display:block;margin-top:6px;font-size:11px;color:var(--primary);cursor:pointer;text-decoration:underline;text-align:center;">📷 Subir foto</label>
-          <input id="f_foto_input" type="file" accept="image/*" style="display:none;" onchange="subirFotoInforme(event)">
-          <p id="foto_status" style="font-size:11px;color:var(--muted);margin:2px 0 0;text-align:center;"></p>
+          <div>
+            <div class="foto-wrap" id="foto_wrap">
+              <div class="foto-placeholder" id="foto_placeholder">Sin foto propia</div>
+              <img id="foto_img" style="display:none;">
+            </div>
+            <label for="f_foto_input" style="display:block;margin-top:6px;font-size:11px;color:var(--primary);cursor:pointer;text-decoration:underline;text-align:center;">📷 Subir foto</label>
+            <input id="f_foto_input" type="file" accept="image/*" style="display:none;" onchange="subirFotoInforme(event)">
+            <p id="foto_status" style="font-size:11px;color:var(--muted);margin:2px 0 0;text-align:center;"></p>
+          </div>
         </div>
         <div class="ficha-info">
           <h2 id="f_nombre"></h2>
@@ -151,6 +160,10 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
         <div>
           <label>Posición</label>
           <input id="f_posicion" type="text" oninput="guardarInformeDebounced()">
+        </div>
+        <div>
+          <label>Equipo propuesto</label>
+          <input id="f_equipo_propuesto" type="text" placeholder="Ej. Cadete A" oninput="guardarInformeDebounced()">
         </div>
         <div>
           <label>Teléfono</label>
@@ -302,7 +315,7 @@ function cambiarPanel(nombre) {
 }
 
 function tieneDatosPrivado(p) {
-  return !!(p.posicion || p.contacto || p.contactado ||
+  return !!(p.posicion || p.contacto || p.contactado || p.equipo_propuesto ||
     p.tecnica || p.tactica || p.fisico || p.actitud || (p.comentario && String(p.comentario).trim()) ||
     p.foto_url || p.link_veo || p.valoracion_scouting);
 }
@@ -327,7 +340,7 @@ async function cargarInformes() {
     const equipo = (equipos || []).find(e => e.id === j.equipo_id);
     const priv = conDatos.find(p => p.jugador_id === j.id);
     const anio = priv?.anio_nacimiento || (j.fecha_nacimiento ? new Date(j.fecha_nacimiento).getFullYear() : null);
-    return { id: j.id, nombre: j.nombre, equipo: equipo?.nombre || "", anio, valoracion: priv?.valoracion_scouting || null };
+    return { id: j.id, nombre: j.nombre, equipo: equipo?.nombre || "", anio, valoracion: priv?.valoracion_scouting || null, equipo_propuesto: priv?.equipo_propuesto || null };
   }).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   poblarFiltroAnioInformes();
@@ -350,7 +363,7 @@ function renderListaInformes(lista) {
     const div = document.createElement("div");
     div.className = "resultado";
     div.onclick = () => abrirJugador(j.id);
-    div.innerHTML = `<div class="nombre">${j.nombre}${j.anio ? " · " + j.anio : ""}</div><div class="meta">${j.equipo}</div>` +
+    div.innerHTML = `<div class="nombre">${j.nombre}${j.anio ? " · " + j.anio : ""}</div><div class="meta">${j.equipo}${j.equipo_propuesto ? " → " + j.equipo_propuesto : ""}</div>` +
       (j.valoracion ? `<span class="badge badge-${j.valoracion}">${ETIQUETA_VALORACION[j.valoracion] || j.valoracion}</span>` : "");
     cont.appendChild(div);
   });
@@ -428,6 +441,7 @@ async function abrirJugador(jugadorId) {
 
   document.getElementById("f_valoracion").value = priv?.valoracion_scouting || "";
   document.getElementById("f_posicion").value = priv?.posicion || "";
+  document.getElementById("f_equipo_propuesto").value = priv?.equipo_propuesto || "";
   document.getElementById("f_contacto").value = priv?.contacto || "";
   document.getElementById("f_contactado").checked = !!priv?.contactado;
   document.getElementById("f_tecnica").value = priv?.tecnica ?? "";
@@ -438,8 +452,10 @@ async function abrirJugador(jugadorId) {
   document.getElementById("f_link_veo").value = priv?.link_veo || "";
   document.getElementById("foto_status").textContent = "";
 
-  // Foto: la del club si la tiene guardada de antes; si no, la de FFCV
-  actualizarFotoUI(priv?.foto_url || j.foto_url || null);
+  // La foto de FFCV y la del club se muestran por separado: subir una
+  // propia no sustituye a la de FFCV, se guarda aparte.
+  actualizarFotoFfcvUI(j.foto_url || null);
+  actualizarFotoUI(priv?.foto_url || null);
 
   document.getElementById("btn_eliminar_informe").style.display = tieneDatosPrivado(priv || {}) ? "inline-block" : "none";
 
@@ -519,6 +535,7 @@ async function guardarInforme() {
     temporada_id: jugadorActual.temporada_id,
     valoracion_scouting: document.getElementById("f_valoracion").value || null,
     posicion: document.getElementById("f_posicion").value || null,
+    equipo_propuesto: document.getElementById("f_equipo_propuesto").value || null,
     contacto: document.getElementById("f_contacto").value || null,
     contactado: document.getElementById("f_contactado").checked,
     tecnica: document.getElementById("f_tecnica").value || null,
@@ -616,6 +633,7 @@ async function eliminarInforme() {
   jugadorActual.privado = {};
   document.getElementById("f_valoracion").value = "";
   document.getElementById("f_posicion").value = "";
+  document.getElementById("f_equipo_propuesto").value = "";
   document.getElementById("f_contacto").value = "";
   document.getElementById("f_contactado").checked = false;
   document.getElementById("f_tecnica").value = "";
@@ -625,7 +643,7 @@ async function eliminarInforme() {
   document.getElementById("f_comentario").value = "";
   document.getElementById("f_link_veo").value = "";
   document.getElementById("btn_eliminar_informe").style.display = "none";
-  actualizarFotoUI(jugadorActual.foto_url || null);
+  actualizarFotoUI(null);
 
   status.textContent = "Informe eliminado.";
   cargarInformes();
@@ -640,6 +658,20 @@ function toggleHistorialStats(id) {
 function actualizarFotoUI(url) {
   const fotoImg = document.getElementById("foto_img");
   const fotoPlaceholder = document.getElementById("foto_placeholder");
+
+  if (url) {
+    fotoImg.src = url;
+    fotoImg.style.display = "block";
+    fotoPlaceholder.style.display = "none";
+  } else {
+    fotoImg.style.display = "none";
+    fotoPlaceholder.style.display = "flex";
+  }
+}
+
+function actualizarFotoFfcvUI(url) {
+  const fotoImg = document.getElementById("foto_ffcv_img");
+  const fotoPlaceholder = document.getElementById("foto_ffcv_placeholder");
 
   if (url) {
     fotoImg.src = url;
