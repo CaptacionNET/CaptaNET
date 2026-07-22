@@ -469,6 +469,7 @@ async function procesarEquipo(admin: any, codEquipo: string): Promise<{ nuevos: 
 
     let fechaNac: string | null = null;
     let historial: any[] = [];
+    let nombreCompleto: string | null = null;
     try {
       const h = await ffcvGet(`jugadores/historial_deportivo.php?cod_licencia=${codLic}`);
       fechaNac = parseFecha(h.fecha_nacimiento);
@@ -479,6 +480,19 @@ async function procesarEquipo(admin: any, codEquipo: string): Promise<{ nuevos: 
         cod_temporada: limpiar(x.cod_temporada),
         temporada: limpiar(x.temporada), equipo: limpiar(x.equipo), categoria: limpiar(x.categoria),
       }));
+
+      // plantilla_home.php a veces da un nombre corto/deportivo (p.ej.
+      // "Baile" en vez de "BAILE PASTOR, ANDRES") — comprobado a mano el
+      // 2026-07-22 con el Elche C.F. 'A'. La ficha del jugador sí trae
+      // nombre y apellidos por separado, así que reconstruimos el nombre
+      // completo con el mismo formato "APELLIDO1 APELLIDO2, NOMBRE" que
+      // ya usa la FFCV en el resto de casos.
+      const apellido1 = limpiar(h.apellido1);
+      const apellido2 = limpiar(h.apellido2);
+      const nombrePila = limpiar(h.nombre);
+      if (apellido1 && nombrePila) {
+        nombreCompleto = [apellido1, apellido2].filter(Boolean).join(" ") + ", " + nombrePila;
+      }
     } catch { /* si falla la ficha, seguimos con lo básico de la plantilla */ }
 
     // Estadísticas de la temporada (partidos, goles, tarjetas, minutos). La FFCV
@@ -528,7 +542,7 @@ async function procesarEquipo(admin: any, codEquipo: string): Promise<{ nuevos: 
 
     const registro = {
       cod_ffcv: codLic,
-      nombre: limpiar(jug.nombre),
+      nombre: nombreCompleto || limpiar(jug.nombre),
       equipo_id: equipo.id,
       temporada_id: equipo.temporada_id,
       posicion: limpiar(jug.posicion) || null,
