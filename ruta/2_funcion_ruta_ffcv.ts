@@ -93,8 +93,10 @@ async function precargarDorsales(
 ): Promise<{ local: Record<string, string>; visitante: Record<string, string> }> {
   const out = { local: {} as Record<string, string>, visitante: {} as Record<string, string> };
   let faltaLocal = !!codLocal, faltaVisitante = !!codVisitante;
+  // Solo se miran las 3 jornadas anteriores (no más): con eso basta para tener
+  // dorsales recientes y así no se sobrecarga la FFCV con muchas llamadas.
   const desde = Math.max(1, jornada - 1);
-  const hasta = Math.max(1, jornada - 10);
+  const hasta = Math.max(1, jornada - 3);
 
   for (let d = desde; d >= hasta && (faltaLocal || faltaVisitante); d--) {
     let partidos: any[] = [];
@@ -126,6 +128,33 @@ async function precargarDorsales(
   return out;
 }
 
+// ---------- caché (tabla ffcv_cache, vía service_role) ----------
+// Guarda unos minutos la respuesta de cada llamada para no repetir la misma
+// petición a la FFCV si varios ojeadores miran el mismo partido o se refresca.
+async function cacheGet(admin: any, clave: string): Promise<any | null> {
+  try {
+    const { data } = await admin.from("ffcv_cache").select("valor, expira").eq("clave", clave).maybeSingle();
+    if (data && new Date(data.expira).getTime() > Date.now()) return data.valor;
+  } catch { /* si la caché falla, se sigue sin ella */ }
+  return null;
+}
+async function cacheSet(admin: any, clave: string, valor: any, ttlSeg: number): Promise<void> {
+  try {
+    const expira = new Date(Date.now() + ttlSeg * 1000).toISOString();
+    await admin.from("ffcv_cache").upsert({ clave, valor, expira }, { onConflict: "clave" });
+  } catch { /* si la caché falla, no pasa nada */ }
+}
+// Devuelve lo cacheado si existe; si no, ejecuta fn(), lo cachea y lo devuelve.
+async function conCache(admin: any, clave: string, ttlSeg: number, fn: () => Promise<any>, saltar = false): Promise<any> {
+  if (!saltar) {
+    const hit = await cacheGet(admin, clave);
+    if (hit !== null) return hit;
+  }
+  const valor = await fn();
+  await cacheSet(admin, clave, valor, ttlSeg);
+  return valor;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
@@ -138,99 +167,118 @@ Deno.serve(async (req) => {
     const { data: u } = await userClient.auth.getUser();
     if (!u?.user) return json({ error: "No autenticado" }, 401);
 
+    // Cliente con permisos de servicio: solo para leer/escribir la caché.
+    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
     const body = await req.json().catch(() => ({}));
     const accion = body.accion;
 
     if (accion === "catalogo") {
-      const r = await temporadaConCompeticiones();
-      if (!r) return json({ cod_temporada: null, temporada: null, competiciones: [] });
-      const competiciones = r.comps
-        .map((c: any) => ({ codigo: limpiar(c.codigo), nombre: limpiar(c.nombre), modalidad: limpiar(c.nombre_grupo_categoria) }))
-        .sort((a, b) => a.modalidad.localeCompare(b.modalidad) || a.nombre.localeCompare(b.nombre));
-      return json({ cod_temporada: limpiar(r.temp.cod_temporada), temporada: limpiar(r.temp.nombre), competiciones });
+      const payload = await conCache(admin, "catalogo", 600, async () => {
+        const r = await temporadaConCompeticiones();
+        if (!r) return { cod_temporada: null, temporada: null, competiciones: [] };
+        const competiciones = r.comps
+          .map((c: any) => ({ codigo: limpiar(c.codigo), nombre: limpiar(c.nombre), modalidad: limpiar(c.nombre_grupo_categoria) }))
+          .sort((a: any, b: any) => a.modalidad.localeCompare(b.modalidad) || a.nombre.localeCompare(b.nombre));
+        return { cod_temporada: limpiar(r.temp.cod_temporada), temporada: limpiar(r.temp.nombre), competiciones };
+      });
+      return json(payload);
     }
 
     if (accion === "grupos") {
       const codComp = limpiar(body.cod_competicion);
       if (!codComp) return json({ error: "Falta cod_competicion" }, 400);
-      const grupos = ((await ffcvGet(`filtros/grupos_fetch.php?cod_competicion=${codComp}`)).grupos || [])
-        .map((g: any) => ({ codigo: limpiar(g.codigo), nombre: limpiar(g.nombre), total_jornadas: Number(g.total_jornadas) || null }));
-      return json({ grupos });
+      const payload = await conCache(admin, `grupos:${codComp}`, 3600, async () => {
+        const grupos = ((await ffcvGet(`filtros/grupos_fetch.php?cod_competicion=${codComp}`)).grupos || [])
+          .map((g: any) => ({ codigo: limpiar(g.codigo), nombre: limpiar(g.nombre), total_jornadas: Number(g.total_jornadas) || null }));
+        return { grupos };
+      });
+      return json(payload);
     }
 
     if (accion === "jornadas") {
       const codComp = limpiar(body.cod_competicion), codGrupo = limpiar(body.cod_grupo);
       if (!codComp || !codGrupo) return json({ error: "Falta cod_competicion/cod_grupo" }, 400);
-      const jornadas = ((await ffcvGet(`filtros/jornadas_fetch.php?cod_competicion=${codComp}&cod_grupo=${codGrupo}`)).jornadas || [])
-        .map((j: any) => ({ codjornada: limpiar(j.codjornada), nombre: limpiar(j.nombre), fecha: limpiar(j.fecha_jornada) }));
-      return json({ jornadas });
+      const payload = await conCache(admin, `jornadas:${codComp}:${codGrupo}`, 3600, async () => {
+        const jornadas = ((await ffcvGet(`filtros/jornadas_fetch.php?cod_competicion=${codComp}&cod_grupo=${codGrupo}`)).jornadas || [])
+          .map((j: any) => ({ codjornada: limpiar(j.codjornada), nombre: limpiar(j.nombre), fecha: limpiar(j.fecha_jornada) }));
+        return { jornadas };
+      });
+      return json(payload);
     }
 
     if (accion === "partidos") {
       const codTemp = limpiar(body.cod_temporada), codComp = limpiar(body.cod_competicion);
       const codGrupo = limpiar(body.cod_grupo), codJor = limpiar(body.cod_jornada);
       if (!codTemp || !codComp || !codGrupo || !codJor) return json({ error: "Faltan parámetros de partido" }, 400);
-      const data = await ffcvGet(`partidos/resultados_por_grupo_jornada_data.php?cod_temporada=${codTemp}&cod_competicion=${codComp}&cod_grupo=${codGrupo}&cod_jornada=${codJor}`);
-      const partidos = (data.partidos || []).map((p: any) => ({
-        cod_partido: limpiar(p.codacta) || null,
-        local: limpiar(p.local), visitante: limpiar(p.visitante),
-        cod_equipo_local: limpiar(p.cod_equipo_local), cod_equipo_visitante: limpiar(p.cod_equipo_visitante),
-        fecha: limpiar(p.fecha), hora: limpiar(p.hora), campo: limpiar(p.campo),
-        resultado: limpiar(p.resultado), jugado: partidoJugado(p.resultado),
-        escudo_local: urlEscudo(p.escudo_local), escudo_visitante: urlEscudo(p.escudo_visitante),
-      }));
-      return json({ jornada: limpiar(data.jornada) || codJor, partidos });
+      const payload = await conCache(admin, `partidos:${codTemp}:${codComp}:${codGrupo}:${codJor}`, 300, async () => {
+        const data = await ffcvGet(`partidos/resultados_por_grupo_jornada_data.php?cod_temporada=${codTemp}&cod_competicion=${codComp}&cod_grupo=${codGrupo}&cod_jornada=${codJor}`);
+        const partidos = (data.partidos || []).map((p: any) => ({
+          cod_partido: limpiar(p.codacta) || null,
+          local: limpiar(p.local), visitante: limpiar(p.visitante),
+          cod_equipo_local: limpiar(p.cod_equipo_local), cod_equipo_visitante: limpiar(p.cod_equipo_visitante),
+          fecha: limpiar(p.fecha), hora: limpiar(p.hora), campo: limpiar(p.campo),
+          resultado: limpiar(p.resultado), jugado: partidoJugado(p.resultado),
+          escudo_local: urlEscudo(p.escudo_local), escudo_visitante: urlEscudo(p.escudo_visitante),
+        }));
+        return { jornada: limpiar(data.jornada) || codJor, partidos };
+      });
+      return json(payload);
     }
 
     if (accion === "detalle_partido") {
       const codPartido = limpiar(body.cod_partido);
       const codLocal = limpiar(body.cod_equipo_local), codVisitante = limpiar(body.cod_equipo_visitante);
-
-      // 1) Si el acta ya está cerrada, sale con titulares y dorsales reales.
-      if (codPartido) {
-        let acta: any = null;
-        try { acta = await ffcvGet(`partidos/ficha_partido_ajax.php?cod_partido=${codPartido}`); } catch { acta = null; }
-        // Se usa el acta si el partido ya acabó (acta cerrada) o si el club ya
-        // ha subido la alineación (hay algún titular marcado) — así el ojeador
-        // puede ver "en directo" quién juega en cuanto la suben, poco antes del
-        // inicio, sin esperar al final del partido.
-        const jugActa = [...(acta?.jugadores_equipo_local || []), ...(acta?.jugadores_equipo_visitante || [])];
-        const hayAlineacion = jugActa.some((j: any) => limpiar(j.titular) === "1");
-        if (acta && (limpiar(acta.acta_cerrada) === "1" || hayAlineacion)) {
-          return json({
-            fuente: "acta",
-            cerrada: limpiar(acta.acta_cerrada) === "1",
-            en_juego: limpiar(acta.partido_en_juego) === "1",
-            esquema_local: limpiar(acta.esquema_local), esquema_visitante: limpiar(acta.esquema_visitante),
-            jugadores_local: (acta.jugadores_equipo_local || []).map(normalizarJugadorActa),
-            jugadores_visitante: (acta.jugadores_equipo_visitante || []).map(normalizarJugadorActa),
-          });
-        }
-      }
-
-      // 2) Partido aún no jugado: plantilla de cada equipo + dorsales del último acta.
-      if (!codLocal && !codVisitante) return json({ fuente: "plantilla", jugadores_local: [], jugadores_visitante: [] });
-
-      let dorsales = { local: {} as Record<string, string>, visitante: {} as Record<string, string> };
       const codTemp = limpiar(body.cod_temporada), codComp = limpiar(body.cod_competicion), codGrupo = limpiar(body.cod_grupo);
       const codJor = Number(body.cod_jornada) || 0;
-      if (codTemp && codComp && codGrupo && codJor) {
-        try { dorsales = await precargarDorsales(codTemp, codComp, codGrupo, codJor, codLocal, codVisitante); } catch { /* sin precarga */ }
-      }
+      // El botón "Actualizar (en directo)" salta la caché para ver el acta al momento.
+      const saltar = !!body.refrescar;
+      const clave = `detalle:${codPartido}:${codLocal}:${codVisitante}:${codJor}`;
 
-      const plantillaDe = async (codEquipo: string, mapaDorsales: Record<string, string>) => {
-        if (!codEquipo) return [];
-        try {
-          const pl = await ffcvGet(`equipos/plantilla_home.php?cod_equipo=${codEquipo}`);
-          return (pl.jugadores_equipo || []).map((j: any) => normalizarJugadorPlantilla(j, mapaDorsales));
-        } catch { return []; }
-      };
+      const payload = await conCache(admin, clave, 90, async () => {
+        // 1) Se usa el acta si el partido acabó (acta cerrada) o si el club ya subió
+        //    la alineación (hay algún titular) — así se ve "en directo" quién juega.
+        if (codPartido) {
+          let acta: any = null;
+          try { acta = await ffcvGet(`partidos/ficha_partido_ajax.php?cod_partido=${codPartido}`); } catch { acta = null; }
+          const jugActa = [...(acta?.jugadores_equipo_local || []), ...(acta?.jugadores_equipo_visitante || [])];
+          const hayAlineacion = jugActa.some((j: any) => limpiar(j.titular) === "1");
+          if (acta && (limpiar(acta.acta_cerrada) === "1" || hayAlineacion)) {
+            return {
+              fuente: "acta",
+              cerrada: limpiar(acta.acta_cerrada) === "1",
+              en_juego: limpiar(acta.partido_en_juego) === "1",
+              esquema_local: limpiar(acta.esquema_local), esquema_visitante: limpiar(acta.esquema_visitante),
+              jugadores_local: (acta.jugadores_equipo_local || []).map(normalizarJugadorActa),
+              jugadores_visitante: (acta.jugadores_equipo_visitante || []).map(normalizarJugadorActa),
+            };
+          }
+        }
 
-      return json({
-        fuente: "plantilla",
-        jugadores_local: await plantillaDe(codLocal, dorsales.local),
-        jugadores_visitante: await plantillaDe(codVisitante, dorsales.visitante),
-      });
+        // 2) Partido aún no jugado: plantilla de cada equipo + dorsales del último acta.
+        if (!codLocal && !codVisitante) return { fuente: "plantilla", jugadores_local: [], jugadores_visitante: [] };
+
+        let dorsales = { local: {} as Record<string, string>, visitante: {} as Record<string, string> };
+        if (codTemp && codComp && codGrupo && codJor) {
+          try { dorsales = await precargarDorsales(codTemp, codComp, codGrupo, codJor, codLocal, codVisitante); } catch { /* sin precarga */ }
+        }
+
+        const plantillaDe = async (codEquipo: string, mapaDorsales: Record<string, string>) => {
+          if (!codEquipo) return [];
+          try {
+            const pl = await ffcvGet(`equipos/plantilla_home.php?cod_equipo=${codEquipo}`);
+            return (pl.jugadores_equipo || []).map((j: any) => normalizarJugadorPlantilla(j, mapaDorsales));
+          } catch { return []; }
+        };
+
+        return {
+          fuente: "plantilla",
+          jugadores_local: await plantillaDe(codLocal, dorsales.local),
+          jugadores_visitante: await plantillaDe(codVisitante, dorsales.visitante),
+        };
+      }, saltar);
+
+      return json(payload);
     }
 
     return json({ error: "Acción no reconocida" }, 400);

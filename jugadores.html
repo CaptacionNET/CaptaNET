@@ -800,6 +800,14 @@ function volverAlPartido() {
 
 async function abrirDesdeUrl() {
   const params = new URLSearchParams(window.location.search);
+  // Modo modal (embebido en una ventana emergente, p.ej. desde la Ruta):
+  // se oculta la navegación para que solo se vea la ficha del informe.
+  if (params.get("modal") === "1") {
+    document.getElementById("topbar").style.display = "none";
+    const barra = document.querySelector(".barra");
+    if (barra) barra.style.display = "none";
+    document.body.style.background = "#fff";
+  }
   if (params.get("volver") === "ruta") {
     document.getElementById("btn_volver_partido").style.display = "inline-block";
   }

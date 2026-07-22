@@ -184,6 +184,17 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
   </div>
 </div>
 
+<!-- MODAL INFORME (ventana emergente con la ficha de Informes) -->
+<div class="modal-overlay" id="modal_informe" style="padding:0;align-items:stretch;">
+  <div style="background:#fff;width:100%;max-width:900px;display:flex;flex-direction:column;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <strong style="font-size:15px;">Informe del jugador</strong>
+      <button class="secondary" onclick="cerrarInformeModal()" style="font-size:18px;padding:2px 12px;line-height:1;">✕</button>
+    </div>
+    <iframe id="informe_iframe" title="Informe del jugador" style="flex:1;width:100%;border:0;"></iframe>
+  </div>
+</div>
+
 <script>
 const client = supabase.createClient(
   "https://bnqoisjvboytiphiwosj.supabase.co",
@@ -464,7 +475,7 @@ async function abrirDetalle(id, autoAlineacion = false) {
   if (autoAlineacion && !rp.es_manual) cargarAlineaciones();
 }
 
-async function cargarAlineaciones() {
+async function cargarAlineaciones(refrescar = false) {
   if (!detalleActual) return;
   const wrap = document.getElementById("d_alineaciones_wrap");
   wrap.innerHTML = '<p class="status">Cargando plantillas… (puede tardar unos segundos)</p>';
@@ -474,6 +485,7 @@ async function cargarAlineaciones() {
       cod_partido: detalleActual.cod_partido,
       cod_equipo_local: detalleActual.cod_equipo_local, cod_equipo_visitante: detalleActual.cod_equipo_visitante,
       cod_temporada: ctx.cod_temporada, cod_competicion: ctx.cod_competicion, cod_grupo: ctx.cod_grupo, cod_jornada: ctx.cod_jornada,
+      refrescar,
     });
     // resolver qué codjugadores existen en nuestra base (para enlazar Informes y sacar el año)
     const todos = [...(d.jugadores_local || []), ...(d.jugadores_visitante || [])].map(j => j.codjugador).filter(Boolean);
@@ -513,7 +525,7 @@ function renderAlineaciones() {
     const anio = d.mapaAnio[j.codjugador];
     const idJug = d.mapaId[j.codjugador];
     const informe = idJug
-      ? `<a href="jugadores.html?jugador_id=${idJug}&volver=ruta&rp=${detalleActual.id}" title="Hacer informe" style="text-decoration:none;">📝</a>`
+      ? `<span onclick="abrirInformeModal('${idJug}')" title="Hacer informe" style="cursor:pointer;">📝</span>`
       : `<span title="No está en la base de datos" style="color:var(--border);">📝</span>`;
     return `<div class="jug-fila ${tit ? "es-titular" : ""}">
       <span class="dorsal">${escapeHtml(j.dorsal || "-")}</span>
@@ -542,7 +554,7 @@ function renderAlineaciones() {
   wrap.innerHTML =
     `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
        <p class="status" style="margin:0;">${fuenteTxt}</p>
-       <button class="secondary" style="font-size:12px;padding:6px 10px;" onclick="cargarAlineaciones()">↻ Actualizar (en directo)</button>
+       <button class="secondary" style="font-size:12px;padding:6px 10px;" onclick="cargarAlineaciones(true)">↻ Actualizar (en directo)</button>
      </div>
      <div class="alineaciones">` +
     columna(detalleActual.local || "Local", d.jugadores_local, "local") +
@@ -570,6 +582,18 @@ async function eliminarPartido(id) {
   const { error } = await client.from("ruta_partidos").delete().eq("id", id);
   if (error) { alert("Error eliminando: " + error.message); return; }
   cargarRuta();
+}
+
+// El informe se abre en una ventana emergente (la propia página de Informes
+// embebida), para no salir del partido — sobre todo en móvil viendo el
+// partido en directo. La X cierra y vuelve a las alineaciones.
+function abrirInformeModal(jugadorId) {
+  document.getElementById("informe_iframe").src = "jugadores.html?jugador_id=" + encodeURIComponent(jugadorId) + "&modal=1";
+  document.getElementById("modal_informe").style.display = "flex";
+}
+function cerrarInformeModal() {
+  document.getElementById("modal_informe").style.display = "none";
+  document.getElementById("informe_iframe").src = "about:blank";
 }
 
 // ---------------- MODAL MANUAL ----------------
