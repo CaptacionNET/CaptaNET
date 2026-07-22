@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CaptaNET - Informes</title>
+<!-- Modo pop-up (embebido desde la Ruta): se marca AL INSTANTE, antes de pintar
+     nada, para que la navegación no aparezca ni medio segundo. -->
+<script>if(new URLSearchParams(location.search).get("modal")==="1")document.documentElement.classList.add("modal-embebido");</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--primary:#2563eb;--bg:#f5f6fa;--card:#fff;--border:#e2e4eb;--text:#1f2430;--muted:#6b7280;}
@@ -63,17 +66,17 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 /* Modo embebido en ventana emergente (desde la Ruta): foto arriba, campos del
    informe, historial abajo. Sin navegación, panel, nombre (va en la cabecera
    del pop-up) ni campos que no se rellenan durante el partido. */
-body.modal-embebido{background:#fff;}
-body.modal-embebido #topbar,
-body.modal-embebido .barra,
-body.modal-embebido .panel,
-body.modal-embebido .ficha-info,
-body.modal-embebido #campo_contactado,
-body.modal-embebido #campo_plantillas,
-body.modal-embebido #campo_link_veo{display:none !important;}
-body.modal-embebido .layout{padding:12px;gap:0;}
-body.modal-embebido .ficha{border:0;padding:0;}
-body.modal-embebido .ficha-cab{margin-bottom:14px;}
+.modal-embebido body{background:#fff;}
+.modal-embebido #topbar,
+.modal-embebido .barra,
+.modal-embebido .panel,
+.modal-embebido .ficha-info,
+.modal-embebido #campo_contactado,
+.modal-embebido #campo_plantillas,
+.modal-embebido #campo_link_veo{display:none !important;}
+.modal-embebido .layout{padding:12px;gap:0;}
+.modal-embebido .ficha{border:0;padding:0;}
+.modal-embebido .ficha-cab{margin-bottom:14px;}
 </style>
 </head>
 <body>
@@ -814,12 +817,8 @@ function volverAlPartido() {
 
 async function abrirDesdeUrl() {
   const params = new URLSearchParams(window.location.search);
-  // Modo modal (embebido en una ventana emergente, p.ej. desde la Ruta):
-  // se deja SOLO los campos del informe — sin navegación, sin el panel de
-  // "Mis informes / Nuevo informe", sin fotos ni historial.
-  if (params.get("modal") === "1") {
-    document.body.classList.add("modal-embebido");
-  }
+  // El modo modal (clase modal-embebido) ya se activa en la cabecera, antes de
+  // pintar, para que la navegación no parpadee.
   if (params.get("volver") === "ruta") {
     document.getElementById("btn_volver_partido").style.display = "inline-block";
   }
