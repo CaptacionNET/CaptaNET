@@ -33,8 +33,10 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 .ficha-vacia{color:var(--muted);text-align:center;padding:60px 20px;}
 .ficha-cab{display:flex;gap:20px;margin-bottom:20px;}
 .foto-wrap{width:120px;height:120px;border-radius:10px;background:#eef0f5;flex-shrink:0;overflow:hidden;position:relative;border:1px solid var(--border);}
-.foto-wrap img{width:100%;height:100%;object-fit:cover;}
+.foto-wrap img{width:100%;height:100%;object-fit:cover;cursor:zoom-in;}
 .foto-wrap .foto-placeholder{display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:12px;text-align:center;padding:8px;}
+.lightbox-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:500;cursor:zoom-out;padding:20px;}
+.lightbox-overlay img{max-width:100%;max-height:100%;border-radius:8px;}
 .ficha-info h2{margin:0 0 4px;font-size:22px;}
 .ficha-info p{margin:0;color:var(--muted);font-size:14px;}
 .campos-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
@@ -125,14 +127,14 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
           <div>
             <div class="foto-wrap" id="foto_ffcv_wrap">
               <div class="foto-placeholder" id="foto_ffcv_placeholder">Sin foto FFCV</div>
-              <img id="foto_ffcv_img" style="display:none;">
+              <img id="foto_ffcv_img" style="display:none;" onclick="abrirLightbox(this.src)">
             </div>
             <p style="font-size:10px;color:var(--muted);text-align:center;margin:4px 0 0;">FFCV</p>
           </div>
           <div>
             <div class="foto-wrap" id="foto_wrap">
               <div class="foto-placeholder" id="foto_placeholder">Sin foto propia</div>
-              <img id="foto_img" style="display:none;">
+              <img id="foto_img" style="display:none;" onclick="abrirLightbox(this.src)">
             </div>
             <label for="f_foto_input" style="display:block;margin-top:6px;font-size:11px;color:var(--primary);cursor:pointer;text-decoration:underline;text-align:center;">📷 Subir foto</label>
             <input id="f_foto_input" type="file" accept="image/*" style="display:none;" onchange="subirFotoInforme(event)">
@@ -236,6 +238,10 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
       <button onclick="enviarAPlantilla()">Enviar</button>
     </div>
   </div>
+</div>
+
+<div class="lightbox-overlay" id="lightbox" onclick="cerrarLightbox()">
+  <img id="lightbox_img">
 </div>
 
 <script>
@@ -667,6 +673,16 @@ function actualizarFotoUI(url) {
     fotoImg.style.display = "none";
     fotoPlaceholder.style.display = "flex";
   }
+}
+
+function abrirLightbox(url) {
+  if (!url) return;
+  document.getElementById("lightbox_img").src = url;
+  document.getElementById("lightbox").style.display = "flex";
+}
+
+function cerrarLightbox() {
+  document.getElementById("lightbox").style.display = "none";
 }
 
 function actualizarFotoFfcvUI(url) {

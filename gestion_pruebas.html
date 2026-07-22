@@ -51,6 +51,8 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 .modal-box .field{margin-bottom:12px;}
 .ayuda{color:var(--muted);font-size:11px;margin:-8px 0 12px;}
 .group-header{font-weight:700;color:var(--text);background:var(--bg);}
+.lightbox-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:500;cursor:zoom-out;padding:20px;}
+.lightbox-overlay img{max-width:100%;max-height:100%;border-radius:8px;}
 @media (max-width:900px){
   .barra,.contenedor,.ficha{padding-left:12px;padding-right:12px;}
   .ficha{margin-left:12px;margin-right:12px;}
@@ -108,7 +110,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 <div class="ficha" id="ficha" style="display:none;">
   <div id="ficha_contenido">
     <div style="display:flex;align-items:flex-start;gap:14px;">
-      <img id="f_foto" style="display:none;width:64px;height:64px;border-radius:8px;object-fit:cover;border:1px solid var(--border);flex-shrink:0;">
+      <img id="f_foto" style="display:none;width:64px;height:64px;border-radius:8px;object-fit:cover;border:1px solid var(--border);flex-shrink:0;cursor:zoom-in;" onclick="abrirLightbox(this.src)">
       <div class="ficha-info" style="flex:1;">
         <input id="f_nombre" type="text" style="font-size:20px;font-weight:700;padding:6px 8px;width:100%;max-width:420px;" oninput="guardarValoracionDebounced()">
         <p id="f_creado" style="margin:6px 0 0;"></p>
@@ -318,6 +320,10 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
       <button id="btn_enviar_admitido" onclick="enviarAdmitido()">Enviar</button>
     </div>
   </div>
+</div>
+
+<div class="lightbox-overlay" id="lightbox" onclick="cerrarLightbox()">
+  <img id="lightbox_img">
 </div>
 
 <script>
@@ -629,6 +635,16 @@ function cerrarFicha() {
   inscripcionActual = null;
 }
 
+function abrirLightbox(url) {
+  if (!url) return;
+  document.getElementById("lightbox_img").src = url;
+  document.getElementById("lightbox").style.display = "flex";
+}
+
+function cerrarLightbox() {
+  document.getElementById("lightbox").style.display = "none";
+}
+
 function actualizarFotoPruebas(url) {
   const img = document.getElementById("f_foto");
   if (url) { img.src = url; img.style.display = "block"; }
@@ -665,7 +681,7 @@ async function renderFfcvBox() {
         <p style="margin:0 0 8px;font-size:13px;color:var(--muted);">Posible coincidencia encontrada automáticamente:</p>
         <div class="ffcv-resultado">
           <span style="display:flex;align-items:center;gap:10px;">
-            ${s.foto_url ? `<img src="${escapeHtml(s.foto_url)}" style="width:44px;height:44px;border-radius:6px;object-fit:cover;border:1px solid var(--border);">` : ""}
+            ${s.foto_url ? `<img src="${escapeHtml(s.foto_url)}" style="width:44px;height:44px;border-radius:6px;object-fit:cover;border:1px solid var(--border);cursor:zoom-in;" onclick="abrirLightbox(this.src)">` : ""}
             <span>${escapeHtml(s.nombre)} · ${escapeHtml(s.equipos?.nombre || "Sin equipo")}</span>
           </span>
           <span style="display:flex;gap:6px;">

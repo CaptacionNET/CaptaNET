@@ -98,6 +98,8 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 .tooltip .t-row b{color:var(--text);}
 .status{font-weight:600;color:var(--muted);margin:0 24px 12px;}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:200;}
+.lightbox-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:500;cursor:zoom-out;padding:20px;}
+.lightbox-overlay img{max-width:100%;max-height:100%;border-radius:8px;}
 .modal-box{background:#fff;border-radius:10px;padding:24px;width:320px;box-shadow:0 20px 50px rgba(0,0,0,.3);}
 .modal-box h3{margin:0 0 14px;}
 
@@ -234,7 +236,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
     <h3>Ficha</h3>
     <div id="detalle_vacio" style="color:var(--muted);font-size:13px;padding:20px 4px;">Haz clic en un jugador del campo para ver su ficha aquí.</div>
     <div id="detalle_contenido" style="display:none;">
-      <img id="det_foto" style="display:none;width:100px;height:100px;object-fit:cover;border-radius:8px;border:1px solid var(--border);margin-bottom:12px;" onerror="this.style.display='none';">
+      <img id="det_foto" style="display:none;width:100px;height:100px;object-fit:cover;border-radius:8px;border:1px solid var(--border);margin-bottom:12px;cursor:zoom-in;" onerror="this.style.display='none';" onclick="abrirLightbox(this.src)">
       <h2 id="det_nombre" style="margin:0 0 4px;font-size:20px;"></h2>
       <p id="det_sub" style="margin:0 0 16px;color:var(--muted);font-size:13px;"></p>
       <div id="det_barras"></div>
@@ -266,6 +268,10 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
       <button style="flex:1;" id="modal_plantilla_confirmar" onclick="confirmarNuevaPlantilla()">Crear</button>
     </div>
   </div>
+</div>
+
+<div class="lightbox-overlay" id="lightbox" onclick="cerrarLightbox()">
+  <img id="lightbox_img">
 </div>
 
 <script>
@@ -762,6 +768,16 @@ function barraFisicoHtml(valor) {
       <div class="barra-fondo"><div class="barra-relleno" style="width:${pct}%;"></div></div>
     </div>
   `;
+}
+
+function abrirLightbox(url) {
+  if (!url) return;
+  document.getElementById("lightbox_img").src = url;
+  document.getElementById("lightbox").style.display = "flex";
+}
+
+function cerrarLightbox() {
+  document.getElementById("lightbox").style.display = "none";
 }
 
 function mostrarDetalle(fila) {
