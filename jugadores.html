@@ -138,6 +138,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
             </div>
             <label for="f_foto_input" style="display:block;margin-top:6px;font-size:11px;color:var(--primary);cursor:pointer;text-decoration:underline;text-align:center;">📷 Subir foto</label>
             <input id="f_foto_input" type="file" accept="image/*" style="display:none;" onchange="subirFotoInforme(event)">
+            <a id="btn_eliminar_foto" onclick="eliminarFotoInforme()" style="display:none;margin-top:2px;font-size:11px;color:#dc2626;cursor:pointer;text-decoration:underline;text-align:center;">🗑️ Eliminar foto</a>
             <p id="foto_status" style="font-size:11px;color:var(--muted);margin:2px 0 0;text-align:center;"></p>
           </div>
         </div>
@@ -673,6 +674,23 @@ function actualizarFotoUI(url) {
     fotoImg.style.display = "none";
     fotoPlaceholder.style.display = "flex";
   }
+  document.getElementById("btn_eliminar_foto").style.display = url ? "block" : "none";
+}
+
+async function eliminarFotoInforme() {
+  if (!jugadorActual) return;
+  if (!confirm("¿Eliminar la foto subida? No se puede deshacer.")) return;
+
+  const status = document.getElementById("foto_status");
+  const { error } = await client.from("jugadores_club")
+    .update({ foto_url: null }).eq("jugador_id", jugadorActual.id).eq("club_id", miClubId);
+
+  if (error) { status.textContent = "Error eliminando: " + error.message; return; }
+
+  jugadorActual.privado = { ...jugadorActual.privado, foto_url: null };
+  actualizarFotoUI(null);
+  status.textContent = "Foto eliminada.";
+  cargarInformes();
 }
 
 function abrirLightbox(url) {
