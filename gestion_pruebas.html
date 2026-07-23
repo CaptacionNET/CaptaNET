@@ -84,6 +84,17 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 .evento-card.active{border-color:var(--primary);background:#eff6ff;}
 .evento-card .ev-info b{display:block;}
 .evento-card .ev-info span{color:var(--muted);font-size:12px;}
+.semana-calendario{margin-bottom:28px;}
+.semana-titulo{font-weight:700;margin-bottom:8px;}
+.semana-grid{display:grid;grid-template-columns:60px repeat(5, minmax(120px, 1fr));border:1px solid var(--border);border-radius:8px;overflow:hidden;min-width:680px;}
+.celda-cab{background:var(--bg);font-size:12px;font-weight:700;text-align:center;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--border);border-left:1px solid var(--border);padding:6px 2px;}
+.celda-hora{background:var(--bg);font-size:11px;color:var(--muted);text-align:right;padding:4px 6px;border-top:1px solid var(--border);}
+.celda-dia{border-top:1px solid var(--border);border-left:1px solid var(--border);position:relative;padding:3px;cursor:pointer;display:flex;flex-direction:column;gap:3px;}
+.celda-dia:hover{background:#fafbff;}
+.evento-chip{background:#eff6ff;border:1px solid var(--primary);border-radius:4px;padding:3px 5px;font-size:10.5px;line-height:1.3;cursor:pointer;}
+.evento-chip:hover{background:#dbeafe;}
+.evento-chip b{display:block;}
+.evento-chip.activo{background:#2563eb;color:#fff;}
 .campo{position:relative;width:100%;max-width:1200px;aspect-ratio:1180/620;background:#fff;border:3px solid var(--border);border-radius:10px;margin:16px 0;}
 .campo .linea-medio{position:absolute;left:50%;top:0;bottom:0;width:2px;background:var(--border);}
 .campo .circulo{position:absolute;top:50%;left:50%;width:110px;height:110px;margin:-55px 0 0 -55px;border:2px solid var(--border);border-radius:50%;}
@@ -427,10 +438,12 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 <div class="tab-content" id="tab_dia_prueba">
   <div class="seccion no-print">
     <div class="fila-flex" style="justify-content:space-between;">
-      <h2 style="margin:0;">Calendario de eventos</h2>
+      <h2 style="margin:0;">Calendario de pruebas</h2>
       <button onclick="abrirModalEvento()">+ Nuevo evento</button>
     </div>
-    <div id="lista_eventos" style="margin-top:14px;"></div>
+    <p class="ayuda-seccion">Cómo distribuyen los equipos sus pruebas — del lunes 24/05/2027 al viernes 25/06/2027, de 17:00 a 23:00. Haz clic en un hueco vacío para crear un evento ahí, o en un evento para ver su plantilla.</p>
+    <div id="calendario_semanas" style="overflow-x:auto;"></div>
+    <div id="eventos_fuera_rango"></div>
   </div>
 
   <div class="seccion" id="seccion_campograma" style="display:none;">
@@ -441,6 +454,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
     <div class="fila-flex" style="justify-content:space-between;">
       <h2 id="campograma_titulo" style="margin:0;"></h2>
       <div class="fila-flex no-print">
+        <button class="secondary" onclick="editarEvento(eventoActualId)">Editar evento</button>
         <button class="secondary" onclick="abrirSelectorAnadirACampograma()">+ Añadir jugador</button>
         <button class="secondary" onclick="window.print()">Imprimir</button>
         <button class="danger" onclick="eliminarEventoActual()">Borrar evento</button>
@@ -869,7 +883,7 @@ async function cargarInscritos() {
   actualizarContadorComunicaciones();
 
   if (document.getElementById("tab_dia_prueba").classList.contains("active")) {
-    renderListaEventos();
+    renderCalendarioSemanas();
     if (eventoActualId) renderCampograma();
   }
 }
@@ -1317,7 +1331,7 @@ async function guardarJugadorManual() {
   modalManualEventoId = null;
   cerrarModalManual();
   await cargarInscritos();
-  if (eraParaEvento) { renderCampograma(); renderListaEventos(); }
+  if (eraParaEvento) { renderCampograma(); renderCalendarioSemanas(); }
 }
 
 // ============================================================
@@ -1655,21 +1669,130 @@ async function cargarEventos() {
     return;
   }
   eventosLista = data || [];
-  renderListaEventos();
+  renderCalendarioSemanas();
 }
 
 function contarConfirmados(eventoId) {
   return todasLasInscripciones.filter(i => i.evento_id === eventoId && i.respuesta_asistencia === "si" && !i.excluido_dia_prueba).length;
 }
 
-function renderListaEventos() {
-  const cont = document.getElementById("lista_eventos");
-  if (!eventosLista.length) {
-    cont.innerHTML = "<p style='color:var(--muted);font-size:13px;'>Todavía no hay eventos de prueba creados.</p>";
-    return;
-  }
+// Vista de calendario por semanas de la temporada de pruebas: 5 semanas
+// laborables (lunes a viernes) de 17:00 a 23:00, para ver de un vistazo
+// cómo se distribuyen las pruebas de los distintos equipos.
+const CALENDARIO_INICIO = new Date(2027, 4, 24); // lunes 24/05/2027
+const CALENDARIO_SEMANAS = 5;
+const CALENDARIO_HORA_INICIO = 17;
+const CALENDARIO_HORA_FIN = 23; // exclusivo: la última fila es 22:00-23:00
+const DIAS_SEMANA = ["Lun", "Mar", "Mié", "Jue", "Vie"];
+
+function fechaISO(d) {
+  const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, "0"), day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function formatearFechaCorta(d) {
+  return d.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit" });
+}
+
+function renderCalendarioSemanas() {
+  const cont = document.getElementById("calendario_semanas");
   cont.innerHTML = "";
+
+  for (let s = 0; s < CALENDARIO_SEMANAS; s++) {
+    const lunes = new Date(CALENDARIO_INICIO);
+    lunes.setDate(lunes.getDate() + s * 7);
+    const viernes = new Date(lunes);
+    viernes.setDate(viernes.getDate() + 4);
+
+    const wrap = document.createElement("div");
+    wrap.className = "semana-calendario";
+
+    const titulo = document.createElement("div");
+    titulo.className = "semana-titulo";
+    titulo.textContent = `Semana ${s + 1} · ${formatearFechaCorta(lunes)} – ${formatearFechaCorta(viernes)}`;
+    wrap.appendChild(titulo);
+
+    const grid = document.createElement("div");
+    grid.className = "semana-grid";
+    grid.style.gridTemplateRows = `32px repeat(${CALENDARIO_HORA_FIN - CALENDARIO_HORA_INICIO}, minmax(46px, auto))`;
+
+    const esquina = document.createElement("div");
+    esquina.className = "celda-cab";
+    esquina.style.gridColumn = "1";
+    esquina.style.gridRow = "1";
+    grid.appendChild(esquina);
+
+    for (let d = 0; d < 5; d++) {
+      const fecha = new Date(lunes);
+      fecha.setDate(fecha.getDate() + d);
+      const cab = document.createElement("div");
+      cab.className = "celda-cab";
+      cab.style.gridColumn = String(d + 2);
+      cab.style.gridRow = "1";
+      cab.textContent = `${DIAS_SEMANA[d]} ${formatearFechaCorta(fecha)}`;
+      grid.appendChild(cab);
+    }
+
+    for (let h = CALENDARIO_HORA_INICIO; h < CALENDARIO_HORA_FIN; h++) {
+      const filaIdx = h - CALENDARIO_HORA_INICIO + 2;
+
+      const horaCab = document.createElement("div");
+      horaCab.className = "celda-hora";
+      horaCab.style.gridColumn = "1";
+      horaCab.style.gridRow = String(filaIdx);
+      horaCab.textContent = `${String(h).padStart(2, "0")}:00`;
+      grid.appendChild(horaCab);
+
+      for (let d = 0; d < 5; d++) {
+        const fecha = new Date(lunes);
+        fecha.setDate(fecha.getDate() + d);
+        const celda = document.createElement("div");
+        celda.className = "celda-dia";
+        celda.style.gridColumn = String(d + 2);
+        celda.style.gridRow = String(filaIdx);
+        celda.dataset.fecha = fechaISO(fecha);
+        celda.dataset.hora = String(h);
+        celda.addEventListener("click", (ev) => {
+          if (ev.target !== celda) return; // el clic fue en un evento, no en el hueco vacío
+          abrirModalEvento(celda.dataset.fecha, h);
+        });
+        grid.appendChild(celda);
+      }
+    }
+
+    wrap.appendChild(grid);
+    cont.appendChild(wrap);
+  }
+
+  colocarEventosEnCalendario();
+}
+
+function colocarEventosEnCalendario() {
+  const fueraDeRango = [];
+
   eventosLista.forEach(e => {
+    if (!e.dia) { fueraDeRango.push(e); return; }
+    const horaNum = e.hora ? parseInt(e.hora.slice(0, 2), 10) : CALENDARIO_HORA_INICIO;
+    const horaClamp = Math.min(Math.max(horaNum, CALENDARIO_HORA_INICIO), CALENDARIO_HORA_FIN - 1);
+    const celda = document.querySelector(`.celda-dia[data-fecha="${e.dia}"][data-hora="${horaClamp}"]`);
+    if (!celda) { fueraDeRango.push(e); return; }
+
+    const chip = document.createElement("div");
+    chip.className = "evento-chip" + (e.id === eventoActualId ? " activo" : "");
+    chip.innerHTML = `<b>${e.hora ? escapeHtml(e.hora.slice(0, 5)) : ""}${e.equipo_objetivo ? " · " + escapeHtml(e.equipo_objetivo) : ""}</b>${e.anio_nacimiento ? "Año " + escapeHtml(String(e.anio_nacimiento)) + " · " : ""}${contarConfirmados(e.id)} conf.`;
+    chip.onclick = () => seleccionarEvento(e.id);
+    celda.appendChild(chip);
+  });
+
+  renderEventosFueraDeRango(fueraDeRango);
+}
+
+function renderEventosFueraDeRango(lista) {
+  const cont = document.getElementById("eventos_fuera_rango");
+  if (!lista.length) { cont.innerHTML = ""; return; }
+
+  cont.innerHTML = `<p class="ayuda-seccion" style="margin-top:16px;">Eventos fuera de este calendario (antes del 24/05/2027 o después del 25/06/2027):</p>`;
+  lista.forEach(e => {
     const div = document.createElement("div");
     div.className = "evento-card" + (e.id === eventoActualId ? " active" : "");
     const fecha = new Date(e.dia + "T00:00:00").toLocaleDateString("es-ES");
@@ -1678,17 +1801,19 @@ function renderListaEventos() {
         <b>${escapeHtml(fecha)}${e.hora ? " · " + escapeHtml(e.hora.slice(0, 5)) : ""}${e.equipo_objetivo ? " · " + escapeHtml(e.equipo_objetivo) : ""}</b>
         <span>${e.anio_nacimiento ? "Año " + escapeHtml(String(e.anio_nacimiento)) + " · " : ""}${e.lugar ? escapeHtml(e.lugar) + " · " : ""}${contarConfirmados(e.id)} confirmado(s)</span>
       </div>
-      <button class="secondary" style="font-size:12px;padding:5px 10px;">Editar</button>
     `;
-    div.querySelector("button").onclick = (ev) => { ev.stopPropagation(); editarEvento(e.id); };
     div.onclick = () => seleccionarEvento(e.id);
     cont.appendChild(div);
   });
 }
 
-function abrirModalEvento() {
+function abrirModalEvento(diaPrefill, horaPrefill) {
   document.getElementById("modal_evento_titulo").textContent = "Nuevo evento";
-  ["ev_dia", "ev_hora", "ev_anio", "ev_equipo", "ev_lugar"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("ev_dia").value = diaPrefill || "";
+  document.getElementById("ev_hora").value = horaPrefill !== undefined ? String(horaPrefill).padStart(2, "0") + ":00" : "";
+  document.getElementById("ev_anio").value = "";
+  document.getElementById("ev_equipo").value = "";
+  document.getElementById("ev_lugar").value = "";
   document.getElementById("ev_status").textContent = "";
   eventoEditandoId = null;
   document.getElementById("modal_evento").style.display = "flex";
@@ -1751,7 +1876,7 @@ async function eliminarEventoActual() {
 
 function seleccionarEvento(id) {
   eventoActualId = id;
-  renderListaEventos();
+  renderCalendarioSemanas();
   const e = eventosLista.find(x => x.id === id);
   if (!e) return;
   document.getElementById("seccion_campograma").style.display = "block";
@@ -1855,7 +1980,7 @@ async function quitarDeCampograma(id) {
   const j = todasLasInscripciones.find(i => i.id === id);
   if (j) j.excluido_dia_prueba = true;
   renderCampograma();
-  renderListaEventos();
+  renderCalendarioSemanas();
 }
 
 function abrirSelectorAnadirACampograma() {
@@ -1894,7 +2019,7 @@ async function anadirACampograma(id) {
   await cargarInscritos();
   cerrarModalAnadirCampograma();
   renderCampograma();
-  renderListaEventos();
+  renderCalendarioSemanas();
 }
 
 function abrirModalManualDesdeCampograma() {
