@@ -70,10 +70,6 @@ table.ruta-tabla{width:100%;border-collapse:collapse;font-size:13px;}
 .modal-box{background:#fff;border-radius:10px;padding:24px;width:100%;max-width:440px;box-shadow:0 20px 50px rgba(0,0,0,.3);max-height:90vh;overflow-y:auto;}
 .modal-box h3{margin:0 0 14px;}
 .modal-box .field{margin-bottom:12px;}
-.mm-resultados{position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 20px rgba(0,0,0,.12);max-height:180px;overflow-y:auto;z-index:10;display:none;}
-.mm-resultados div{padding:7px 10px;font-size:13px;cursor:pointer;}
-.mm-resultados div:hover{background:var(--bg);}
-.mm-seleccionada{background:#eff6ff !important;}
 
 @media (max-width:800px){
   #topbar{padding:12px 16px;}
@@ -181,15 +177,19 @@ table.ruta-tabla{width:100%;border-collapse:collapse;font-size:13px;}
     </div>
 
     <div id="mm_equipos_wrap" style="display:none;">
-      <div class="field" style="position:relative;">
+      <div class="field">
         <label>Equipo local</label>
         <input id="mm_local_buscar" type="text" style="width:100%;" placeholder="Escribe para buscar…" autocomplete="off" oninput="buscarEquipoManual('local')">
-        <div id="mm_local_resultados" class="mm-resultados"></div>
+        <select id="mm_local_select" style="width:100%;margin-top:6px;display:none;" onchange="seleccionarEquipoManual('local')">
+          <option value="">Elige de la lista…</option>
+        </select>
       </div>
-      <div class="field" style="position:relative;">
+      <div class="field">
         <label>Equipo visitante</label>
         <input id="mm_visitante_buscar" type="text" style="width:100%;" placeholder="Escribe para buscar…" autocomplete="off" oninput="buscarEquipoManual('visitante')">
-        <div id="mm_visitante_resultados" class="mm-resultados"></div>
+        <select id="mm_visitante_select" style="width:100%;margin-top:6px;display:none;" onchange="seleccionarEquipoManual('visitante')">
+          <option value="">Elige de la lista…</option>
+        </select>
       </div>
     </div>
 
@@ -780,8 +780,8 @@ async function abrirModalManual() {
   ["mm_fecha", "mm_hora", "mm_campo", "mm_objetivos", "mm_local_buscar", "mm_visitante_buscar"].forEach(id => document.getElementById(id).value = "");
   document.getElementById("mm_categoria").value = "";
   document.getElementById("mm_equipos_wrap").style.display = "none";
-  document.getElementById("mm_local_resultados").style.display = "none";
-  document.getElementById("mm_visitante_resultados").style.display = "none";
+  document.getElementById("mm_local_select").style.display = "none";
+  document.getElementById("mm_visitante_select").style.display = "none";
   equipoManualLocal = null;
   equipoManualVisitante = null;
   equiposCategoriaManual = [];
@@ -833,8 +833,8 @@ async function onCategoriaManualChange() {
   equipoManualVisitante = null;
   document.getElementById("mm_local_buscar").value = "";
   document.getElementById("mm_visitante_buscar").value = "";
-  document.getElementById("mm_local_resultados").style.display = "none";
-  document.getElementById("mm_visitante_resultados").style.display = "none";
+  document.getElementById("mm_local_select").style.display = "none";
+  document.getElementById("mm_visitante_select").style.display = "none";
 
   if (!edad) { wrap.style.display = "none"; equiposCategoriaManual = []; return; }
 
@@ -864,47 +864,36 @@ async function fetchPorIdsGrupo(grupoIds) {
   return resultados.flat();
 }
 
+// Los resultados se muestran en un <select> nativo (no un desplegable
+// flotante hecho a mano): así elegir uno es 100% fiable en cualquier
+// navegador, sin depender de ningún cableado de clic propio.
 function buscarEquipoManual(lado) {
   const input = document.getElementById(`mm_${lado}_buscar`);
-  const cont = document.getElementById(`mm_${lado}_resultados`);
+  const sel = document.getElementById(`mm_${lado}_select`);
   if (lado === "local") equipoManualLocal = null; else equipoManualVisitante = null;
 
   const q = input.value.trim();
-  if (!q) { cont.style.display = "none"; cont.innerHTML = ""; return; }
+  if (!q) { sel.style.display = "none"; sel.innerHTML = ""; return; }
 
-  const resultados = equiposCategoriaManual.filter(e => coincideNombre(e.nombre, q)).slice(0, 8);
-  if (!resultados.length) { cont.style.display = "none"; cont.innerHTML = ""; return; }
+  const resultados = equiposCategoriaManual.filter(e => coincideNombre(e.nombre, q)).slice(0, 15);
+  if (!resultados.length) { sel.style.display = "none"; sel.innerHTML = ""; return; }
 
-  cont.innerHTML = resultados.map(e => `<div data-equipo-id="${e.id}">${escapeHtml(e.nombre)}</div>`).join("");
-  cont.style.display = "block";
+  sel.innerHTML = '<option value="">Elige de la lista…</option>' +
+    resultados.map(e => `<option value="${e.id}">${escapeHtml(e.nombre)}</option>`).join("");
+  sel.style.display = "block";
 }
 
-function seleccionarEquipoManual(lado, equipoId) {
+function seleccionarEquipoManual(lado) {
+  const sel = document.getElementById(`mm_${lado}_select`);
+  const equipoId = sel.value;
+  if (!equipoId) return;
   const equipo = equiposCategoriaManual.find(e => e.id === equipoId);
   if (!equipo) return;
   if (lado === "local") equipoManualLocal = equipo; else equipoManualVisitante = equipo;
   document.getElementById(`mm_${lado}_buscar`).value = equipo.nombre;
-  const cont = document.getElementById(`mm_${lado}_resultados`);
-  cont.style.display = "none";
-  cont.innerHTML = "";
+  sel.style.display = "none";
+  sel.innerHTML = "";
 }
-
-// Un único listener por contenedor (delegación), en vez de un onmousedown
-// distinto en cada fila: más fiable, porque no depende de que el navegador
-// llegue a disparar el evento sobre un nodo que se acaba de crear justo
-// cuando el campo de texto pierde el foco. Se registra una sola vez al
-// cargar la página (el contenido de dentro se puede regenerar sin problema).
-function wireResultadosManual(lado) {
-  const cont = document.getElementById(`mm_${lado}_resultados`);
-  cont.addEventListener("mousedown", (e) => {
-    const fila = e.target.closest("[data-equipo-id]");
-    if (!fila) return;
-    e.preventDefault();
-    seleccionarEquipoManual(lado, fila.dataset.equipoId);
-  });
-}
-wireResultadosManual("local");
-wireResultadosManual("visitante");
 
 async function guardarManual() {
   const local = document.getElementById("mm_local_buscar").value.trim();
