@@ -88,10 +88,14 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 .semana-titulo{font-weight:700;margin-bottom:8px;}
 .semana-grid{display:grid;grid-template-columns:60px repeat(5, minmax(120px, 1fr));border:1px solid var(--border);border-radius:8px;overflow:hidden;min-width:680px;}
 .celda-cab{background:var(--bg);font-size:12px;font-weight:700;text-align:center;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--border);border-left:1px solid var(--border);padding:6px 2px;}
-.celda-hora{background:var(--bg);font-size:11px;color:var(--muted);text-align:right;padding:4px 6px;border-top:1px solid var(--border);}
-.celda-dia{border-top:1px solid var(--border);border-left:1px solid var(--border);position:relative;padding:3px;cursor:pointer;display:flex;flex-direction:column;gap:3px;}
-.celda-dia:hover{background:#fafbff;}
-.evento-chip{background:#eff6ff;border:1px solid var(--primary);border-radius:4px;padding:3px 5px;font-size:10.5px;line-height:1.3;cursor:pointer;}
+.celda-cab:first-child{border-left:none;}
+.horas-columna{background:var(--bg);border-top:1px solid var(--border);}
+.celda-hora{font-size:11px;color:var(--muted);text-align:right;padding:4px 6px 0 0;box-sizing:border-box;}
+.dia-columna{position:relative;border-top:1px solid var(--border);border-left:1px solid var(--border);}
+.hora-slot{border-bottom:1px dashed var(--border);cursor:pointer;box-sizing:border-box;}
+.hora-slot:last-child{border-bottom:none;}
+.hora-slot:hover{background:#fafbff;}
+.evento-chip{position:absolute;left:2px;right:2px;background:#eff6ff;border:1px solid var(--primary);border-radius:4px;padding:2px 5px;font-size:10px;line-height:1.25;cursor:pointer;overflow:hidden;z-index:2;}
 .evento-chip:hover{background:#dbeafe;}
 .evento-chip b{display:block;}
 .evento-chip.activo{background:#2563eb;color:#fff;}
@@ -363,7 +367,9 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
       <div id="crear_evento_inline" style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;">
         <div class="campos-grid" style="grid-template-columns:1fr 1fr;margin:0;">
           <div><label>Día *</label><input id="ce_dia" type="date" style="width:100%;"></div>
-          <div><label>Hora</label><input id="ce_hora" type="time" style="width:100%;"></div>
+          <div></div>
+          <div><label>Hora de inicio</label><input id="ce_hora_inicio" type="time" style="width:100%;"></div>
+          <div><label>Hora de fin</label><input id="ce_hora_fin" type="time" style="width:100%;"></div>
           <div><label>Año de nacimiento objetivo</label><input id="ce_anio" type="number" style="width:100%;" placeholder="Ej. 2012"></div>
           <div><label>Equipo / objetivo</label><input id="ce_equipo" type="text" style="width:100%;" placeholder="Ej. Cadete A"></div>
           <div class="campo-full"><label>Lugar</label><input id="ce_lugar" type="text" style="width:100%;"></div>
@@ -510,7 +516,10 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
   <div class="modal-box">
     <h3 id="modal_evento_titulo">Nuevo evento</h3>
     <div class="field"><label>Día *</label><input id="ev_dia" type="date" style="width:100%;"></div>
-    <div class="field"><label>Hora</label><input id="ev_hora" type="time" style="width:100%;"></div>
+    <div class="fila-flex">
+      <div class="field" style="flex:1;"><label>Hora de inicio</label><input id="ev_hora_inicio" type="time" style="width:100%;"></div>
+      <div class="field" style="flex:1;"><label>Hora de fin</label><input id="ev_hora_fin" type="time" style="width:100%;"></div>
+    </div>
     <div class="field"><label>Año de nacimiento objetivo</label><input id="ev_anio" type="number" style="width:100%;" placeholder="Ej. 2012"></div>
     <div class="field"><label>Equipo / objetivo</label><input id="ev_equipo" type="text" style="width:100%;"></div>
     <div class="field"><label>Lugar</label><input id="ev_lugar" type="text" style="width:100%;"></div>
@@ -583,6 +592,15 @@ function escapeHtml(s) {
   return (s ?? "").toString()
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+// Formatea el horario de un evento como "18:00" o, si tiene hora de fin,
+// como "18:00–19:30". Acepta tanto filas de pruebas_eventos como el
+// objeto anidado pruebas_eventos que viene con una inscripción.
+function rangoHorasEvento(e) {
+  if (!e || !e.hora_inicio) return "";
+  const inicio = e.hora_inicio.slice(0, 5);
+  return e.hora_fin ? `${inicio}–${e.hora_fin.slice(0, 5)}` : inicio;
 }
 
 // Un fallo al cargar datos (p.ej. porque falta desplegar una migración)
@@ -796,7 +814,8 @@ function crearTabla() {
             const ev = cell.getRow().getData().pruebas_eventos;
             if (!ev) return "";
             const fecha = new Date(ev.dia + "T00:00:00").toLocaleDateString("es-ES");
-            return fecha + (ev.hora ? " · " + ev.hora.slice(0, 5) : "");
+            const horas = rangoHorasEvento(ev);
+            return fecha + (horas ? " · " + horas : "");
           }
         },
         {
@@ -841,7 +860,7 @@ function actualizarBulkBar(data) {
 
 async function cargarInscritos() {
   const { data, error } = await client.from("pruebas_inscripciones")
-    .select("*, pruebas_eventos(dia, hora, lugar, equipo_objetivo, anio_nacimiento)")
+    .select("*, pruebas_eventos(dia, hora_inicio, hora_fin, lugar, equipo_objetivo, anio_nacimiento)")
     .eq("club_id", miClubId).order("anio_nacimiento", { ascending: false });
   if (error) {
     console.error("[CaptaNET] cargarInscritos:", error);
@@ -918,7 +937,7 @@ function exportarExcel() {
 // ============================================================
 async function abrirInscripcion(id) {
   const { data: i, error } = await client.from("pruebas_inscripciones")
-    .select("*, pruebas_eventos(dia, hora, lugar, equipo_objetivo, anio_nacimiento)")
+    .select("*, pruebas_eventos(dia, hora_inicio, hora_fin, lugar, equipo_objetivo, anio_nacimiento)")
     .eq("id", id).single();
   if (error || !i) return;
   inscripcionActual = i;
@@ -944,7 +963,8 @@ async function abrirInscripcion(id) {
   const ev = i.pruebas_eventos;
   if (ev) {
     const fecha = ev.dia ? new Date(ev.dia + "T00:00:00").toLocaleDateString("es-ES") : "";
-    cita.innerHTML = `<div class="detalle-cita">📅 ${fecha || "Sin día"} ${ev.hora ? "· 🕒 " + ev.hora.slice(0, 5) : ""} ${ev.lugar ? "· 📍 " + ev.lugar : ""}${i.notificado_at ? " · <span style='color:#15803d;'>avisado</span>" : ""}</div>`;
+    const horasCita = rangoHorasEvento(ev);
+    cita.innerHTML = `<div class="detalle-cita">📅 ${fecha || "Sin día"} ${horasCita ? "· 🕒 " + horasCita : ""} ${ev.lugar ? "· 📍 " + ev.lugar : ""}${i.notificado_at ? " · <span style='color:#15803d;'>avisado</span>" : ""}</div>`;
   } else {
     cita.innerHTML = "";
   }
@@ -1146,7 +1166,7 @@ async function guardarValoracion() {
 
   const { data, error } = await client.from("pruebas_inscripciones")
     .update(payload).eq("id", inscripcionActual.id)
-    .select("*, pruebas_eventos(dia, hora, lugar, equipo_objetivo, anio_nacimiento)").single();
+    .select("*, pruebas_eventos(dia, hora_inicio, hora_fin, lugar, equipo_objetivo, anio_nacimiento)").single();
 
   if (error) { status.textContent = "Error guardando: " + error.message; return; }
 
@@ -1453,14 +1473,15 @@ function cambiarSubtabComunicacion(nombre) {
 function textoEvento(e) {
   const fecha = new Date(e.dia + "T00:00:00").toLocaleDateString("es-ES");
   let t = fecha;
-  if (e.hora) t += " · " + e.hora.slice(0, 5);
+  const horas = rangoHorasEvento(e);
+  if (horas) t += " · " + horas;
   if (e.equipo_objetivo) t += " · " + e.equipo_objetivo;
   return t;
 }
 
 async function cargarEventosParaConvocatoria() {
   if (!miClubId) return;
-  const { data, error } = await client.from("pruebas_eventos").select("*").eq("club_id", miClubId).order("dia").order("hora");
+  const { data, error } = await client.from("pruebas_eventos").select("*").eq("club_id", miClubId).order("dia").order("hora_inicio");
   if (error) {
     console.error("[CaptaNET] cargarEventosParaConvocatoria:", error);
     mostrarErrorCarga("Error cargando los eventos: " + error.message + " (si acabas de actualizar la app, puede que falte ejecutar una migración pendiente).");
@@ -1488,7 +1509,8 @@ async function crearEventoDesdeConvocatoria() {
   const payload = {
     club_id: miClubId,
     dia,
-    hora: document.getElementById("ce_hora").value || null,
+    hora_inicio: document.getElementById("ce_hora_inicio").value || null,
+    hora_fin: document.getElementById("ce_hora_fin").value || null,
     anio_nacimiento: document.getElementById("ce_anio").value || null,
     equipo_objetivo: document.getElementById("ce_equipo").value.trim() || null,
     lugar: document.getElementById("ce_lugar").value.trim() || null,
@@ -1496,7 +1518,7 @@ async function crearEventoDesdeConvocatoria() {
   const { data, error } = await client.from("pruebas_eventos").insert(payload).select().single();
   if (error) { alert("Error creando el evento: " + error.message); return; }
 
-  ["ce_dia", "ce_hora", "ce_anio", "ce_equipo", "ce_lugar"].forEach(id => document.getElementById(id).value = "");
+  ["ce_dia", "ce_hora_inicio", "ce_hora_fin", "ce_anio", "ce_equipo", "ce_lugar"].forEach(id => document.getElementById(id).value = "");
   document.getElementById("crear_evento_inline").style.display = "none";
   await cargarEventosParaConvocatoria();
   document.getElementById("mc_evento").value = data.id;
@@ -1518,7 +1540,7 @@ function actualizarPreviaConvocatoria() {
   let html = `Hola <b>${escapeHtml(nombreEjemplo)}</b>,<br>Te confirmamos tu prueba:<br>`;
   html += "<ul style='margin:6px 0;padding-left:18px;'>";
   html += `<li>📅 Día: ${diaFmt ? escapeHtml(diaFmt) : "<i>(elige un evento)</i>"}</li>`;
-  html += `<li>🕒 Hora: ${evento?.hora ? escapeHtml(evento.hora.slice(0, 5)) : "<i>(sin indicar)</i>"}</li>`;
+  html += `<li>🕒 Hora: ${rangoHorasEvento(evento) ? escapeHtml(rangoHorasEvento(evento)) : "<i>(sin indicar)</i>"}</li>`;
   html += `<li>📍 Lugar: ${evento?.lugar ? escapeHtml(evento.lugar) : "<i>(sin indicar)</i>"}</li>`;
   html += "</ul>";
   if (nota) html += `${escapeHtml(nota).replace(/\n/g, "<br>")}<br>`;
@@ -1662,7 +1684,7 @@ async function enviarMensajePersonalizado() {
 // ============================================================
 async function cargarEventos() {
   eventosCargados = true;
-  const { data, error } = await client.from("pruebas_eventos").select("*").eq("club_id", miClubId).order("dia").order("hora");
+  const { data, error } = await client.from("pruebas_eventos").select("*").eq("club_id", miClubId).order("dia").order("hora_inicio");
   if (error) {
     console.error("[CaptaNET] cargarEventos:", error);
     mostrarErrorCarga("Error cargando el calendario de eventos: " + error.message + " (si acabas de actualizar la app, puede que falte ejecutar una migración pendiente).");
@@ -1694,6 +1716,8 @@ function formatearFechaCorta(d) {
   return d.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit" });
 }
 
+const CALENDARIO_ALTURA_HORA = 50; // px por hora, para poder colocar eventos por duración real
+
 function renderCalendarioSemanas() {
   const cont = document.getElementById("calendario_semanas");
   cont.innerHTML = "";
@@ -1714,50 +1738,50 @@ function renderCalendarioSemanas() {
 
     const grid = document.createElement("div");
     grid.className = "semana-grid";
-    grid.style.gridTemplateRows = `32px repeat(${CALENDARIO_HORA_FIN - CALENDARIO_HORA_INICIO}, minmax(46px, auto))`;
 
-    const esquina = document.createElement("div");
-    esquina.className = "celda-cab";
-    esquina.style.gridColumn = "1";
-    esquina.style.gridRow = "1";
-    grid.appendChild(esquina);
-
+    // cabecera: esquina vacía + un encabezado por día
+    grid.appendChild(document.createElement("div")).className = "celda-cab";
     for (let d = 0; d < 5; d++) {
       const fecha = new Date(lunes);
       fecha.setDate(fecha.getDate() + d);
       const cab = document.createElement("div");
       cab.className = "celda-cab";
-      cab.style.gridColumn = String(d + 2);
-      cab.style.gridRow = "1";
       cab.textContent = `${DIAS_SEMANA[d]} ${formatearFechaCorta(fecha)}`;
       grid.appendChild(cab);
     }
 
+    // columna de horas
+    const horasCol = document.createElement("div");
+    horasCol.className = "horas-columna";
     for (let h = CALENDARIO_HORA_INICIO; h < CALENDARIO_HORA_FIN; h++) {
-      const filaIdx = h - CALENDARIO_HORA_INICIO + 2;
+      const et = document.createElement("div");
+      et.className = "celda-hora";
+      et.style.height = CALENDARIO_ALTURA_HORA + "px";
+      et.textContent = `${String(h).padStart(2, "0")}:00`;
+      horasCol.appendChild(et);
+    }
+    grid.appendChild(horasCol);
 
-      const horaCab = document.createElement("div");
-      horaCab.className = "celda-hora";
-      horaCab.style.gridColumn = "1";
-      horaCab.style.gridRow = String(filaIdx);
-      horaCab.textContent = `${String(h).padStart(2, "0")}:00`;
-      grid.appendChild(horaCab);
+    // una columna por día, con un hueco clicable por hora y los eventos
+    // superpuestos encima, colocados y dimensionados según su duración real
+    for (let d = 0; d < 5; d++) {
+      const fecha = new Date(lunes);
+      fecha.setDate(fecha.getDate() + d);
+      const fechaIso = fechaISO(fecha);
 
-      for (let d = 0; d < 5; d++) {
-        const fecha = new Date(lunes);
-        fecha.setDate(fecha.getDate() + d);
-        const celda = document.createElement("div");
-        celda.className = "celda-dia";
-        celda.style.gridColumn = String(d + 2);
-        celda.style.gridRow = String(filaIdx);
-        celda.dataset.fecha = fechaISO(fecha);
-        celda.dataset.hora = String(h);
-        celda.addEventListener("click", (ev) => {
-          if (ev.target !== celda) return; // el clic fue en un evento, no en el hueco vacío
-          abrirModalEvento(celda.dataset.fecha, h);
-        });
-        grid.appendChild(celda);
+      const diaCol = document.createElement("div");
+      diaCol.className = "dia-columna";
+      diaCol.dataset.fecha = fechaIso;
+
+      for (let h = CALENDARIO_HORA_INICIO; h < CALENDARIO_HORA_FIN; h++) {
+        const slot = document.createElement("div");
+        slot.className = "hora-slot";
+        slot.style.height = CALENDARIO_ALTURA_HORA + "px";
+        slot.addEventListener("click", () => abrirModalEvento(fechaIso, h));
+        diaCol.appendChild(slot);
       }
+
+      grid.appendChild(diaCol);
     }
 
     wrap.appendChild(grid);
@@ -1767,21 +1791,37 @@ function renderCalendarioSemanas() {
   colocarEventosEnCalendario();
 }
 
+// Minutos transcurridos desde CALENDARIO_HORA_INICIO hasta la hora dada
+// ("HH:MM" o "HH:MM:SS"), o null si no hay hora.
+function minutosDesdeInicioCalendario(horaStr) {
+  if (!horaStr) return null;
+  const [h, m] = horaStr.split(":").map(Number);
+  return (h * 60 + m) - CALENDARIO_HORA_INICIO * 60;
+}
+
 function colocarEventosEnCalendario() {
   const fueraDeRango = [];
+  const totalMin = (CALENDARIO_HORA_FIN - CALENDARIO_HORA_INICIO) * 60;
+  const pxPorMin = (CALENDARIO_ALTURA_HORA * (CALENDARIO_HORA_FIN - CALENDARIO_HORA_INICIO)) / totalMin;
 
   eventosLista.forEach(e => {
     if (!e.dia) { fueraDeRango.push(e); return; }
-    const horaNum = e.hora ? parseInt(e.hora.slice(0, 2), 10) : CALENDARIO_HORA_INICIO;
-    const horaClamp = Math.min(Math.max(horaNum, CALENDARIO_HORA_INICIO), CALENDARIO_HORA_FIN - 1);
-    const celda = document.querySelector(`.celda-dia[data-fecha="${e.dia}"][data-hora="${horaClamp}"]`);
-    if (!celda) { fueraDeRango.push(e); return; }
+    const columna = document.querySelector(`.dia-columna[data-fecha="${e.dia}"]`);
+    if (!columna) { fueraDeRango.push(e); return; }
+
+    const inicioMinRaw = minutosDesdeInicioCalendario(e.hora_inicio) ?? 0;
+    const finMinRaw = e.hora_fin ? minutosDesdeInicioCalendario(e.hora_fin) : inicioMinRaw + 60;
+    const inicioMin = Math.min(Math.max(inicioMinRaw, 0), totalMin);
+    const finMin = Math.min(Math.max(finMinRaw, inicioMin + 15), totalMin);
 
     const chip = document.createElement("div");
     chip.className = "evento-chip" + (e.id === eventoActualId ? " activo" : "");
-    chip.innerHTML = `<b>${e.hora ? escapeHtml(e.hora.slice(0, 5)) : ""}${e.equipo_objetivo ? " · " + escapeHtml(e.equipo_objetivo) : ""}</b>${e.anio_nacimiento ? "Año " + escapeHtml(String(e.anio_nacimiento)) + " · " : ""}${contarConfirmados(e.id)} conf.`;
-    chip.onclick = () => seleccionarEvento(e.id);
-    celda.appendChild(chip);
+    chip.style.top = (inicioMin * pxPorMin) + "px";
+    chip.style.height = Math.max((finMin - inicioMin) * pxPorMin, 18) + "px";
+    const horas = rangoHorasEvento(e);
+    chip.innerHTML = `<b>${horas ? escapeHtml(horas) : ""}${e.equipo_objetivo ? " · " + escapeHtml(e.equipo_objetivo) : ""}</b>${e.anio_nacimiento ? "Año " + escapeHtml(String(e.anio_nacimiento)) + " · " : ""}${contarConfirmados(e.id)} conf.`;
+    chip.onclick = (ev) => { ev.stopPropagation(); seleccionarEvento(e.id); };
+    columna.appendChild(chip);
   });
 
   renderEventosFueraDeRango(fueraDeRango);
@@ -1796,9 +1836,10 @@ function renderEventosFueraDeRango(lista) {
     const div = document.createElement("div");
     div.className = "evento-card" + (e.id === eventoActualId ? " active" : "");
     const fecha = new Date(e.dia + "T00:00:00").toLocaleDateString("es-ES");
+    const horas = rangoHorasEvento(e);
     div.innerHTML = `
       <div class="ev-info">
-        <b>${escapeHtml(fecha)}${e.hora ? " · " + escapeHtml(e.hora.slice(0, 5)) : ""}${e.equipo_objetivo ? " · " + escapeHtml(e.equipo_objetivo) : ""}</b>
+        <b>${escapeHtml(fecha)}${horas ? " · " + escapeHtml(horas) : ""}${e.equipo_objetivo ? " · " + escapeHtml(e.equipo_objetivo) : ""}</b>
         <span>${e.anio_nacimiento ? "Año " + escapeHtml(String(e.anio_nacimiento)) + " · " : ""}${e.lugar ? escapeHtml(e.lugar) + " · " : ""}${contarConfirmados(e.id)} confirmado(s)</span>
       </div>
     `;
@@ -1810,7 +1851,13 @@ function renderEventosFueraDeRango(lista) {
 function abrirModalEvento(diaPrefill, horaPrefill) {
   document.getElementById("modal_evento_titulo").textContent = "Nuevo evento";
   document.getElementById("ev_dia").value = diaPrefill || "";
-  document.getElementById("ev_hora").value = horaPrefill !== undefined ? String(horaPrefill).padStart(2, "0") + ":00" : "";
+  if (horaPrefill !== undefined) {
+    document.getElementById("ev_hora_inicio").value = String(horaPrefill).padStart(2, "0") + ":00";
+    document.getElementById("ev_hora_fin").value = String(Math.min(horaPrefill + 1, CALENDARIO_HORA_FIN)).padStart(2, "0") + ":00";
+  } else {
+    document.getElementById("ev_hora_inicio").value = "";
+    document.getElementById("ev_hora_fin").value = "";
+  }
   document.getElementById("ev_anio").value = "";
   document.getElementById("ev_equipo").value = "";
   document.getElementById("ev_lugar").value = "";
@@ -1825,7 +1872,8 @@ function editarEvento(id) {
   eventoEditandoId = id;
   document.getElementById("modal_evento_titulo").textContent = "Editar evento";
   document.getElementById("ev_dia").value = e.dia || "";
-  document.getElementById("ev_hora").value = e.hora || "";
+  document.getElementById("ev_hora_inicio").value = e.hora_inicio || "";
+  document.getElementById("ev_hora_fin").value = e.hora_fin || "";
   document.getElementById("ev_anio").value = e.anio_nacimiento || "";
   document.getElementById("ev_equipo").value = e.equipo_objetivo || "";
   document.getElementById("ev_lugar").value = e.lugar || "";
@@ -1842,10 +1890,18 @@ async function guardarEvento() {
   const dia = document.getElementById("ev_dia").value;
   if (!dia) { status.textContent = "Falta el día."; return; }
 
+  const horaInicio = document.getElementById("ev_hora_inicio").value || null;
+  const horaFin = document.getElementById("ev_hora_fin").value || null;
+  if (horaInicio && horaFin && horaFin <= horaInicio) {
+    status.textContent = "La hora de fin tiene que ser posterior a la de inicio.";
+    return;
+  }
+
   const payload = {
     club_id: miClubId,
     dia,
-    hora: document.getElementById("ev_hora").value || null,
+    hora_inicio: horaInicio,
+    hora_fin: horaFin,
     anio_nacimiento: document.getElementById("ev_anio").value || null,
     equipo_objetivo: document.getElementById("ev_equipo").value.trim() || null,
     lugar: document.getElementById("ev_lugar").value.trim() || null,
@@ -1881,8 +1937,9 @@ function seleccionarEvento(id) {
   if (!e) return;
   document.getElementById("seccion_campograma").style.display = "block";
   const fecha = new Date(e.dia + "T00:00:00").toLocaleDateString("es-ES");
+  const horas = rangoHorasEvento(e);
   document.getElementById("campograma_titulo").textContent =
-    `${fecha}${e.hora ? " · " + e.hora.slice(0, 5) : ""}${e.equipo_objetivo ? " · " + e.equipo_objetivo : ""}${e.lugar ? " · " + e.lugar : ""}`;
+    `${fecha}${horas ? " · " + horas : ""}${e.equipo_objetivo ? " · " + e.equipo_objetivo : ""}${e.lugar ? " · " + e.lugar : ""}`;
 
   document.getElementById("campograma_club_nombre").textContent = miClubNombre || "";
   const escudoImg = document.getElementById("campograma_escudo");

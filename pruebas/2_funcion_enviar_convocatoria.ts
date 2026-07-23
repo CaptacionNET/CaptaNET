@@ -43,11 +43,12 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
-function construirCuerpo(nombre: string, diaFmt: string, hora: string, lugar: string, nota: string): string {
+function construirCuerpo(nombre: string, diaFmt: string, horaInicio: string, horaFin: string, lugar: string, nota: string): string {
+  const rangoHoras = horaInicio ? (horaFin ? `${horaInicio} - ${horaFin}` : horaInicio) : "";
   let html = `<p>Hola <b>${escapeHtml(nombre)}</b>,</p><p>Te confirmamos tu prueba:</p>`;
   html += "<ul style='margin:6px 0;padding-left:18px;'>";
   html += `<li>📅 Día: ${diaFmt ? escapeHtml(diaFmt) : "por confirmar"}</li>`;
-  html += `<li>🕒 Hora: ${hora ? escapeHtml(hora) : "por confirmar"}</li>`;
+  html += `<li>🕒 Hora: ${rangoHoras ? escapeHtml(rangoHoras) : "por confirmar"}</li>`;
   html += `<li>📍 Lugar: ${lugar ? escapeHtml(lugar) : "por confirmar"}</li>`;
   html += "</ul>";
   if (nota) html += `<p>${escapeHtml(nota).replace(/\n/g, "<br>")}</p>`;
@@ -94,7 +95,7 @@ Deno.serve(async (req) => {
     if (!asunto) return json({ error: "Falta el asunto" }, 400);
 
     const { data: evento, error: errEvento } = await userClient
-      .from("pruebas_eventos").select("id, dia, hora, lugar").eq("id", evento_id).single();
+      .from("pruebas_eventos").select("id, dia, hora_inicio, hora_fin, lugar").eq("id", evento_id).single();
     if (errEvento || !evento) return json({ error: "Evento no encontrado" }, 404);
 
     // RLS filtra automáticamente a las filas del club del que llama.
@@ -119,8 +120,12 @@ Deno.serve(async (req) => {
 
       const club = (clubes || []).find(c => c.id === fila.club_id);
 
-      const html = construirCuerpo(fila.nombre, diaFmt, evento.hora || "", evento.lugar || "", nota || "")
-        + bloqueConfirmacion(club?.slug || null, fila.id);
+      const html = construirCuerpo(
+        fila.nombre, diaFmt,
+        evento.hora_inicio ? evento.hora_inicio.slice(0, 5) : "",
+        evento.hora_fin ? evento.hora_fin.slice(0, 5) : "",
+        evento.lugar || "", nota || ""
+      ) + bloqueConfirmacion(club?.slug || null, fila.id);
 
       const resp = await fetch("https://api.resend.com/emails", {
         method: "POST",
