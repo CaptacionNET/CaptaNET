@@ -44,11 +44,13 @@ button:disabled{opacity:.6;cursor:default;}
 }
 .aviso-ok h2{color:#15803d;margin:0 0 8px;}
 .aviso-ok p{color:var(--muted);font-size:14px;margin:0;}
+.escudo-club{display:block;height:56px;margin:0 auto 10px;object-fit:contain;}
 </style>
 </head>
 
 <body>
   <div class="card">
+    <img id="escudo_club" class="escudo-club" style="display:none;">
     <div class="logo">CaptaNET</div>
     <div class="subtitle" id="subtitle">Inscripción a pruebas</div>
 
@@ -109,6 +111,7 @@ button:disabled{opacity:.6;cursor:default;}
         <label for="comentario">Cuéntanos algo sobre ti (opcional)</label>
         <textarea id="comentario"></textarea>
       </div>
+      <div id="preguntas_extra"></div>
       <div style="position:absolute;left:-9999px;" aria-hidden="true">
         <label for="web">Deja este campo vacío</label>
         <input id="web" type="text" tabindex="-1" autocomplete="off">
@@ -145,6 +148,28 @@ button:disabled{opacity:.6;cursor:default;}
       errorBox.style.display = "block";
     }
 
+    function escapeHtml(s) {
+      return (s ?? "").toString()
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    let preguntasPublicas = [];
+
+    async function cargarPreguntasPublicas() {
+      if (!clubSlug) return;
+      const { data, error } = await client.rpc("pruebas_preguntas_publicas", { p_slug: clubSlug });
+      if (error) { console.error("[CaptaNET] pruebas_preguntas_publicas:", error); return; }
+      preguntasPublicas = data || [];
+      const cont = document.getElementById("preguntas_extra");
+      cont.innerHTML = preguntasPublicas.map((p, i) => `
+        <div class="field">
+          <label for="pregunta_${i}">${escapeHtml(p.texto)}</label>
+          <input id="pregunta_${i}" type="text">
+        </div>
+      `).join("");
+    }
+
     async function aplicarBrandingClub() {
       if (!clubSlug) {
         form.style.display = "none";
@@ -162,6 +187,12 @@ button:disabled{opacity:.6;cursor:default;}
       document.getElementById("subtitle").textContent = "Inscripción a pruebas de " + data.nombre;
       document.title = "CaptaNET - Pruebas " + data.nombre;
 
+      if (data.escudo_url) {
+        const escudo = document.getElementById("escudo_club");
+        escudo.src = data.escudo_url;
+        escudo.style.display = "block";
+      }
+
       if (data.cerrado) {
         form.style.display = "none";
         const cerrado = document.getElementById("formularioCerrado");
@@ -169,7 +200,10 @@ button:disabled{opacity:.6;cursor:default;}
           ? `El plazo de inscripción a pruebas de ${data.nombre} terminó el ${new Date(data.fecha_limite + "T00:00:00").toLocaleDateString("es-ES")}.`
           : `El formulario de inscripción a pruebas de ${data.nombre} no está disponible ahora mismo.`;
         cerrado.style.display = "block";
+        return;
       }
+
+      await cargarPreguntasPublicas();
     }
 
     aplicarBrandingClub();
@@ -180,6 +214,12 @@ button:disabled{opacity:.6;cursor:default;}
 
       submitBtn.disabled = true;
       submitBtn.textContent = "Enviando...";
+
+      const respuestasExtra = {};
+      preguntasPublicas.forEach((p, i) => {
+        const valor = document.getElementById("pregunta_" + i)?.value.trim();
+        if (valor) respuestasExtra[p.texto] = valor;
+      });
 
       const { error } = await client.rpc("pruebas_inscribir", {
         p_slug: clubSlug,
@@ -192,6 +232,7 @@ button:disabled{opacity:.6;cursor:default;}
         p_club_actual: document.getElementById("club_actual").value.trim(),
         p_comentario: document.getElementById("comentario").value.trim(),
         p_honeypot: document.getElementById("web").value,
+        p_respuestas_extra: respuestasExtra,
       });
 
       if (error) {

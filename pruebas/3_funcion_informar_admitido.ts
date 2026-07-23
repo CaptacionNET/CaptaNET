@@ -1,11 +1,14 @@
 // ============================================================
 // CaptaNET · Edge Function "pruebas-informar-admitido"
 // Avisa por email (vía Resend) a una o varias inscripciones de que
-// han sido admitidas en un equipo: nombre del equipo, horarios de
+// han sido propuestas para un equipo: nombre del equipo, horarios de
 // entrenamiento y enlace de matrícula. A diferencia de la
 // convocatoria, aquí solo el equipo es obligatorio — horarios y
 // enlace de matrícula son opcionales, para poder avisar rápido sin
-// tener que rellenar todos los campos.
+// tener que rellenar todos los campos. El email incluye un enlace
+// para que el jugador conteste si le interesa o no la propuesta; al
+// enviarse, el estado pasa a "firmar" (pendiente de completar el
+// papeleo), no a "firmado" directamente.
 //
 // Body JSON:
 //   {
@@ -36,7 +39,7 @@ function escapeHtml(s: string): string {
 }
 
 function construirCuerpo(nombre: string, equipo: string, horarios: string, linkMatricula: string): string {
-  let html = `<p>Hola <b>${escapeHtml(nombre)}</b>,</p><p>¡Enhorabuena! Has sido admitido en el equipo <b>${escapeHtml(equipo)}</b>.</p>`;
+  let html = `<p>Hola <b>${escapeHtml(nombre)}</b>,</p><p>¡Enhorabuena! Te proponemos para el equipo <b>${escapeHtml(equipo)}</b>.</p>`;
   if (horarios) html += `<p>🕒 Horarios de entrenamiento: ${escapeHtml(horarios).replace(/\n/g, "<br>")}</p>`;
   if (linkMatricula) {
     html += `
@@ -45,6 +48,16 @@ function construirCuerpo(nombre: string, equipo: string, horarios: string, linkM
     </div>`;
   }
   return html;
+}
+
+function bloqueRespuesta(slug: string | null, inscripcionId: string): string {
+  if (!slug) return "";
+  const url = `https://${slug}.captacion.net/confirmar_admision.html?id=${inscripcionId}`;
+  return `
+    <div style="margin-top:24px;padding-top:20px;border-top:1px solid #e2e4eb;">
+      <p style="margin:0 0 12px;">¿Qué te parece la propuesta?</p>
+      <a href="${url}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:10px 18px;border-radius:6px;font-weight:600;">Responder</a>
+    </div>`;
 }
 
 // El nombre del club va como "display name" del remitente, para que el
@@ -85,7 +98,7 @@ Deno.serve(async (req) => {
 
     const clubIds = [...new Set((filas || []).map(f => f.club_id))];
     const { data: clubes, error: errClubes } = await userClient
-      .from("clubs").select("id, nombre").in("id", clubIds);
+      .from("clubs").select("id, nombre, slug").in("id", clubIds);
     if (errClubes) return json({ error: errClubes.message }, 500);
 
     const enviados: string[] = [];
@@ -97,7 +110,8 @@ Deno.serve(async (req) => {
 
       const club = (clubes || []).find(c => c.id === fila.club_id);
 
-      const html = construirCuerpo(fila.nombre, equipo, horarios || "", link_matricula || "");
+      const html = construirCuerpo(fila.nombre, equipo, horarios || "", link_matricula || "")
+        + bloqueRespuesta(club?.slug || null, fila.id);
 
       const resp = await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -115,7 +129,7 @@ Deno.serve(async (req) => {
     if (enviados.length) {
       const { error: errUpdate } = await userClient
         .from("pruebas_inscripciones")
-        .update({ estado: "fichado", equipo_propuesto: equipo })
+        .update({ estado: "firmar", equipo_propuesto: equipo })
         .in("id", enviados);
       if (errUpdate) console.error("[pruebas-informar-admitido] update tras envío:", errUpdate);
     }

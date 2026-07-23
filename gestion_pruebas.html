@@ -30,10 +30,14 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 .badge-pendiente{background:#f1f5f9;color:#475569;}
 .badge-citado{background:#dbeafe;color:#1d4ed8;}
 .badge-volver_a_citar{background:#ffedd5;color:#c2410c;}
-.badge-descartado{background:#fee2e2;color:#b91c1c;}
-.badge-fichado{background:#dcfce7;color:#15803d;}
+.badge-descartar{background:#fee2e2;color:#b91c1c;}
+.badge-firmar{background:#fef9c3;color:#a16207;}
+.badge-firmado{background:#dcfce7;color:#15803d;}
+.badge-no_acude{background:#e5e7eb;color:#4b5563;}
 .badge-si{background:#dcfce7;color:#15803d;}
 .badge-no{background:#fee2e2;color:#b91c1c;}
+.badge-interesado{background:#dcfce7;color:#15803d;}
+.badge-no_interesado{background:#fee2e2;color:#b91c1c;}
 .nombre-link{color:var(--primary);cursor:pointer;text-decoration:underline;}
 .ficha{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px;margin:0 24px 24px;}
 .ficha-vacia{color:var(--muted);text-align:center;padding:40px 20px;}
@@ -53,10 +57,57 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
 .group-header{font-weight:700;color:var(--text);background:var(--bg);}
 .lightbox-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:500;cursor:zoom-out;padding:20px;}
 .lightbox-overlay img{max-width:100%;max-height:100%;border-radius:8px;}
+.page-tabs{display:flex;gap:8px;padding:14px 24px 0;flex-wrap:wrap;}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+.panel-tabs{display:flex;gap:6px;margin-bottom:14px;}
+.panel-tab{padding:8px 14px;border:1px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;font-size:13px;}
+.panel-tab.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+.panel-pane{display:none;}
+.panel-pane.active{display:block;}
+.seccion{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;margin:16px 24px;}
+.seccion h2{margin:0 0 4px;font-size:18px;}
+.ayuda-seccion{color:var(--muted);font-size:13px;margin:0 0 16px;}
+.fila-flex{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.pregunta-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+.pregunta-row input[type=text]{flex:1;}
+.orden-btns{display:flex;flex-direction:column;gap:2px;}
+.orden-btns button{padding:2px 6px;font-size:10px;}
+.switch{position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;}
+.switch input{opacity:0;width:0;height:0;}
+.switch .slider{position:absolute;inset:0;background:#ccc;border-radius:22px;cursor:pointer;transition:.2s;}
+.switch .slider:before{content:"";position:absolute;height:16px;width:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s;}
+.switch input:checked + .slider{background:var(--primary);}
+.switch input:checked + .slider:before{transform:translateX(18px);}
+.evento-card{border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.evento-card:hover{border-color:var(--primary);}
+.evento-card.active{border-color:var(--primary);background:#eff6ff;}
+.evento-card .ev-info b{display:block;}
+.evento-card .ev-info span{color:var(--muted);font-size:12px;}
+.campo{position:relative;width:100%;max-width:1200px;aspect-ratio:1180/620;background:#fff;border:3px solid var(--border);border-radius:10px;margin:16px 0;}
+.campo .linea-medio{position:absolute;left:50%;top:0;bottom:0;width:2px;background:var(--border);}
+.campo .circulo{position:absolute;top:50%;left:50%;width:110px;height:110px;margin:-55px 0 0 -55px;border:2px solid var(--border);border-radius:50%;}
+.campo .area-izda{position:absolute;left:0;top:18%;bottom:18%;width:90px;border:2px solid var(--border);border-left:none;}
+.campo .area-dcha{position:absolute;right:0;top:18%;bottom:18%;width:90px;border:2px solid var(--border);border-right:none;}
+.tarjeta-campo{position:absolute;transform:translate(-50%,-50%);cursor:grab;user-select:none;touch-action:none;text-align:center;}
+.tarjeta-campo.arrastrando{cursor:grabbing;z-index:20;}
+.tarjeta-campo .avatar{position:relative;background:#fff;border:1.5px solid var(--primary);border-radius:6px;padding:4px 8px;box-shadow:0 2px 6px rgba(0,0,0,.2);min-width:80px;}
+.tarjeta-campo .nombre{font-weight:700;font-size:11px;line-height:1.2;}
+.tarjeta-campo .pos{font-size:9px;color:var(--muted);}
+.tarjeta-campo .quitar{position:absolute;top:-7px;right:-7px;width:15px;height:15px;border-radius:50%;background:#dc2626;color:#fff;font-size:10px;line-height:15px;text-align:center;cursor:pointer;}
+#campograma_cabecera_print{display:none;}
 @media (max-width:900px){
   .barra,.contenedor,.ficha{padding-left:12px;padding-right:12px;}
   .ficha{margin-left:12px;margin-right:12px;}
   .campos-grid{grid-template-columns:1fr;}
+  .seccion{margin-left:12px;margin-right:12px;}
+}
+@media print{
+  #topbar, .page-tabs, .barra, #tabla_pruebas, .ficha, .no-print{display:none !important;}
+  body{background:#fff;}
+  .seccion{border:none;box-shadow:none;margin:0;padding:0;}
+  #campograma_cabecera_print{display:block;margin-bottom:14px;}
+  .campo{max-width:100%;page-break-inside:avoid;}
 }
 </style>
 </head>
@@ -80,153 +131,391 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
   </div>
 </div>
 
-<div class="barra">
-  <div id="campo_club_wrap" style="display:none;">
-    <select id="filtro_club" onchange="onClubChange()"></select>
+<div class="page-tabs no-print">
+  <button class="secondary" id="btn_tab_cuestionario" onclick="cambiarTab('cuestionario')">Cuestionario</button>
+  <button class="secondary active" id="btn_tab_jugadores" onclick="cambiarTab('jugadores')">Jugadores inscritos</button>
+  <button class="secondary" id="btn_tab_comunicaciones" onclick="cambiarTab('comunicaciones')">Comunicaciones</button>
+  <button class="secondary" id="btn_tab_dia_prueba" onclick="cambiarTab('dia_prueba')">Día de prueba</button>
+</div>
+
+<p id="banner_error_carga" style="display:none;background:#fef2f2;color:#dc2626;border-bottom:1px solid #fecaca;padding:10px 24px;margin:0;font-size:14px;"></p>
+
+<div id="campo_club_wrap_top" class="barra no-print" style="display:none;padding-bottom:0;">
+  <select id="filtro_club" onchange="onClubChange()"></select>
+</div>
+
+<!-- ============ CUESTIONARIO ============ -->
+<div class="tab-content" id="tab_cuestionario">
+  <div class="seccion">
+    <h2>Formulario de inscripción</h2>
+    <p class="ayuda-seccion">Enciende o apaga el formulario público y ponle, si quieres, una fecha límite.</p>
+    <div class="fila-flex">
+      <label class="switch"><input type="checkbox" id="cfg_activo" onchange="guardarConfigCuestionario()"><span class="slider"></span></label>
+      <span>Formulario activo</span>
+      <label style="margin:0 0 0 20px;">Fecha límite (opcional)</label>
+      <input type="date" id="cfg_fecha_limite" onchange="guardarConfigCuestionario()">
+    </div>
+    <p id="cfg_status" style="font-size:13px;color:var(--muted);margin-top:10px;min-height:18px;"></p>
   </div>
-  <select id="filtro_anio" onchange="aplicarFiltros()">
-    <option value="">Todos los años</option>
-  </select>
-  <select id="filtro_estado" onchange="aplicarFiltros()">
-    <option value="">Todos los estados</option>
-    <option value="pendiente">Pendiente</option>
-    <option value="citado">Citado</option>
-    <option value="volver_a_citar">Volver a citar</option>
-    <option value="descartado">Descartado</option>
-    <option value="fichado">Fichado</option>
-  </select>
-  <input id="buscador" type="text" placeholder="Buscar por nombre..." oninput="aplicarFiltros()">
-  <button class="secondary" onclick="exportarExcel()">Exportar a Excel</button>
-  <div class="bulk-bar" id="bulk_bar">
-    <span id="bulk_texto"></span>
-    <button style="font-size:12px;padding:6px 10px;" onclick="abrirModalConvocatoria()">Enviar convocatoria</button>
-    <button class="secondary" style="font-size:12px;padding:6px 10px;" onclick="abrirModalAdmitido()">Informar equipo admitido</button>
+  <div class="seccion">
+    <h2>Preguntas del cuestionario</h2>
+    <p class="ayuda-seccion">Además de los datos básicos (nombre, fecha de nacimiento, posición, contacto...), puedes añadir tus propias preguntas de texto libre.</p>
+    <div id="lista_preguntas"></div>
+    <button class="secondary" onclick="anadirPregunta()" style="margin-top:10px;">+ Añadir pregunta</button>
   </div>
 </div>
 
-<div class="contenedor">
-  <div id="tabla_pruebas"></div>
-</div>
+<!-- ============ JUGADORES INSCRITOS ============ -->
+<div class="tab-content active" id="tab_jugadores">
+  <div class="barra">
+    <select id="filtro_anio" onchange="aplicarFiltros()">
+      <option value="">Todos los años</option>
+    </select>
+    <select id="filtro_estado" onchange="aplicarFiltros()">
+      <option value="">Todas las valoraciones</option>
+      <option value="pendiente">Pendiente</option>
+      <option value="citado">Citado</option>
+      <option value="volver_a_citar">Volver a citar</option>
+      <option value="descartar">Descartar</option>
+      <option value="firmar">Firmar</option>
+      <option value="firmado">Firmado</option>
+      <option value="no_acude">No acude</option>
+    </select>
+    <input id="buscador" type="text" placeholder="Buscar por nombre..." oninput="aplicarFiltros()">
+    <button class="secondary" onclick="abrirModalManual()">+ Añadir jugador</button>
+    <button class="secondary" onclick="exportarExcel()">Exportar a Excel</button>
+    <div class="bulk-bar" id="bulk_bar">
+      <span id="bulk_texto"></span>
+      <button style="font-size:12px;padding:6px 10px;" onclick="cambiarTab('comunicaciones')">Ir a Comunicaciones →</button>
+    </div>
+  </div>
 
-<div class="ficha" id="ficha" style="display:none;">
-  <div id="ficha_contenido">
-    <div style="display:flex;align-items:flex-start;gap:14px;">
-      <img id="f_foto" style="display:none;width:64px;height:64px;border-radius:8px;object-fit:cover;border:1px solid var(--border);flex-shrink:0;cursor:zoom-in;" onclick="abrirLightbox(this.src)">
-      <div class="ficha-info" style="flex:1;">
-        <input id="f_nombre" type="text" style="font-size:20px;font-weight:700;padding:6px 8px;width:100%;max-width:420px;" oninput="guardarValoracionDebounced()">
-        <p id="f_creado" style="margin:6px 0 0;"></p>
+  <div class="contenedor">
+    <div id="tabla_pruebas"></div>
+  </div>
+
+  <div class="ficha" id="ficha" style="display:none;">
+    <div id="ficha_contenido">
+      <div style="display:flex;align-items:flex-start;gap:14px;">
+        <img id="f_foto" style="display:none;width:64px;height:64px;border-radius:8px;object-fit:cover;border:1px solid var(--border);flex-shrink:0;cursor:zoom-in;" onclick="abrirLightbox(this.src)">
+        <div class="ficha-info" style="flex:1;">
+          <input id="f_nombre" type="text" style="font-size:20px;font-weight:700;padding:6px 8px;width:100%;max-width:420px;" oninput="guardarValoracionDebounced()">
+          <p id="f_creado" style="margin:6px 0 0;"></p>
+        </div>
+      </div>
+
+      <div id="f_cita" style="margin-top:14px;"></div>
+
+      <div class="campos-grid">
+        <div>
+          <label>Fecha de nacimiento</label>
+          <input id="f_fecha_nacimiento" type="date" oninput="guardarValoracionDebounced()">
+        </div>
+        <div>
+          <label>Posición</label>
+          <select id="f_posicion" onchange="guardarValoracion()">
+            <option value="">-</option>
+            <option>Portero</option>
+            <option>Lateral derecho</option>
+            <option>Lateral izquierdo</option>
+            <option>Central (diestro)</option>
+            <option>Central (zurdo)</option>
+            <option>Pivote</option>
+            <option>Mediocentro</option>
+            <option>Interior</option>
+            <option>Mediapunta</option>
+            <option>Extremo (zurdo)</option>
+            <option>Extremo (diestro)</option>
+            <option>Delantero</option>
+          </select>
+        </div>
+        <div>
+          <label>Email</label>
+          <input id="f_email" type="email" oninput="guardarValoracionDebounced()">
+        </div>
+        <div>
+          <label>Teléfono</label>
+          <input id="f_telefono" type="tel" oninput="guardarValoracionDebounced()">
+        </div>
+        <div>
+          <label>Nombre del padre/madre/tutor</label>
+          <input id="f_nombre_contacto" type="text" oninput="guardarValoracionDebounced()">
+        </div>
+        <div>
+          <label>Club actual</label>
+          <input id="f_club_actual" type="text" oninput="guardarValoracionDebounced()">
+        </div>
+        <div>
+          <label>Equipo propuesto</label>
+          <input id="f_equipo_propuesto" type="text" placeholder="Ej. Cadete A" oninput="guardarValoracionDebounced()">
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <a id="link_enviar_plantillas" onclick="abrirModalPlantillas()" style="display:inline-block;font-size:13px;color:var(--primary);cursor:pointer;text-decoration:underline;margin-top:8px;">→ Enviar a plantillas</a>
+        </div>
+        <div>
+          <label>Estado</label>
+          <select id="f_estado" onchange="guardarValoracion()">
+            <option value="pendiente">Pendiente</option>
+            <option value="citado">Citado</option>
+            <option value="volver_a_citar">Volver a citar</option>
+            <option value="descartar">Descartar</option>
+            <option value="firmar">Firmar</option>
+            <option value="firmado">Firmado</option>
+            <option value="no_acude">No acude</option>
+          </select>
+        </div>
+        <div>
+          <label>Respuesta del jugador (asistencia)</label>
+          <p id="f_respuesta" style="margin:8px 0 0;font-size:14px;"></p>
+        </div>
+        <div>
+          <label>Técnica (1-10)</label>
+          <input id="f_tecnica" type="number" min="1" max="10" oninput="guardarValoracionDebounced()">
+        </div>
+        <div>
+          <label>Táctica (1-10)</label>
+          <input id="f_tactica" type="number" min="1" max="10" oninput="guardarValoracionDebounced()">
+        </div>
+        <div>
+          <label>Físico</label>
+          <select id="f_fisico" onchange="guardarValoracion()">
+            <option value="">-</option>
+            <option>BAJO</option>
+            <option>MEDIO-BAJO</option>
+            <option>MEDIO</option>
+            <option>MEDIO-ALTO</option>
+            <option>ALTO</option>
+            <option>MUY ALTO</option>
+          </select>
+        </div>
+        <div>
+          <label>Actitud (1-10)</label>
+          <input id="f_actitud" type="number" min="1" max="10" oninput="guardarValoracionDebounced()">
+        </div>
+        <div class="campo-full">
+          <label>Comentario del jugador (formulario)</label>
+          <p id="f_comentario_jugador" style="margin:0;font-size:13px;color:var(--muted);"></p>
+        </div>
+        <div class="campo-full">
+          <label>Comentario del jugador (conf. asistencia)</label>
+          <p id="f_comentario_confirmacion" style="margin:0;font-size:13px;color:var(--muted);"></p>
+        </div>
+        <div class="campo-full" id="f_respuestas_extra_wrap" style="display:none;">
+          <label>Respuestas al cuestionario</label>
+          <div id="f_respuestas_extra"></div>
+        </div>
+        <div class="campo-full" id="f_respuesta_admision_wrap" style="display:none;">
+          <label>Respuesta a la propuesta de equipo</label>
+          <p id="f_respuesta_admision" style="margin:8px 0 0;font-size:14px;"></p>
+        </div>
+        <div class="campo-full">
+          <label>Valoración del día de la prueba</label>
+          <textarea id="f_valoracion" style="width:100%;min-height:100px;" oninput="guardarValoracionDebounced()"></textarea>
+        </div>
+        <div class="campo-full">
+          <label>Jugador FFCV</label>
+          <div class="ffcv-box" id="ffcv_box"></div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <p id="status" class="status"></p>
+        <button class="danger" style="font-size:12px;padding:6px 12px;margin-top:12px;" onclick="eliminarInscripcion()">Eliminar inscripción</button>
+        <button class="secondary" style="font-size:12px;padding:6px 12px;margin-top:12px;" onclick="cerrarFicha()">Cerrar ficha</button>
       </div>
     </div>
+  </div>
+</div>
 
-    <div id="f_cita" style="margin-top:14px;"></div>
+<!-- ============ COMUNICACIONES ============ -->
+<div class="tab-content" id="tab_comunicaciones">
+  <div class="seccion">
+    <div class="fila-flex" style="justify-content:space-between;">
+      <div><b id="com_contador">0 inscritos seleccionados</b> <span style="color:var(--muted);font-size:13px;">— selecciónalos marcando la casilla en <a onclick="cambiarTab('jugadores')" style="cursor:pointer;color:var(--primary);">Jugadores inscritos</a></span></div>
+    </div>
+  </div>
 
-    <div class="campos-grid">
-      <div>
-        <label>Fecha de nacimiento</label>
-        <input id="f_fecha_nacimiento" type="date" oninput="guardarValoracionDebounced()">
+  <div class="seccion">
+    <div class="panel-tabs">
+      <div class="panel-tab active" id="ctab_convocatoria" onclick="cambiarSubtabComunicacion('convocatoria')">Convocatoria</div>
+      <div class="panel-tab" id="ctab_admitido" onclick="cambiarSubtabComunicacion('admitido')">Informar equipo</div>
+      <div class="panel-tab" id="ctab_personalizado" onclick="cambiarSubtabComunicacion('personalizado')">Mensaje personalizado</div>
+    </div>
+
+    <div class="panel-pane active" id="cpane_convocatoria">
+      <div class="field">
+        <label>Evento (día y hora)</label>
+        <select id="mc_evento" style="width:100%;" onchange="actualizarPreviaConvocatoria()"></select>
+        <a onclick="toggleCrearEventoInline()" style="display:inline-block;margin-top:6px;font-size:12px;color:var(--primary);cursor:pointer;text-decoration:underline;">+ Crear evento nuevo</a>
       </div>
-      <div>
-        <label>Posición</label>
-        <select id="f_posicion" onchange="guardarValoracion()">
-          <option value="">-</option>
-          <option>Portero</option>
-          <option>Lateral derecho</option>
-          <option>Lateral izquierdo</option>
-          <option>Central (diestro)</option>
-          <option>Central (zurdo)</option>
-          <option>Pivote</option>
-          <option>Mediocentro</option>
-          <option>Interior</option>
-          <option>Mediapunta</option>
-          <option>Extremo (zurdo)</option>
-          <option>Extremo (diestro)</option>
-          <option>Delantero</option>
-        </select>
+      <div id="crear_evento_inline" style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;">
+        <div class="campos-grid" style="grid-template-columns:1fr 1fr;margin:0;">
+          <div><label>Día *</label><input id="ce_dia" type="date" style="width:100%;"></div>
+          <div><label>Hora</label><input id="ce_hora" type="time" style="width:100%;"></div>
+          <div><label>Año de nacimiento objetivo</label><input id="ce_anio" type="number" style="width:100%;" placeholder="Ej. 2012"></div>
+          <div><label>Equipo / objetivo</label><input id="ce_equipo" type="text" style="width:100%;" placeholder="Ej. Cadete A"></div>
+          <div class="campo-full"><label>Lugar</label><input id="ce_lugar" type="text" style="width:100%;"></div>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:10px;">
+          <button class="secondary" onclick="toggleCrearEventoInline()">Cancelar</button>
+          <button onclick="crearEventoDesdeConvocatoria()">Crear evento</button>
+        </div>
       </div>
-      <div>
-        <label>Email</label>
-        <input id="f_email" type="email" oninput="guardarValoracionDebounced()">
+      <div class="field">
+        <label>Mensaje adicional (opcional)</label>
+        <textarea id="mc_nota" style="width:100%;min-height:70px;" placeholder="Por ejemplo: trae ropa deportiva y botas de tacos." oninput="actualizarPreviaConvocatoria()"></textarea>
+        <p class="ayuda">El día, la hora y el lugar se añaden solos al email — no hace falta escribirlos aquí. Este campo es solo por si quieres contarles algo más.</p>
       </div>
-      <div>
-        <label>Teléfono</label>
-        <input id="f_telefono" type="tel" oninput="guardarValoracionDebounced()">
+      <div class="field">
+        <label>Asunto del email</label>
+        <input id="mc_asunto" type="text" style="width:100%;" value="Convocatoria de pruebas">
       </div>
-      <div>
-        <label>Nombre del padre/madre/tutor</label>
-        <input id="f_nombre_contacto" type="text" oninput="guardarValoracionDebounced()">
+      <div class="field">
+        <label>Así lo verá el jugador</label>
+        <div id="mc_previa" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;line-height:1.6;"></div>
       </div>
-      <div>
-        <label>Club actual</label>
-        <input id="f_club_actual" type="text" oninput="guardarValoracionDebounced()">
-      </div>
-      <div>
+      <p id="modal_status" style="font-size:13px;color:var(--muted);min-height:18px;"></p>
+      <button id="btn_enviar_convocatoria" onclick="enviarConvocatoria()">Enviar convocatoria</button>
+    </div>
+
+    <div class="panel-pane" id="cpane_admitido">
+      <div class="field">
         <label>Equipo propuesto</label>
-        <input id="f_equipo_propuesto" type="text" placeholder="Ej. Cadete A" oninput="guardarValoracionDebounced()">
+        <input id="ma_equipo" type="text" style="width:100%;" placeholder="Ej. Cadete A" oninput="actualizarPreviaAdmitido()">
       </div>
-      <div>
-        <label>&nbsp;</label>
-        <a id="link_enviar_plantillas" onclick="abrirModalPlantillas()" style="display:inline-block;font-size:13px;color:var(--primary);cursor:pointer;text-decoration:underline;margin-top:8px;">→ Enviar a plantillas</a>
+      <div class="field">
+        <label>Horarios de entrenamiento (opcional)</label>
+        <textarea id="ma_horarios" style="width:100%;min-height:60px;" placeholder="Ej. Lunes y miércoles de 18:00 a 19:30" oninput="actualizarPreviaAdmitido()"></textarea>
       </div>
-      <div>
-        <label>Estado</label>
-        <select id="f_estado" onchange="guardarValoracion()">
-          <option value="pendiente">Pendiente</option>
-          <option value="citado">Citado</option>
-          <option value="volver_a_citar">Volver a citar</option>
-          <option value="descartado">Descartado</option>
-          <option value="fichado">Fichado</option>
-        </select>
+      <div class="field">
+        <label>Link de matrícula (opcional)</label>
+        <input id="ma_link_matricula" type="url" style="width:100%;" placeholder="https://..." oninput="actualizarPreviaAdmitido()">
       </div>
-      <div>
-        <label>Respuesta del jugador</label>
-        <p id="f_respuesta" style="margin:8px 0 0;font-size:14px;"></p>
+      <div class="field">
+        <label>Asunto del email</label>
+        <input id="ma_asunto" type="text" style="width:100%;" value="Te proponemos para un equipo">
       </div>
-      <div>
-        <label>Técnica (1-10)</label>
-        <input id="f_tecnica" type="number" min="1" max="10" oninput="guardarValoracionDebounced()">
+      <div class="field">
+        <label>Así lo verá el jugador</label>
+        <div id="ma_previa" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;line-height:1.6;"></div>
       </div>
-      <div>
-        <label>Táctica (1-10)</label>
-        <input id="f_tactica" type="number" min="1" max="10" oninput="guardarValoracionDebounced()">
-      </div>
-      <div>
-        <label>Físico</label>
-        <select id="f_fisico" onchange="guardarValoracion()">
-          <option value="">-</option>
-          <option>BAJO</option>
-          <option>MEDIO-BAJO</option>
-          <option>MEDIO</option>
-          <option>MEDIO-ALTO</option>
-          <option>ALTO</option>
-          <option>MUY ALTO</option>
-        </select>
-      </div>
-      <div>
-        <label>Actitud (1-10)</label>
-        <input id="f_actitud" type="number" min="1" max="10" oninput="guardarValoracionDebounced()">
-      </div>
-      <div class="campo-full">
-        <label>Comentario del jugador (formulario)</label>
-        <p id="f_comentario_jugador" style="margin:0;font-size:13px;color:var(--muted);"></p>
-      </div>
-      <div class="campo-full">
-        <label>Comentario del jugador (conf. asistencia)</label>
-        <p id="f_comentario_confirmacion" style="margin:0;font-size:13px;color:var(--muted);"></p>
-      </div>
-      <div class="campo-full">
-        <label>Valoración del día de la prueba</label>
-        <textarea id="f_valoracion" style="width:100%;min-height:100px;" oninput="guardarValoracionDebounced()"></textarea>
-      </div>
-      <div class="campo-full">
-        <label>Jugador FFCV</label>
-        <div class="ffcv-box" id="ffcv_box"></div>
-      </div>
+      <p id="modal_admitido_status" style="font-size:13px;color:var(--muted);min-height:18px;"></p>
+      <button id="btn_enviar_admitido" onclick="enviarAdmitido()">Enviar</button>
     </div>
 
-    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-      <p id="status" class="status"></p>
-      <button class="danger" style="font-size:12px;padding:6px 12px;margin-top:12px;" onclick="eliminarInscripcion()">Eliminar inscripción</button>
-      <button class="secondary" style="font-size:12px;padding:6px 12px;margin-top:12px;" onclick="cerrarFicha()">Cerrar ficha</button>
+    <div class="panel-pane" id="cpane_personalizado">
+      <div class="field">
+        <label>Asunto</label>
+        <input id="mp_asunto" type="text" style="width:100%;">
+      </div>
+      <div class="field">
+        <label>Mensaje</label>
+        <textarea id="mp_cuerpo" style="width:100%;min-height:120px;" oninput="actualizarPreviaPersonalizado()"></textarea>
+      </div>
+      <div class="field">
+        <label>Así lo verá el jugador</label>
+        <div id="mp_previa" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;line-height:1.6;"></div>
+      </div>
+      <p id="mp_status" style="font-size:13px;color:var(--muted);min-height:18px;"></p>
+      <button onclick="enviarMensajePersonalizado()">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ DÍA DE PRUEBA ============ -->
+<div class="tab-content" id="tab_dia_prueba">
+  <div class="seccion no-print">
+    <div class="fila-flex" style="justify-content:space-between;">
+      <h2 style="margin:0;">Calendario de eventos</h2>
+      <button onclick="abrirModalEvento()">+ Nuevo evento</button>
+    </div>
+    <div id="lista_eventos" style="margin-top:14px;"></div>
+  </div>
+
+  <div class="seccion" id="seccion_campograma" style="display:none;">
+    <div id="campograma_cabecera_print">
+      <img id="campograma_escudo" style="display:none;height:36px;vertical-align:middle;margin-right:10px;">
+      <b id="campograma_club_nombre"></b>
+    </div>
+    <div class="fila-flex" style="justify-content:space-between;">
+      <h2 id="campograma_titulo" style="margin:0;"></h2>
+      <div class="fila-flex no-print">
+        <button class="secondary" onclick="abrirSelectorAnadirACampograma()">+ Añadir jugador</button>
+        <button class="secondary" onclick="window.print()">Imprimir</button>
+        <button class="danger" onclick="eliminarEventoActual()">Borrar evento</button>
+      </div>
+    </div>
+    <div class="campo" id="campo_container">
+      <div class="linea-medio"></div>
+      <div class="circulo"></div>
+      <div class="area-izda"></div>
+      <div class="area-dcha"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODALES ============ -->
+
+<div class="modal-overlay" id="modal_manual">
+  <div class="modal-box">
+    <h3>Añadir jugador a mano</h3>
+    <div class="field"><label>Nombre completo *</label><input id="am_nombre" type="text" style="width:100%;"></div>
+    <div class="field"><label>Fecha de nacimiento *</label><input id="am_fecha_nacimiento" type="date" style="width:100%;"></div>
+    <div class="field">
+      <label>Posición</label>
+      <select id="am_posicion" style="width:100%;">
+        <option value="">-</option>
+        <option>Portero</option>
+        <option>Lateral derecho</option>
+        <option>Lateral izquierdo</option>
+        <option>Central (diestro)</option>
+        <option>Central (zurdo)</option>
+        <option>Pivote</option>
+        <option>Mediocentro</option>
+        <option>Interior</option>
+        <option>Mediapunta</option>
+        <option>Extremo (zurdo)</option>
+        <option>Extremo (diestro)</option>
+        <option>Delantero</option>
+      </select>
+    </div>
+    <div class="field"><label>Email</label><input id="am_email" type="email" style="width:100%;"></div>
+    <div class="field"><label>Teléfono</label><input id="am_telefono" type="tel" style="width:100%;"></div>
+    <div class="field"><label>Nombre del padre/madre/tutor</label><input id="am_nombre_contacto" type="text" style="width:100%;"></div>
+    <div class="field"><label>Club actual</label><input id="am_club_actual" type="text" style="width:100%;"></div>
+    <p id="am_status" style="font-size:13px;color:var(--muted);min-height:18px;"></p>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="secondary" onclick="cerrarModalManual()">Cancelar</button>
+      <button onclick="guardarJugadorManual()">Añadir</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal_evento">
+  <div class="modal-box">
+    <h3 id="modal_evento_titulo">Nuevo evento</h3>
+    <div class="field"><label>Día *</label><input id="ev_dia" type="date" style="width:100%;"></div>
+    <div class="field"><label>Hora</label><input id="ev_hora" type="time" style="width:100%;"></div>
+    <div class="field"><label>Año de nacimiento objetivo</label><input id="ev_anio" type="number" style="width:100%;" placeholder="Ej. 2012"></div>
+    <div class="field"><label>Equipo / objetivo</label><input id="ev_equipo" type="text" style="width:100%;"></div>
+    <div class="field"><label>Lugar</label><input id="ev_lugar" type="text" style="width:100%;"></div>
+    <p id="ev_status" style="font-size:13px;color:var(--muted);min-height:18px;"></p>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="secondary" onclick="cerrarModalEvento()">Cancelar</button>
+      <button onclick="guardarEvento()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal_anadir_campograma">
+  <div class="modal-box">
+    <h3>Añadir jugador al evento</h3>
+    <input id="ac_buscador" type="text" placeholder="Buscar por nombre..." style="width:100%;margin-bottom:10px;" oninput="filtrarAnadirCampograma()">
+    <div id="ac_lista" style="max-height:300px;overflow-y:auto;"></div>
+    <p style="margin-top:10px;"><a onclick="abrirModalManualDesdeCampograma()" style="cursor:pointer;color:var(--primary);text-decoration:underline;font-size:13px;">o dar de alta un jugador nuevo directamente en este evento →</a></p>
+    <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+      <button class="secondary" onclick="cerrarModalAnadirCampograma()">Cerrar</button>
     </div>
   </div>
 </div>
@@ -244,81 +533,6 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
     <div style="display:flex;gap:10px;justify-content:flex-end;">
       <button class="secondary" onclick="cerrarModalPlantillas()">Cancelar</button>
       <button onclick="enviarAPlantilla()">Enviar</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="modal_convocatoria">
-  <div class="modal-box">
-    <h3>Enviar convocatoria</h3>
-    <p id="modal_destinatarios" class="ayuda" style="margin-top:-8px;"></p>
-
-    <div class="field">
-      <label>Día de la prueba</label>
-      <input id="mc_dia" type="date" style="width:100%;" oninput="actualizarPreviaConvocatoria()">
-    </div>
-    <div class="field">
-      <label>Hora</label>
-      <input id="mc_hora" type="time" style="width:100%;" oninput="actualizarPreviaConvocatoria()">
-    </div>
-    <div class="field">
-      <label>Lugar</label>
-      <input id="mc_lugar" type="text" style="width:100%;" placeholder="Campo municipal, dirección..." oninput="actualizarPreviaConvocatoria()">
-    </div>
-    <div class="field">
-      <label>Asunto del email</label>
-      <input id="mc_asunto" type="text" style="width:100%;">
-    </div>
-    <div class="field">
-      <label>Mensaje adicional (opcional)</label>
-      <textarea id="mc_nota" style="width:100%;min-height:70px;" placeholder="Por ejemplo: trae ropa deportiva y botas de tacos." oninput="actualizarPreviaConvocatoria()"></textarea>
-      <p class="ayuda">El día, la hora y el lugar se añaden solos al email — no hace falta escribirlos aquí. Este campo es solo por si quieres contarles algo más.</p>
-    </div>
-    <div class="field">
-      <label>Así lo verá el jugador</label>
-      <div id="mc_previa" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;line-height:1.6;"></div>
-    </div>
-
-    <p id="modal_status" style="font-size:13px;color:var(--muted);min-height:18px;"></p>
-
-    <div style="display:flex;gap:10px;justify-content:flex-end;">
-      <button class="secondary" onclick="cerrarModalConvocatoria()">Cancelar</button>
-      <button id="btn_enviar_convocatoria" onclick="enviarConvocatoria()">Enviar</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="modal_admitido">
-  <div class="modal-box">
-    <h3>Informar equipo admitido</h3>
-    <p id="modal_admitido_destinatarios" class="ayuda" style="margin-top:-8px;"></p>
-
-    <div class="field">
-      <label>Equipo admitido</label>
-      <input id="ma_equipo" type="text" style="width:100%;" placeholder="Ej. Benjamín G" oninput="actualizarPreviaAdmitido()">
-    </div>
-    <div class="field">
-      <label>Horarios de entrenamiento (opcional)</label>
-      <textarea id="ma_horarios" style="width:100%;min-height:60px;" placeholder="Ej. Lunes y miércoles de 18:00 a 19:30" oninput="actualizarPreviaAdmitido()"></textarea>
-    </div>
-    <div class="field">
-      <label>Link de matrícula (opcional)</label>
-      <input id="ma_link_matricula" type="url" style="width:100%;" placeholder="https://..." oninput="actualizarPreviaAdmitido()">
-    </div>
-    <div class="field">
-      <label>Asunto del email</label>
-      <input id="ma_asunto" type="text" style="width:100%;">
-    </div>
-    <div class="field">
-      <label>Así lo verá el jugador</label>
-      <div id="ma_previa" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;line-height:1.6;"></div>
-    </div>
-
-    <p id="modal_admitido_status" style="font-size:13px;color:var(--muted);min-height:18px;"></p>
-
-    <div style="display:flex;gap:10px;justify-content:flex-end;">
-      <button class="secondary" onclick="cerrarModalAdmitido()">Cancelar</button>
-      <button id="btn_enviar_admitido" onclick="enviarAdmitido()">Enviar</button>
     </div>
   </div>
 </div>
@@ -357,26 +571,65 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
+// Un fallo al cargar datos (p.ej. porque falta desplegar una migración)
+// no debe quedarse solo en la consola: se avisa siempre de forma visible
+// para no confundirlo con "no hay datos todavía".
+function mostrarErrorCarga(mensaje) {
+  const banner = document.getElementById("banner_error_carga");
+  banner.textContent = mensaje;
+  banner.style.display = "block";
+}
+
 const ESTADOS = {
   pendiente: "Pendiente",
   citado: "Citado",
   volver_a_citar: "Volver a citar",
-  descartado: "Descartado",
-  fichado: "Fichado",
+  descartar: "Descartar",
+  firmar: "Firmar",
+  firmado: "Firmado",
+  no_acude: "No acude",
+};
+
+const POSICION_COORDS = {
+  "Portero": { x: 7, y: 50 },
+  "Lateral derecho": { x: 22, y: 14 },
+  "Lateral izquierdo": { x: 22, y: 86 },
+  "Central (diestro)": { x: 18, y: 38 },
+  "Central (zurdo)": { x: 18, y: 62 },
+  "Pivote": { x: 36, y: 50 },
+  "Mediocentro": { x: 48, y: 50 },
+  "Interior": { x: 55, y: 30 },
+  "Mediapunta": { x: 62, y: 50 },
+  "Extremo (zurdo)": { x: 74, y: 82 },
+  "Extremo (diestro)": { x: 74, y: 18 },
+  "Delantero": { x: 85, y: 50 },
 };
 
 let esAdmin = false;
 let miClubId = null;
 let miClubSlug = null;
+let miClubNombre = null;
+let miClubEscudo = null;
 let tabla = null;
 let inscripcionActual = null;
+let todasLasInscripciones = [];
+
+let cuestionarioCargado = false;
+let preguntasCache = [];
+
+let eventosCargados = false;
+let eventosLista = [];
+let eventoActualId = null;
+let eventoEditandoId = null;
+let eventosCacheComunicacion = [];
+let modalManualEventoId = null;
 
 async function protegerPagina() {
   const { data: session } = await client.auth.getSession();
   if (!session.session) { window.location.href = "index.html"; return false; }
 
   const { data: perfil, error } = await client
-    .from("profiles").select("is_admin, is_club_admin, club_id, clubs(slug, escudo_url)").eq("id", session.session.user.id).single();
+    .from("profiles").select("is_admin, is_club_admin, club_id, clubs(nombre, slug, escudo_url)").eq("id", session.session.user.id).single();
 
   if (error) {
     document.body.insertAdjacentHTML("afterbegin", `<p style="background:#fef2f2;color:#dc2626;border-bottom:1px solid #fecaca;padding:10px 24px;margin:0;font-size:14px;">Error cargando tu perfil: ${error.message}</p>`);
@@ -386,12 +639,14 @@ async function protegerPagina() {
   esAdmin = !!perfil?.is_admin;
   miClubId = perfil?.club_id || null;
   miClubSlug = perfil?.clubs?.slug || null;
+  miClubNombre = perfil?.clubs?.nombre || null;
+  miClubEscudo = perfil?.clubs?.escudo_url || null;
 
   if (esAdmin) document.getElementById("btn_admin").style.display = "inline-block";
   if (perfil?.is_club_admin) document.getElementById("btn_equipo").style.display = "inline-block";
-  if (perfil?.clubs?.escudo_url) {
+  if (miClubEscudo) {
     const img = document.getElementById("brand_escudo");
-    img.src = perfil.clubs.escudo_url;
+    img.src = miClubEscudo;
     img.style.display = "inline-block";
   }
 
@@ -410,18 +665,29 @@ async function logout() {
 
 async function cargarClubsSiAdmin() {
   if (!esAdmin) return;
-  document.getElementById("campo_club_wrap").style.display = "block";
-  const { data: clubs } = await client.from("clubs").select("id, nombre, slug").order("nombre");
+  document.getElementById("campo_club_wrap_top").style.display = "flex";
+  const { data: clubs } = await client.from("clubs").select("id, nombre, slug, escudo_url").order("nombre");
   const sel = document.getElementById("filtro_club");
   sel.innerHTML = "";
-  (clubs || []).forEach(c => sel.innerHTML += `<option value="${c.id}" data-slug="${c.slug || ""}">${c.nombre}</option>`);
-  if (clubs && clubs.length) { miClubId = clubs[0].id; miClubSlug = clubs[0].slug || null; }
+  (clubs || []).forEach(c => sel.innerHTML += `<option value="${c.id}" data-slug="${c.slug || ""}" data-nombre="${escapeHtml(c.nombre || "")}" data-escudo="${c.escudo_url || ""}">${c.nombre}</option>`);
+  if (clubs && clubs.length) {
+    miClubId = clubs[0].id; miClubSlug = clubs[0].slug || null;
+    miClubNombre = clubs[0].nombre || null; miClubEscudo = clubs[0].escudo_url || null;
+  }
 }
 
 function onClubChange() {
   const sel = document.getElementById("filtro_club");
+  const opt = sel.selectedOptions[0];
   miClubId = sel.value;
-  miClubSlug = sel.selectedOptions[0]?.dataset.slug || null;
+  miClubSlug = opt?.dataset.slug || null;
+  miClubNombre = opt?.dataset.nombre || null;
+  miClubEscudo = opt?.dataset.escudo || null;
+  cuestionarioCargado = false;
+  eventosCargados = false;
+  eventoActualId = null;
+  const seccionCampograma = document.getElementById("seccion_campograma");
+  if (seccionCampograma) seccionCampograma.style.display = "none";
   cargarInscritos();
 }
 
@@ -436,6 +702,30 @@ function copiarEnlaceFormulario() {
   });
 }
 
+// ============================================================
+// Pestañas de página
+// ============================================================
+const PAGE_TABS = ["cuestionario", "jugadores", "comunicaciones", "dia_prueba"];
+
+function cambiarTab(nombre) {
+  PAGE_TABS.forEach(t => {
+    document.getElementById("tab_" + t).classList.toggle("active", t === nombre);
+    document.getElementById("btn_tab_" + t).classList.toggle("active", t === nombre);
+  });
+  if (nombre === "cuestionario" && !cuestionarioCargado) cargarCuestionario();
+  if (nombre === "comunicaciones") {
+    actualizarContadorComunicaciones();
+    cargarEventosParaConvocatoria();
+    actualizarPreviaConvocatoria();
+    actualizarPreviaAdmitido();
+    actualizarPreviaPersonalizado();
+  }
+  if (nombre === "dia_prueba" && !eventosCargados) cargarEventos();
+}
+
+// ============================================================
+// Tabla de inscritos
+// ============================================================
 function crearTabla() {
   return new Promise(resolve => {
     tabla = new Tabulator("#tabla_pruebas", {
@@ -448,8 +738,6 @@ function crearTabla() {
       paginationSize: 100,
       paginationSizeSelector: [50, 100, 200, 500],
       paginationCounter: "rows",
-      groupBy: "anio_nacimiento",
-      groupHeader: (value, count) => `${value || "Sin año"} (${count})`,
       initialSort: [{ column: "anio_nacimiento", dir: "desc" }],
       columns: [
         {
@@ -468,12 +756,12 @@ function crearTabla() {
         { title: "Teléfono", field: "telefono", width: 120 },
         { title: "Email", field: "email", width: 190 },
         {
-          title: "Estado", field: "estado", width: 130, editor: "list",
+          title: "Valoración", field: "estado", width: 130, editor: "list",
           editorParams: { values: ESTADOS },
           formatter: cell => `<span class="badge badge-${cell.getValue()}">${ESTADOS[cell.getValue()] || cell.getValue()}</span>`
         },
         {
-          title: "Asistencia", field: "respuesta_asistencia", width: 110, hozAlign: "center",
+          title: "Asistencia", field: "respuesta_asistencia", width: 100, hozAlign: "center",
           formatter: cell => {
             const v = cell.getValue();
             if (!v) return "";
@@ -481,12 +769,20 @@ function crearTabla() {
           }
         },
         {
-          title: "Cita", field: "dia_prueba", width: 150,
+          title: "Respuesta equipo", field: "respuesta_admision", width: 130, hozAlign: "center",
           formatter: cell => {
-            const fila = cell.getRow().getData();
-            if (!fila.dia_prueba) return "";
-            const fecha = new Date(fila.dia_prueba + "T00:00:00").toLocaleDateString("es-ES");
-            return fecha + (fila.hora_prueba ? " · " + fila.hora_prueba.slice(0, 5) : "");
+            const v = cell.getValue();
+            if (!v) return "";
+            return `<span class="badge badge-${v}">${v === "interesado" ? "Interesado" : "No interesado"}</span>`;
+          }
+        },
+        {
+          title: "Evento", field: "evento_id", width: 170, headerSort: false,
+          formatter: cell => {
+            const ev = cell.getRow().getData().pruebas_eventos;
+            if (!ev) return "";
+            const fecha = new Date(ev.dia + "T00:00:00").toLocaleDateString("es-ES");
+            return fecha + (ev.hora ? " · " + ev.hora.slice(0, 5) : "");
           }
         },
         {
@@ -509,7 +805,7 @@ function crearTabla() {
 
     tabla.on("tableBuilt", resolve);
     tabla.on("cellEdited", cell => guardarEdicionCelda(cell.getRow().getData()));
-    tabla.on("rowSelectionChanged", actualizarBulkBar);
+    tabla.on("rowSelectionChanged", data => { actualizarBulkBar(data); actualizarContadorComunicaciones(); });
   });
 }
 
@@ -531,8 +827,13 @@ function actualizarBulkBar(data) {
 
 async function cargarInscritos() {
   const { data, error } = await client.from("pruebas_inscripciones")
-    .select("*").eq("club_id", miClubId).order("anio_nacimiento", { ascending: false });
-  if (error) { console.error("[CaptaNET] cargarInscritos:", error); return; }
+    .select("*, pruebas_eventos(dia, hora, lugar, equipo_objetivo, anio_nacimiento)")
+    .eq("club_id", miClubId).order("anio_nacimiento", { ascending: false });
+  if (error) {
+    console.error("[CaptaNET] cargarInscritos:", error);
+    mostrarErrorCarga("Error cargando los inscritos: " + error.message + " (si acabas de actualizar la app, puede que falte ejecutar una migración pendiente).");
+    return;
+  }
 
   const filas = data || [];
   const jugadorIds = [...new Set(filas.map(f => f.jugador_ffcv_id).filter(Boolean))];
@@ -562,8 +863,15 @@ async function cargarInscritos() {
     });
   }
 
+  todasLasInscripciones = filas;
   tabla.setData(filas);
   poblarFiltroAnio(filas);
+  actualizarContadorComunicaciones();
+
+  if (document.getElementById("tab_dia_prueba").classList.contains("active")) {
+    renderListaEventos();
+    if (eventoActualId) renderCampograma();
+  }
 }
 
 function poblarFiltroAnio(datos) {
@@ -591,8 +899,13 @@ function exportarExcel() {
   tabla.download("xlsx", "pruebas.xlsx", { sheetName: "Pruebas" });
 }
 
+// ============================================================
+// Ficha de inscripción
+// ============================================================
 async function abrirInscripcion(id) {
-  const { data: i, error } = await client.from("pruebas_inscripciones").select("*").eq("id", id).single();
+  const { data: i, error } = await client.from("pruebas_inscripciones")
+    .select("*, pruebas_eventos(dia, hora, lugar, equipo_objetivo, anio_nacimiento)")
+    .eq("id", id).single();
   if (error || !i) return;
   inscripcionActual = i;
 
@@ -614,9 +927,10 @@ async function abrirInscripcion(id) {
   document.getElementById("f_equipo_propuesto").value = i.equipo_propuesto || "";
 
   const cita = document.getElementById("f_cita");
-  if (i.dia_prueba || i.hora_prueba || i.lugar_prueba) {
-    const fecha = i.dia_prueba ? new Date(i.dia_prueba + "T00:00:00").toLocaleDateString("es-ES") : "";
-    cita.innerHTML = `<div class="detalle-cita">📅 ${fecha || "Sin día"} ${i.hora_prueba ? "· 🕒 " + i.hora_prueba.slice(0, 5) : ""} ${i.lugar_prueba ? "· 📍 " + i.lugar_prueba : ""}${i.notificado_at ? " · <span style='color:#15803d;'>avisado</span>" : ""}</div>`;
+  const ev = i.pruebas_eventos;
+  if (ev) {
+    const fecha = ev.dia ? new Date(ev.dia + "T00:00:00").toLocaleDateString("es-ES") : "";
+    cita.innerHTML = `<div class="detalle-cita">📅 ${fecha || "Sin día"} ${ev.hora ? "· 🕒 " + ev.hora.slice(0, 5) : ""} ${ev.lugar ? "· 📍 " + ev.lugar : ""}${i.notificado_at ? " · <span style='color:#15803d;'>avisado</span>" : ""}</div>`;
   } else {
     cita.innerHTML = "";
   }
@@ -635,6 +949,27 @@ async function abrirInscripcion(id) {
     respuesta.innerHTML = `<span class="badge badge-${i.respuesta_asistencia}">${i.respuesta_asistencia === "si" ? "Sí asistirá" : "No asistirá"}</span>`;
   } else {
     respuesta.innerHTML = `<span style="color:var(--muted);">Aún no ha respondido</span>`;
+  }
+
+  const wrapExtra = document.getElementById("f_respuestas_extra_wrap");
+  const entradas = Object.entries(i.respuestas_extra || {});
+  if (entradas.length) {
+    wrapExtra.style.display = "block";
+    document.getElementById("f_respuestas_extra").innerHTML = entradas.map(([pregunta, resp]) =>
+      `<div class="detalle-cita"><b>${escapeHtml(pregunta)}</b><br>${escapeHtml(resp)}</div>`
+    ).join("");
+  } else {
+    wrapExtra.style.display = "none";
+  }
+
+  const wrapAdmision = document.getElementById("f_respuesta_admision_wrap");
+  if (i.respuesta_admision) {
+    wrapAdmision.style.display = "block";
+    document.getElementById("f_respuesta_admision").innerHTML =
+      `<span class="badge badge-${i.respuesta_admision}">${i.respuesta_admision === "interesado" ? "Interesado" : "No interesado"}</span>` +
+      (i.respuesta_admision_comentario ? `<br><span style="color:var(--muted);">${escapeHtml(i.respuesta_admision_comentario)}</span>` : "");
+  } else {
+    wrapAdmision.style.display = "none";
   }
 
   document.getElementById("status").textContent = "";
@@ -796,7 +1131,8 @@ async function guardarValoracion() {
   }
 
   const { data, error } = await client.from("pruebas_inscripciones")
-    .update(payload).eq("id", inscripcionActual.id).select().single();
+    .update(payload).eq("id", inscripcionActual.id)
+    .select("*, pruebas_eventos(dia, hora, lugar, equipo_objetivo, anio_nacimiento)").single();
 
   if (error) { status.textContent = "Error guardando: " + error.message; return; }
 
@@ -918,44 +1254,258 @@ async function eliminarInscripcion() {
   await cargarInscritos();
 }
 
-let nombreEjemploConvocatoria = "";
-
-function abrirModalConvocatoria() {
-  const seleccion = tabla.getSelectedData();
-  if (!seleccion.length) return;
-  const nombres = seleccion.map(i => i.nombre);
-  nombreEjemploConvocatoria = nombres[0];
-  document.getElementById("modal_destinatarios").textContent = `Para: ${nombres.join(", ")}`;
-  document.getElementById("mc_dia").value = "";
-  document.getElementById("mc_hora").value = "";
-  document.getElementById("mc_lugar").value = "";
-  document.getElementById("mc_asunto").value = "Convocatoria de pruebas";
-  document.getElementById("mc_nota").value = "";
-  document.getElementById("modal_status").textContent = "";
-  document.getElementById("modal_convocatoria").style.display = "flex";
-  actualizarPreviaConvocatoria();
+async function mensajeError(error) {
+  if (!error) return "";
+  if (error.context && typeof error.context.json === "function") {
+    try {
+      const body = await error.context.json();
+      if (body?.error) return typeof body.error === "string" ? body.error : JSON.stringify(body.error);
+    } catch (e) {}
+  }
+  return error.message || "Error desconocido";
 }
 
-function cerrarModalConvocatoria() {
-  document.getElementById("modal_convocatoria").style.display = "none";
+// ============================================================
+// Añadir jugador a mano
+// ============================================================
+function abrirModalManual() {
+  modalManualEventoId = null;
+  ["am_nombre", "am_fecha_nacimiento", "am_email", "am_telefono", "am_nombre_contacto", "am_club_actual"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("am_posicion").value = "";
+  document.getElementById("am_status").textContent = "";
+  document.getElementById("modal_manual").style.display = "flex";
+}
+
+function abrirModalManualParaEvento(eventoId) {
+  abrirModalManual();
+  modalManualEventoId = eventoId;
+}
+
+function cerrarModalManual() {
+  document.getElementById("modal_manual").style.display = "none";
+}
+
+async function guardarJugadorManual() {
+  const status = document.getElementById("am_status");
+  const nombre = document.getElementById("am_nombre").value.trim();
+  const fecha = document.getElementById("am_fecha_nacimiento").value;
+  if (!nombre) { status.textContent = "Falta el nombre."; return; }
+  if (!fecha) { status.textContent = "Falta la fecha de nacimiento."; return; }
+
+  const payload = {
+    club_id: miClubId,
+    nombre,
+    fecha_nacimiento: fecha,
+    anio_nacimiento: new Date(fecha + "T00:00:00").getFullYear(),
+    posicion: document.getElementById("am_posicion").value || null,
+    email: document.getElementById("am_email").value.trim() || null,
+    telefono: document.getElementById("am_telefono").value.trim() || null,
+    nombre_contacto: document.getElementById("am_nombre_contacto").value.trim() || null,
+    club_actual: document.getElementById("am_club_actual").value.trim() || null,
+    estado: "pendiente",
+  };
+
+  if (modalManualEventoId) {
+    payload.evento_id = modalManualEventoId;
+    payload.respuesta_asistencia = "si";
+  }
+
+  const { error } = await client.from("pruebas_inscripciones").insert(payload);
+  if (error) { status.textContent = "Error: " + error.message; return; }
+
+  const eraParaEvento = modalManualEventoId;
+  modalManualEventoId = null;
+  cerrarModalManual();
+  await cargarInscritos();
+  if (eraParaEvento) { renderCampograma(); renderListaEventos(); }
+}
+
+// ============================================================
+// CUESTIONARIO
+// ============================================================
+async function cargarCuestionario() {
+  cuestionarioCargado = true;
+  const { data, error } = await client.rpc("pruebas_config_club").maybeSingle();
+  if (error) {
+    console.error("[CaptaNET] pruebas_config_club:", error);
+    mostrarErrorCarga("Error cargando la configuración del formulario: " + error.message);
+  } else if (data) {
+    document.getElementById("cfg_activo").checked = data.activo !== false;
+    document.getElementById("cfg_fecha_limite").value = data.fecha_limite || "";
+  }
+  await cargarPreguntas();
+}
+
+async function guardarConfigCuestionario() {
+  const activo = document.getElementById("cfg_activo").checked;
+  const fecha = document.getElementById("cfg_fecha_limite").value || null;
+  const { error } = await client.rpc("pruebas_config_actualizar", { p_activo: activo, p_fecha_limite: fecha });
+  document.getElementById("cfg_status").textContent = error ? "Error: " + error.message : "Guardado.";
+}
+
+async function cargarPreguntas() {
+  const { data, error } = await client.from("pruebas_preguntas").select("*").eq("club_id", miClubId).order("orden");
+  if (error) {
+    console.error("[CaptaNET] cargarPreguntas:", error);
+    mostrarErrorCarga("Error cargando las preguntas del cuestionario: " + error.message + " (si acabas de actualizar la app, puede que falte ejecutar una migración pendiente).");
+    return;
+  }
+  preguntasCache = data || [];
+  renderPreguntas();
+}
+
+function renderPreguntas() {
+  const cont = document.getElementById("lista_preguntas");
+  if (!preguntasCache.length) {
+    cont.innerHTML = "<p style='color:var(--muted);font-size:13px;'>Todavía no hay preguntas propias.</p>";
+    return;
+  }
+  cont.innerHTML = "";
+  preguntasCache.forEach((p, i) => {
+    const row = document.createElement("div");
+    row.className = "pregunta-row";
+    row.innerHTML = `
+      <div class="orden-btns">
+        <button class="secondary" ${i === 0 ? "disabled" : ""} onclick="moverPregunta('${p.id}', -1)">▲</button>
+        <button class="secondary" ${i === preguntasCache.length - 1 ? "disabled" : ""} onclick="moverPregunta('${p.id}', 1)">▼</button>
+      </div>
+      <input type="text" value="${escapeHtml(p.texto)}" onblur="guardarTextoPregunta('${p.id}', this.value)">
+      <label class="switch"><input type="checkbox" ${p.activa ? "checked" : ""} onchange="toggleActivaPregunta('${p.id}', this.checked)"><span class="slider"></span></label>
+      <button class="danger" style="font-size:12px;padding:6px 10px;" onclick="eliminarPregunta('${p.id}')">Borrar</button>
+    `;
+    cont.appendChild(row);
+  });
+}
+
+async function anadirPregunta() {
+  const orden = preguntasCache.length ? Math.max(...preguntasCache.map(p => p.orden)) + 1 : 0;
+  const { error } = await client.from("pruebas_preguntas").insert({ club_id: miClubId, texto: "Nueva pregunta", orden });
+  if (error) { alert("Error: " + error.message); return; }
+  await cargarPreguntas();
+}
+
+async function guardarTextoPregunta(id, texto) {
+  texto = texto.trim();
+  if (!texto) return;
+  await client.from("pruebas_preguntas").update({ texto }).eq("id", id);
+  const p = preguntasCache.find(x => x.id === id);
+  if (p) p.texto = texto;
+}
+
+async function toggleActivaPregunta(id, activa) {
+  await client.from("pruebas_preguntas").update({ activa }).eq("id", id);
+  const p = preguntasCache.find(x => x.id === id);
+  if (p) p.activa = activa;
+}
+
+async function eliminarPregunta(id) {
+  if (!confirm("¿Borrar esta pregunta? Las respuestas ya recibidas no se pierden, pero dejará de mostrarse en el formulario.")) return;
+  const { error } = await client.from("pruebas_preguntas").delete().eq("id", id);
+  if (error) { alert("Error: " + error.message); return; }
+  await cargarPreguntas();
+}
+
+async function moverPregunta(id, delta) {
+  const idx = preguntasCache.findIndex(p => p.id === id);
+  const otroIdx = idx + delta;
+  if (otroIdx < 0 || otroIdx >= preguntasCache.length) return;
+  const a = preguntasCache[idx], b = preguntasCache[otroIdx];
+  const ordenA = a.orden, ordenB = b.orden;
+  await Promise.all([
+    client.from("pruebas_preguntas").update({ orden: ordenB }).eq("id", a.id),
+    client.from("pruebas_preguntas").update({ orden: ordenA }).eq("id", b.id),
+  ]);
+  await cargarPreguntas();
+}
+
+// ============================================================
+// COMUNICACIONES
+// ============================================================
+function actualizarContadorComunicaciones() {
+  const n = tabla ? tabla.getSelectedData().length : 0;
+  document.getElementById("com_contador").textContent = `${n} inscrito${n === 1 ? "" : "s"} seleccionado${n === 1 ? "" : "s"}`;
+}
+
+function cambiarSubtabComunicacion(nombre) {
+  ["convocatoria", "admitido", "personalizado"].forEach(t => {
+    document.getElementById("ctab_" + t).classList.toggle("active", t === nombre);
+    document.getElementById("cpane_" + t).classList.toggle("active", t === nombre);
+  });
+  if (nombre === "convocatoria") { cargarEventosParaConvocatoria(); actualizarPreviaConvocatoria(); }
+  if (nombre === "admitido") actualizarPreviaAdmitido();
+  if (nombre === "personalizado") actualizarPreviaPersonalizado();
+}
+
+function textoEvento(e) {
+  const fecha = new Date(e.dia + "T00:00:00").toLocaleDateString("es-ES");
+  let t = fecha;
+  if (e.hora) t += " · " + e.hora.slice(0, 5);
+  if (e.equipo_objetivo) t += " · " + e.equipo_objetivo;
+  return t;
+}
+
+async function cargarEventosParaConvocatoria() {
+  if (!miClubId) return;
+  const { data, error } = await client.from("pruebas_eventos").select("*").eq("club_id", miClubId).order("dia").order("hora");
+  if (error) {
+    console.error("[CaptaNET] cargarEventosParaConvocatoria:", error);
+    mostrarErrorCarga("Error cargando los eventos: " + error.message + " (si acabas de actualizar la app, puede que falte ejecutar una migración pendiente).");
+    return;
+  }
+  eventosCacheComunicacion = data || [];
+  const sel = document.getElementById("mc_evento");
+  const actual = sel.value;
+  if (!eventosCacheComunicacion.length) {
+    sel.innerHTML = '<option value="">Ningún evento creado todavía</option>';
+    return;
+  }
+  sel.innerHTML = eventosCacheComunicacion.map(e => `<option value="${e.id}">${escapeHtml(textoEvento(e))}</option>`).join("");
+  if (eventosCacheComunicacion.some(e => e.id === actual)) sel.value = actual;
+}
+
+function toggleCrearEventoInline() {
+  const div = document.getElementById("crear_evento_inline");
+  div.style.display = div.style.display === "none" ? "block" : "none";
+}
+
+async function crearEventoDesdeConvocatoria() {
+  const dia = document.getElementById("ce_dia").value;
+  if (!dia) { alert("Falta el día del evento."); return; }
+  const payload = {
+    club_id: miClubId,
+    dia,
+    hora: document.getElementById("ce_hora").value || null,
+    anio_nacimiento: document.getElementById("ce_anio").value || null,
+    equipo_objetivo: document.getElementById("ce_equipo").value.trim() || null,
+    lugar: document.getElementById("ce_lugar").value.trim() || null,
+  };
+  const { data, error } = await client.from("pruebas_eventos").insert(payload).select().single();
+  if (error) { alert("Error creando el evento: " + error.message); return; }
+
+  ["ce_dia", "ce_hora", "ce_anio", "ce_equipo", "ce_lugar"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("crear_evento_inline").style.display = "none";
+  await cargarEventosParaConvocatoria();
+  document.getElementById("mc_evento").value = data.id;
+  actualizarPreviaConvocatoria();
 }
 
 // Enseña exactamente el email que se va a mandar, con el nombre del
 // primer jugador seleccionado como ejemplo — así no hace falta entender
 // ningún código ni marcador para saber qué van a recibir.
 function actualizarPreviaConvocatoria() {
-  const dia = document.getElementById("mc_dia").value;
-  const hora = document.getElementById("mc_hora").value;
-  const lugar = document.getElementById("mc_lugar").value.trim();
+  const eventoId = document.getElementById("mc_evento").value;
+  const evento = eventosCacheComunicacion.find(e => e.id === eventoId);
   const nota = document.getElementById("mc_nota").value.trim();
+  const seleccion = tabla ? tabla.getSelectedData() : [];
+  const nombreEjemplo = seleccion[0]?.nombre || "Jugador";
 
-  const diaFmt = dia ? new Date(dia + "T00:00:00").toLocaleDateString("es-ES") : null;
+  const diaFmt = evento?.dia ? new Date(evento.dia + "T00:00:00").toLocaleDateString("es-ES") : null;
 
-  let html = `Hola <b>${escapeHtml(nombreEjemploConvocatoria || "Jugador")}</b>,<br>Te confirmamos tu prueba:<br>`;
+  let html = `Hola <b>${escapeHtml(nombreEjemplo)}</b>,<br>Te confirmamos tu prueba:<br>`;
   html += "<ul style='margin:6px 0;padding-left:18px;'>";
-  html += `<li>📅 Día: ${diaFmt ? escapeHtml(diaFmt) : "<i>(sin indicar)</i>"}</li>`;
-  html += `<li>🕒 Hora: ${hora ? escapeHtml(hora) : "<i>(sin indicar)</i>"}</li>`;
-  html += `<li>📍 Lugar: ${lugar ? escapeHtml(lugar) : "<i>(sin indicar)</i>"}</li>`;
+  html += `<li>📅 Día: ${diaFmt ? escapeHtml(diaFmt) : "<i>(elige un evento)</i>"}</li>`;
+  html += `<li>🕒 Hora: ${evento?.hora ? escapeHtml(evento.hora.slice(0, 5)) : "<i>(sin indicar)</i>"}</li>`;
+  html += `<li>📍 Lugar: ${evento?.lugar ? escapeHtml(evento.lugar) : "<i>(sin indicar)</i>"}</li>`;
   html += "</ul>";
   if (nota) html += `${escapeHtml(nota).replace(/\n/g, "<br>")}<br>`;
   html += "<button style='margin-top:6px;font-size:12px;padding:6px 10px;' disabled>Confirmar asistencia</button>";
@@ -966,11 +1516,19 @@ function actualizarPreviaConvocatoria() {
 async function enviarConvocatoria() {
   const btn = document.getElementById("btn_enviar_convocatoria");
   const status = document.getElementById("modal_status");
+  const eventoId = document.getElementById("mc_evento").value;
   const asunto = document.getElementById("mc_asunto").value.trim();
+  if (!eventoId) { status.textContent = "Elige o crea un evento primero."; return; }
   if (!asunto) { status.textContent = "Falta el asunto."; return; }
 
   const seleccion = tabla.getSelectedData();
-  if (!seleccion.length) { status.textContent = "No hay inscritos seleccionados."; return; }
+  if (!seleccion.length) { status.textContent = "No hay inscritos seleccionados (selecciónalos en Jugadores inscritos)."; return; }
+
+  const evento = eventosCacheComunicacion.find(e => e.id === eventoId);
+  if (evento?.anio_nacimiento) {
+    const fueraDeRango = seleccion.filter(i => i.anio_nacimiento && Number(i.anio_nacimiento) !== Number(evento.anio_nacimiento));
+    if (fueraDeRango.length && !confirm(`⚠️ ${fueraDeRango.length} jugador(es) seleccionados no son del año ${evento.anio_nacimiento} de este evento. ¿Enviar de todas formas?`)) return;
+  }
 
   btn.disabled = true;
   status.textContent = "Enviando...";
@@ -978,11 +1536,9 @@ async function enviarConvocatoria() {
   const { data, error } = await client.functions.invoke("pruebas-enviar-convocatoria", {
     body: {
       inscripcion_ids: seleccion.map(i => i.id),
+      evento_id: eventoId,
       asunto,
       nota: document.getElementById("mc_nota").value.trim() || null,
-      dia: document.getElementById("mc_dia").value || null,
-      hora: document.getElementById("mc_hora").value || null,
-      lugar: document.getElementById("mc_lugar").value || null,
     }
   });
 
@@ -997,52 +1553,18 @@ async function enviarConvocatoria() {
 
   tabla.deselectRow();
   await cargarInscritos();
-  setTimeout(cerrarModalConvocatoria, 1800);
+  actualizarContadorComunicaciones();
 }
 
-async function mensajeError(error) {
-  if (!error) return "";
-  if (error.context && typeof error.context.json === "function") {
-    try {
-      const body = await error.context.json();
-      if (body?.error) return typeof body.error === "string" ? body.error : JSON.stringify(body.error);
-    } catch (e) {}
-  }
-  return error.message || "Error desconocido";
-}
-
-let nombreEjemploAdmitido = "";
-
-function abrirModalAdmitido() {
-  const seleccion = tabla.getSelectedData();
-  if (!seleccion.length) return;
-  const nombres = seleccion.map(i => i.nombre);
-  nombreEjemploAdmitido = nombres[0];
-  document.getElementById("modal_admitido_destinatarios").textContent = `Para: ${nombres.join(", ")}`;
-  document.getElementById("ma_equipo").value = seleccion.length === 1 ? (seleccion[0].equipo_propuesto || "") : "";
-  document.getElementById("ma_horarios").value = "";
-  document.getElementById("ma_link_matricula").value = "";
-  document.getElementById("ma_asunto").value = "¡Enhorabuena! Has sido admitido en el equipo";
-  document.getElementById("modal_admitido_status").textContent = "";
-  document.getElementById("modal_admitido").style.display = "flex";
-  actualizarPreviaAdmitido();
-}
-
-function cerrarModalAdmitido() {
-  document.getElementById("modal_admitido").style.display = "none";
-}
-
-// Igual que la convocatoria: enseña exactamente el email que se va a
-// mandar, con el nombre del primer jugador seleccionado como ejemplo.
 function actualizarPreviaAdmitido() {
   const equipo = document.getElementById("ma_equipo").value.trim();
   const horarios = document.getElementById("ma_horarios").value.trim();
-  const link = document.getElementById("ma_link_matricula").value.trim();
+  const seleccion = tabla ? tabla.getSelectedData() : [];
+  const nombreEjemplo = seleccion[0]?.nombre || "Jugador";
 
-  let html = `Hola <b>${escapeHtml(nombreEjemploAdmitido || "Jugador")}</b>,<br>¡Enhorabuena! Has sido admitido en el equipo <b>${equipo ? escapeHtml(equipo) : "<i>(sin indicar)</i>"}</b>.<br>`;
+  let html = `Hola <b>${escapeHtml(nombreEjemplo)}</b>,<br>¡Enhorabuena! Te proponemos para el equipo <b>${equipo ? escapeHtml(equipo) : "<i>(sin indicar)</i>"}</b>.<br>`;
   if (horarios) html += `🕒 Horarios de entrenamiento: ${escapeHtml(horarios).replace(/\n/g, "<br>")}<br>`;
-  html += "<button style='margin-top:6px;font-size:12px;padding:6px 10px;' disabled>Rellenar matrícula</button>";
-  if (!link) html += " <span style='color:var(--muted);font-size:11px;'>(sin enlace todavía)</span>";
+  html += "<button style='margin-top:6px;font-size:12px;padding:6px 10px;' disabled>Responder</button>";
 
   document.getElementById("ma_previa").innerHTML = html;
 }
@@ -1051,7 +1573,7 @@ async function enviarAdmitido() {
   const btn = document.getElementById("btn_enviar_admitido");
   const status = document.getElementById("modal_admitido_status");
   const equipo = document.getElementById("ma_equipo").value.trim();
-  if (!equipo) { status.textContent = "Falta el equipo admitido."; return; }
+  if (!equipo) { status.textContent = "Falta el equipo propuesto."; return; }
   const asunto = document.getElementById("ma_asunto").value.trim();
   if (!asunto) { status.textContent = "Falta el asunto."; return; }
 
@@ -1082,7 +1604,302 @@ async function enviarAdmitido() {
 
   tabla.deselectRow();
   await cargarInscritos();
-  setTimeout(cerrarModalAdmitido, 1800);
+  actualizarContadorComunicaciones();
+}
+
+function actualizarPreviaPersonalizado() {
+  const cuerpo = document.getElementById("mp_cuerpo").value.trim();
+  const seleccion = tabla ? tabla.getSelectedData() : [];
+  const nombreEjemplo = seleccion[0]?.nombre || "Jugador";
+  let html = `Hola <b>${escapeHtml(nombreEjemplo)}</b>,<br>`;
+  html += cuerpo ? escapeHtml(cuerpo).replace(/\n/g, "<br>") : "<i>(escribe el mensaje)</i>";
+  document.getElementById("mp_previa").innerHTML = html;
+}
+
+async function enviarMensajePersonalizado() {
+  const status = document.getElementById("mp_status");
+  const asunto = document.getElementById("mp_asunto").value.trim();
+  const cuerpo = document.getElementById("mp_cuerpo").value.trim();
+  if (!asunto) { status.textContent = "Falta el asunto."; return; }
+  if (!cuerpo) { status.textContent = "Falta el mensaje."; return; }
+
+  const seleccion = tabla.getSelectedData();
+  if (!seleccion.length) { status.textContent = "No hay inscritos seleccionados."; return; }
+
+  status.textContent = "Enviando...";
+
+  const { data, error } = await client.functions.invoke("pruebas-enviar-mensaje", {
+    body: { inscripcion_ids: seleccion.map(i => i.id), asunto, cuerpo }
+  });
+
+  if (error) { status.textContent = "Error: " + (await mensajeError(error)); return; }
+
+  let resumen = `Enviados: ${data.enviados}.`;
+  if (data.sin_email?.length) resumen += ` Sin email: ${data.sin_email.length}.`;
+  if (data.fallidos?.length) resumen += ` Fallidos: ${data.fallidos.length}.`;
+  status.textContent = resumen;
+
+  tabla.deselectRow();
+  actualizarContadorComunicaciones();
+}
+
+// ============================================================
+// DÍA DE PRUEBA (calendario de eventos + campograma)
+// ============================================================
+async function cargarEventos() {
+  eventosCargados = true;
+  const { data, error } = await client.from("pruebas_eventos").select("*").eq("club_id", miClubId).order("dia").order("hora");
+  if (error) {
+    console.error("[CaptaNET] cargarEventos:", error);
+    mostrarErrorCarga("Error cargando el calendario de eventos: " + error.message + " (si acabas de actualizar la app, puede que falte ejecutar una migración pendiente).");
+    return;
+  }
+  eventosLista = data || [];
+  renderListaEventos();
+}
+
+function contarConfirmados(eventoId) {
+  return todasLasInscripciones.filter(i => i.evento_id === eventoId && i.respuesta_asistencia === "si" && !i.excluido_dia_prueba).length;
+}
+
+function renderListaEventos() {
+  const cont = document.getElementById("lista_eventos");
+  if (!eventosLista.length) {
+    cont.innerHTML = "<p style='color:var(--muted);font-size:13px;'>Todavía no hay eventos de prueba creados.</p>";
+    return;
+  }
+  cont.innerHTML = "";
+  eventosLista.forEach(e => {
+    const div = document.createElement("div");
+    div.className = "evento-card" + (e.id === eventoActualId ? " active" : "");
+    const fecha = new Date(e.dia + "T00:00:00").toLocaleDateString("es-ES");
+    div.innerHTML = `
+      <div class="ev-info">
+        <b>${escapeHtml(fecha)}${e.hora ? " · " + escapeHtml(e.hora.slice(0, 5)) : ""}${e.equipo_objetivo ? " · " + escapeHtml(e.equipo_objetivo) : ""}</b>
+        <span>${e.anio_nacimiento ? "Año " + escapeHtml(String(e.anio_nacimiento)) + " · " : ""}${e.lugar ? escapeHtml(e.lugar) + " · " : ""}${contarConfirmados(e.id)} confirmado(s)</span>
+      </div>
+      <button class="secondary" style="font-size:12px;padding:5px 10px;">Editar</button>
+    `;
+    div.querySelector("button").onclick = (ev) => { ev.stopPropagation(); editarEvento(e.id); };
+    div.onclick = () => seleccionarEvento(e.id);
+    cont.appendChild(div);
+  });
+}
+
+function abrirModalEvento() {
+  document.getElementById("modal_evento_titulo").textContent = "Nuevo evento";
+  ["ev_dia", "ev_hora", "ev_anio", "ev_equipo", "ev_lugar"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("ev_status").textContent = "";
+  eventoEditandoId = null;
+  document.getElementById("modal_evento").style.display = "flex";
+}
+
+function editarEvento(id) {
+  const e = eventosLista.find(x => x.id === id);
+  if (!e) return;
+  eventoEditandoId = id;
+  document.getElementById("modal_evento_titulo").textContent = "Editar evento";
+  document.getElementById("ev_dia").value = e.dia || "";
+  document.getElementById("ev_hora").value = e.hora || "";
+  document.getElementById("ev_anio").value = e.anio_nacimiento || "";
+  document.getElementById("ev_equipo").value = e.equipo_objetivo || "";
+  document.getElementById("ev_lugar").value = e.lugar || "";
+  document.getElementById("ev_status").textContent = "";
+  document.getElementById("modal_evento").style.display = "flex";
+}
+
+function cerrarModalEvento() {
+  document.getElementById("modal_evento").style.display = "none";
+}
+
+async function guardarEvento() {
+  const status = document.getElementById("ev_status");
+  const dia = document.getElementById("ev_dia").value;
+  if (!dia) { status.textContent = "Falta el día."; return; }
+
+  const payload = {
+    club_id: miClubId,
+    dia,
+    hora: document.getElementById("ev_hora").value || null,
+    anio_nacimiento: document.getElementById("ev_anio").value || null,
+    equipo_objetivo: document.getElementById("ev_equipo").value.trim() || null,
+    lugar: document.getElementById("ev_lugar").value.trim() || null,
+  };
+
+  const query = eventoEditandoId
+    ? client.from("pruebas_eventos").update(payload).eq("id", eventoEditandoId)
+    : client.from("pruebas_eventos").insert(payload);
+
+  const { error } = await query;
+  if (error) { status.textContent = "Error: " + error.message; return; }
+
+  cerrarModalEvento();
+  await cargarEventos();
+  if (eventoActualId) seleccionarEvento(eventoActualId);
+}
+
+async function eliminarEventoActual() {
+  if (!eventoActualId) return;
+  if (!confirm("¿Borrar este evento? Los jugadores citados no se borran, solo se desvinculan del evento.")) return;
+  const { error } = await client.from("pruebas_eventos").delete().eq("id", eventoActualId);
+  if (error) { alert("Error: " + error.message); return; }
+  eventoActualId = null;
+  document.getElementById("seccion_campograma").style.display = "none";
+  await cargarEventos();
+  await cargarInscritos();
+}
+
+function seleccionarEvento(id) {
+  eventoActualId = id;
+  renderListaEventos();
+  const e = eventosLista.find(x => x.id === id);
+  if (!e) return;
+  document.getElementById("seccion_campograma").style.display = "block";
+  const fecha = new Date(e.dia + "T00:00:00").toLocaleDateString("es-ES");
+  document.getElementById("campograma_titulo").textContent =
+    `${fecha}${e.hora ? " · " + e.hora.slice(0, 5) : ""}${e.equipo_objetivo ? " · " + e.equipo_objetivo : ""}${e.lugar ? " · " + e.lugar : ""}`;
+
+  document.getElementById("campograma_club_nombre").textContent = miClubNombre || "";
+  const escudoImg = document.getElementById("campograma_escudo");
+  if (miClubEscudo) { escudoImg.src = miClubEscudo; escudoImg.style.display = "inline-block"; }
+  else { escudoImg.style.display = "none"; }
+
+  renderCampograma();
+}
+
+function posicionPorDefecto(posicion, indiceEnPosicion) {
+  const base = POSICION_COORDS[posicion] || { x: 50, y: 50 };
+  const y = Math.min(94, Math.max(6, base.y + indiceEnPosicion * 10));
+  return { x: base.x, y };
+}
+
+function renderCampograma() {
+  const cont = document.getElementById("campo_container");
+  cont.querySelectorAll(".tarjeta-campo").forEach(el => el.remove());
+
+  const jugadores = todasLasInscripciones.filter(i =>
+    i.evento_id === eventoActualId && i.respuesta_asistencia === "si" && !i.excluido_dia_prueba
+  );
+
+  const contadorPorPosicion = {};
+  jugadores.forEach(j => {
+    let x = j.campograma_pos_x, y = j.campograma_pos_y;
+    if (x === null || x === undefined || y === null || y === undefined) {
+      const idx = contadorPorPosicion[j.posicion] || 0;
+      contadorPorPosicion[j.posicion] = idx + 1;
+      const pos = posicionPorDefecto(j.posicion, idx);
+      x = pos.x; y = pos.y;
+    }
+    cont.appendChild(crearTarjetaCampo(j, x, y));
+  });
+}
+
+function crearTarjetaCampo(jugador, x, y) {
+  const tarjeta = document.createElement("div");
+  tarjeta.className = "tarjeta-campo";
+  tarjeta.style.left = x + "%";
+  tarjeta.style.top = y + "%";
+  tarjeta.dataset.id = jugador.id;
+  tarjeta.innerHTML = `
+    <div class="avatar">
+      <div class="nombre">${escapeHtml(jugador.nombre)}</div>
+      <div class="pos">${escapeHtml(jugador.posicion || "")}</div>
+      <div class="quitar no-print" title="Quitar de la hoja">×</div>
+    </div>
+  `;
+  tarjeta.querySelector(".quitar").addEventListener("click", (e) => {
+    e.stopPropagation();
+    quitarDeCampograma(jugador.id);
+  });
+  activarDragTarjeta(tarjeta, jugador.id);
+  return tarjeta;
+}
+
+function activarDragTarjeta(tarjeta, id) {
+  let arrastrando = false;
+
+  tarjeta.addEventListener("pointerdown", (e) => {
+    if (e.target.classList.contains("quitar")) return;
+    arrastrando = true;
+    tarjeta.classList.add("arrastrando");
+    tarjeta.setPointerCapture(e.pointerId);
+  });
+
+  tarjeta.addEventListener("pointermove", (e) => {
+    if (!arrastrando) return;
+    const campo = document.getElementById("campo_container");
+    const rect = campo.getBoundingClientRect();
+    let x = ((e.clientX - rect.left) / rect.width) * 100;
+    let y = ((e.clientY - rect.top) / rect.height) * 100;
+    x = Math.min(98, Math.max(2, x));
+    y = Math.min(96, Math.max(4, y));
+    tarjeta.style.left = x + "%";
+    tarjeta.style.top = y + "%";
+  });
+
+  tarjeta.addEventListener("pointerup", async (e) => {
+    if (!arrastrando) return;
+    arrastrando = false;
+    tarjeta.classList.remove("arrastrando");
+    const x = parseFloat(tarjeta.style.left);
+    const y = parseFloat(tarjeta.style.top);
+    await client.from("pruebas_inscripciones").update({ campograma_pos_x: x, campograma_pos_y: y }).eq("id", id);
+    const j = todasLasInscripciones.find(i => i.id === id);
+    if (j) { j.campograma_pos_x = x; j.campograma_pos_y = y; }
+  });
+}
+
+async function quitarDeCampograma(id) {
+  const { error } = await client.from("pruebas_inscripciones").update({ excluido_dia_prueba: true }).eq("id", id);
+  if (error) { alert("Error: " + error.message); return; }
+  const j = todasLasInscripciones.find(i => i.id === id);
+  if (j) j.excluido_dia_prueba = true;
+  renderCampograma();
+  renderListaEventos();
+}
+
+function abrirSelectorAnadirACampograma() {
+  document.getElementById("ac_buscador").value = "";
+  filtrarAnadirCampograma();
+  document.getElementById("modal_anadir_campograma").style.display = "flex";
+}
+
+function cerrarModalAnadirCampograma() {
+  document.getElementById("modal_anadir_campograma").style.display = "none";
+}
+
+function filtrarAnadirCampograma() {
+  const q = document.getElementById("ac_buscador").value.trim();
+  const cont = document.getElementById("ac_lista");
+  const candidatos = todasLasInscripciones.filter(i => i.evento_id !== eventoActualId && (!q || coincideNombre(i.nombre, q)));
+  if (!candidatos.length) { cont.innerHTML = "<p style='color:var(--muted);font-size:13px;'>Sin resultados.</p>"; return; }
+  cont.innerHTML = "";
+  candidatos.forEach(i => {
+    const row = document.createElement("div");
+    row.className = "ffcv-resultado";
+    row.innerHTML = `<span>${escapeHtml(i.nombre)} · ${i.anio_nacimiento || "?"}</span>`;
+    const btn = document.createElement("button");
+    btn.textContent = "Añadir";
+    btn.style.cssText = "font-size:12px;padding:5px 10px;";
+    btn.onclick = () => anadirACampograma(i.id);
+    row.appendChild(btn);
+    cont.appendChild(row);
+  });
+}
+
+async function anadirACampograma(id) {
+  const { error } = await client.from("pruebas_inscripciones")
+    .update({ evento_id: eventoActualId, respuesta_asistencia: "si", excluido_dia_prueba: false }).eq("id", id);
+  if (error) { alert("Error: " + error.message); return; }
+  await cargarInscritos();
+  cerrarModalAnadirCampograma();
+  renderCampograma();
+  renderListaEventos();
+}
+
+function abrirModalManualDesdeCampograma() {
+  cerrarModalAnadirCampograma();
+  abrirModalManualParaEvento(eventoActualId);
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
