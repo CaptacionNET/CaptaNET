@@ -557,8 +557,12 @@ function renderRuta() {
     const partido =
       `${escapeHtml(rp.local || "")}${escudo(rp.escudo_local)}<span class="rt-vs">vs</span>${escudo(rp.escudo_visitante)}${escapeHtml(rp.visitante || "")}` +
       (rp.es_manual ? ' <span class="badge-fuente">manual</span>' : "");
+    const esMio = !miUserId || rp.user_id === miUserId;
     return `<tr onclick="abrirDetalle('${rp.id}')">
-      <td class="rt-centro"><button class="secondary" style="font-size:12px;padding:5px 12px;" onclick="event.stopPropagation();abrirDetalle('${rp.id}')">Abrir</button></td>
+      <td class="rt-centro" style="white-space:nowrap;">
+        <button class="secondary" style="font-size:12px;padding:5px 12px;" onclick="event.stopPropagation();abrirDetalle('${rp.id}')">Abrir</button>
+        ${esMio ? `<button class="danger" style="font-size:12px;padding:5px 12px;margin-left:6px;" onclick="event.stopPropagation();eliminarPartido('${rp.id}')">Eliminar</button>` : ""}
+      </td>
       <td>${escapeHtml(ojeadorNombre[rp.user_id] || miNombre || "—")}</td>
       <td>${fecha}</td>
       <td>${escapeHtml(rp.hora || "—")}</td>
@@ -609,6 +613,11 @@ async function abrirDetalle(id, autoAlineacion = false) {
     <h2 style="margin:0 0 2px;">${escapeHtml(rp.local || "")} vs ${escapeHtml(rp.visitante || "")}</h2>
     <p style="color:var(--muted);font-size:13px;margin:0 0 6px;">${linea2}</p>
     ${soloLectura ? `<p style="color:var(--muted);font-size:12px;margin:0 0 6px;">👤 Ruta de ${escapeHtml(ojeadorNombre[rp.user_id] || "otro ojeador")} · solo lectura</p>` : ""}
+
+    <label>Objetivos del partido <span style="color:var(--muted);">(¿por qué vas?)</span></label>
+    <textarea id="d_objetivos" style="width:100%;min-height:70px;" ${soloLectura ? "disabled" : ""} oninput="guardarObjetivosDebounced()">${escapeHtml(rp.objetivos || "")}</textarea>
+    <p id="d_objetivos_status" style="font-size:12px;color:var(--muted);margin:4px 0 0;"></p>
+
     <div id="d_alineaciones_wrap" style="margin-top:14px;">
       ${(rp.cod_equipo_local || rp.cod_equipo_visitante)
         ? '<button class="secondary" onclick="cargarAlineaciones()">Ver plantillas y titulares</button>'
@@ -616,6 +625,20 @@ async function abrirDetalle(id, autoAlineacion = false) {
     </div>
   `;
   if (autoAlineacion && (rp.cod_equipo_local || rp.cod_equipo_visitante)) cargarAlineaciones();
+}
+
+let objetivosTimeout = null;
+function guardarObjetivosDebounced() {
+  clearTimeout(objetivosTimeout);
+  objetivosTimeout = setTimeout(guardarObjetivos, 600);
+}
+async function guardarObjetivos() {
+  if (!detalleActual || detalleActual.soloLectura) return;
+  const status = document.getElementById("d_objetivos_status");
+  const valor = document.getElementById("d_objetivos").value.trim() || null;
+  const { error } = await client.from("ruta_partidos").update({ objetivos: valor }).eq("id", detalleActual.id);
+  status.textContent = error ? "Error guardando: " + error.message : "Guardado.";
+  detalleActual.objetivos = valor;
 }
 
 async function cargarAlineaciones(refrescar = false) {
