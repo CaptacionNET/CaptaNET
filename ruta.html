@@ -501,24 +501,23 @@ function renderRuta() {
       `${escapeHtml(rp.local || "")}${escudo(rp.escudo_local)}<span class="rt-vs">vs</span>${escudo(rp.escudo_visitante)}${escapeHtml(rp.visitante || "")}` +
       (rp.es_manual ? ' <span class="badge-fuente">manual</span>' : "");
     return `<tr onclick="abrirDetalle('${rp.id}')">
+      <td class="rt-centro"><button class="secondary" style="font-size:12px;padding:5px 12px;" onclick="event.stopPropagation();abrirDetalle('${rp.id}')">Abrir</button></td>
+      <td>${escapeHtml(ojeadorNombre[rp.user_id] || miNombre || "—")}</td>
       <td>${fecha}</td>
       <td>${escapeHtml(rp.hora || "—")}</td>
-      <td>${escapeHtml(rp.categoria || "—")}</td>
       <td class="rt-partido">${partido}</td>
       <td>${escapeHtml(rp.campo || "—")}</td>
       <td>${escapeHtml(rp.competicion || "—")}</td>
       <td>${escapeHtml(rp.grupo || "—")}</td>
-      <td>${escapeHtml(ojeadorNombre[rp.user_id] || miNombre || "—")}</td>
       <td class="rt-obj" title="${escapeHtml(rp.objetivos || "")}">${escapeHtml(rp.objetivos || "—")}</td>
-      <td class="rt-centro"><button class="secondary" style="font-size:12px;padding:5px 12px;" onclick="event.stopPropagation();abrirDetalle('${rp.id}')">Abrir</button></td>
     </tr>`;
   }).join("");
 
   cont.innerHTML =
     `<div class="ruta-tabla-wrap"><table class="ruta-tabla">
       <thead><tr>
-        <th>Fecha</th><th>Hora</th><th>Categoría</th><th>Partido</th><th>Campo</th>
-        <th>Liga</th><th>Grupo</th><th>Ojeador</th><th>Objetivos</th><th>Acciones</th>
+        <th>Acciones</th><th>Ojeador</th><th>Fecha</th><th>Hora</th><th>Partido</th>
+        <th>Campo</th><th>Liga</th><th>Grupo</th><th>Objetivos</th>
       </tr></thead>
       <tbody>${filasHtml}</tbody>
     </table></div>`;
