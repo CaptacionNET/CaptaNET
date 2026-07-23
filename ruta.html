@@ -179,17 +179,13 @@ table.ruta-tabla{width:100%;border-collapse:collapse;font-size:13px;}
     <div id="mm_equipos_wrap" style="display:none;">
       <div class="field">
         <label>Equipo local</label>
-        <input id="mm_local_buscar" type="text" style="width:100%;" placeholder="Escribe para buscar…" autocomplete="off" oninput="buscarEquipoManual('local')">
-        <select id="mm_local_select" style="width:100%;margin-top:6px;display:none;" onchange="seleccionarEquipoManual('local')">
-          <option value="">Elige de la lista…</option>
-        </select>
+        <input id="mm_local_buscar" type="text" style="width:100%;" placeholder="Escribe el nombre del equipo…" autocomplete="off" list="mm_local_datalist">
+        <datalist id="mm_local_datalist"></datalist>
       </div>
       <div class="field">
         <label>Equipo visitante</label>
-        <input id="mm_visitante_buscar" type="text" style="width:100%;" placeholder="Escribe para buscar…" autocomplete="off" oninput="buscarEquipoManual('visitante')">
-        <select id="mm_visitante_select" style="width:100%;margin-top:6px;display:none;" onchange="seleccionarEquipoManual('visitante')">
-          <option value="">Elige de la lista…</option>
-        </select>
+        <input id="mm_visitante_buscar" type="text" style="width:100%;" placeholder="Escribe el nombre del equipo…" autocomplete="off" list="mm_visitante_datalist">
+        <datalist id="mm_visitante_datalist"></datalist>
       </div>
     </div>
 
@@ -299,11 +295,6 @@ async function ffcv(accion, extra = {}) {
 
 function normalizarTexto(s) {
   return (s || "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-}
-function coincideNombre(nombre, consulta) {
-  const nombreNorm = normalizarTexto(nombre);
-  const palabras = normalizarTexto(consulta).trim().split(/\s+/).filter(Boolean);
-  return palabras.every(p => nombreNorm.includes(p));
 }
 
 // Las ligas se agrupan en secciones reales por categoría de edad (de mayor
@@ -773,18 +764,14 @@ function cerrarInformeModal() {
 let temporadaActivaId = null;
 let ligasIdsPorEdadManual = {};       // { CADETE: [ligaId, ...], ... }
 let equiposCategoriaManual = [];      // equipos de la categoría elegida
-let equipoManualLocal = null;         // { id, nombre, cod_ffcv, escudo_url } o null (texto libre)
-let equipoManualVisitante = null;
 
 async function abrirModalManual() {
   ["mm_fecha", "mm_hora", "mm_campo", "mm_objetivos", "mm_local_buscar", "mm_visitante_buscar"].forEach(id => document.getElementById(id).value = "");
   document.getElementById("mm_categoria").value = "";
   document.getElementById("mm_equipos_wrap").style.display = "none";
-  document.getElementById("mm_local_select").style.display = "none";
-  document.getElementById("mm_visitante_select").style.display = "none";
-  equipoManualLocal = null;
-  equipoManualVisitante = null;
   equiposCategoriaManual = [];
+  document.getElementById("mm_local_datalist").innerHTML = "";
+  document.getElementById("mm_visitante_datalist").innerHTML = "";
   document.getElementById("mm_status").textContent = "";
   document.getElementById("modal_manual").style.display = "flex";
   await cargarCategoriasManual();
@@ -829,12 +816,8 @@ async function onCategoriaManualChange() {
   const edad = document.getElementById("mm_categoria").value;
   const wrap = document.getElementById("mm_equipos_wrap");
   const s = document.getElementById("mm_categoria_status");
-  equipoManualLocal = null;
-  equipoManualVisitante = null;
   document.getElementById("mm_local_buscar").value = "";
   document.getElementById("mm_visitante_buscar").value = "";
-  document.getElementById("mm_local_select").style.display = "none";
-  document.getElementById("mm_visitante_select").style.display = "none";
 
   if (!edad) { wrap.style.display = "none"; equiposCategoriaManual = []; return; }
 
@@ -847,6 +830,7 @@ async function onCategoriaManualChange() {
 
     const equipos = await fetchPorIdsGrupo(grupoIds);
     equiposCategoriaManual = equipos.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    poblarDatalistsManual();
     s.textContent = `${equiposCategoriaManual.length} equipos disponibles para buscar. Si no encuentras uno, escribe su nombre igualmente.`;
     wrap.style.display = "block";
   } catch (e) {
@@ -864,35 +848,16 @@ async function fetchPorIdsGrupo(grupoIds) {
   return resultados.flat();
 }
 
-// Los resultados se muestran en un <select> nativo (no un desplegable
-// flotante hecho a mano): así elegir uno es 100% fiable en cualquier
-// navegador, sin depender de ningún cableado de clic propio.
-function buscarEquipoManual(lado) {
-  const input = document.getElementById(`mm_${lado}_buscar`);
-  const sel = document.getElementById(`mm_${lado}_select`);
-  if (lado === "local") equipoManualLocal = null; else equipoManualVisitante = null;
-
-  const q = input.value.trim();
-  if (!q) { sel.style.display = "none"; sel.innerHTML = ""; return; }
-
-  const resultados = equiposCategoriaManual.filter(e => coincideNombre(e.nombre, q)).slice(0, 15);
-  if (!resultados.length) { sel.style.display = "none"; sel.innerHTML = ""; return; }
-
-  sel.innerHTML = '<option value="">Elige de la lista…</option>' +
-    resultados.map(e => `<option value="${e.id}">${escapeHtml(e.nombre)}</option>`).join("");
-  sel.style.display = "block";
-}
-
-function seleccionarEquipoManual(lado) {
-  const sel = document.getElementById(`mm_${lado}_select`);
-  const equipoId = sel.value;
-  if (!equipoId) return;
-  const equipo = equiposCategoriaManual.find(e => e.id === equipoId);
-  if (!equipo) return;
-  if (lado === "local") equipoManualLocal = equipo; else equipoManualVisitante = equipo;
-  document.getElementById(`mm_${lado}_buscar`).value = equipo.nombre;
-  sel.style.display = "none";
-  sel.innerHTML = "";
+// Autocompletado nativo del navegador (<datalist>): el navegador se
+// encarga de filtrar mientras escribes y de rellenar el campo al elegir
+// una sugerencia, sin ningún JavaScript propio de por medio para el
+// clic — así no depende de nada que pueda fallar. El equipo elegido se
+// resuelve más tarde, al guardar, comparando el texto final con esta
+// misma lista por nombre exacto.
+function poblarDatalistsManual() {
+  const opciones = equiposCategoriaManual.map(e => `<option value="${escapeHtml(e.nombre)}">`).join("");
+  document.getElementById("mm_local_datalist").innerHTML = opciones;
+  document.getElementById("mm_visitante_datalist").innerHTML = opciones;
 }
 
 async function guardarManual() {
@@ -903,14 +868,16 @@ async function guardarManual() {
   const btn = document.getElementById("mm_btn");
   btn.disabled = true;
   const categoriaEdad = document.getElementById("mm_categoria").value;
+  const equipoLocal = equiposCategoriaManual.find(e => e.nombre === local);
+  const equipoVisitante = equiposCategoriaManual.find(e => e.nombre === visitante);
   const registro = {
     club_id: miClubId, es_manual: true,
     local, visitante,
     categoria: categoriaEdad ? ETIQUETA_EDAD_LIGAS[categoriaEdad] : null,
-    cod_equipo_local: equipoManualLocal?.cod_ffcv || null,
-    cod_equipo_visitante: equipoManualVisitante?.cod_ffcv || null,
-    escudo_local: equipoManualLocal?.escudo_url || null,
-    escudo_visitante: equipoManualVisitante?.escudo_url || null,
+    cod_equipo_local: equipoLocal?.cod_ffcv || null,
+    cod_equipo_visitante: equipoVisitante?.cod_ffcv || null,
+    escudo_local: equipoLocal?.escudo_url || null,
+    escudo_visitante: equipoVisitante?.escudo_url || null,
     fecha: document.getElementById("mm_fecha").value || null,
     hora: document.getElementById("mm_hora").value || null,
     campo: document.getElementById("mm_campo").value.trim() || null,
