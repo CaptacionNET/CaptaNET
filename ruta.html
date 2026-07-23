@@ -162,6 +162,18 @@ table.ruta-tabla{width:100%;border-collapse:collapse;font-size:13px;}
   </div>
 </div>
 
+<!-- MODAL VER PARTIDO (previa con plantillas, o acta si ya acabó) -->
+<div class="modal-overlay" id="modal_ver_partido">
+  <div class="modal-box" style="max-width:640px;">
+    <div class="detalle-cab" style="margin-bottom:0;">
+      <h3 id="vp_titulo" style="margin:0;">Partido</h3>
+      <button class="secondary" onclick="cerrarVerPartido()" style="font-size:12px;padding:6px 10px;">Cerrar</button>
+    </div>
+    <p id="vp_meta" style="color:var(--muted);font-size:13px;margin:2px 0 10px;"></p>
+    <div id="vp_contenido"></div>
+  </div>
+</div>
+
 <!-- MODAL PARTIDO MANUAL -->
 <div class="modal-overlay" id="modal_manual">
   <div class="modal-box">
@@ -447,19 +459,110 @@ async function cargarPartidos() {
     partidos.forEach(p => {
       const div = document.createElement("div");
       div.className = "partido";
+      const centro = p.jugado
+        ? `<span class="resultado">${escapeHtml(p.resultado)}</span>`
+        : `<span style="color:var(--muted);font-weight:400;">vs</span>`;
       div.innerHTML =
-        `<div class="equipos">${escapeHtml(p.local)} <span style="color:var(--muted);font-weight:400;">vs</span> ${escapeHtml(p.visitante)}</div>` +
-        `<div class="meta">${escapeHtml(p.fecha || "")} ${escapeHtml(p.hora || "")}${p.campo ? " · " + escapeHtml(p.campo) : ""}</div>` +
-        (p.jugado ? `<div class="resultado">${escapeHtml(p.resultado)}</div>` : "");
-      const btn = document.createElement("button");
-      btn.className = "secondary";
-      btn.style.cssText = "font-size:12px;padding:6px 10px;";
-      btn.textContent = "+ A mi ruta";
-      btn.onclick = () => abrirModalObjetivos(p, modalidad, nombreComp, g, codComp, jornada);
-      div.appendChild(btn);
+        `<div class="equipos">${escapeHtml(p.local)} ${centro} ${escapeHtml(p.visitante)}</div>` +
+        `<div class="meta">${escapeHtml(p.fecha || "")} ${escapeHtml(p.hora || "")}${p.campo ? " · " + escapeHtml(p.campo) : ""}</div>`;
+      const btnVer = document.createElement("button");
+      btnVer.className = "secondary";
+      btnVer.style.cssText = "font-size:12px;padding:6px 10px;";
+      btnVer.textContent = "Ver partido";
+      btnVer.onclick = () => abrirVerPartido(p, modalidad, nombreComp, g, codComp, jornada);
+      const btnRuta = document.createElement("button");
+      btnRuta.className = "secondary";
+      btnRuta.style.cssText = "font-size:12px;padding:6px 10px;";
+      btnRuta.textContent = "+ A mi ruta";
+      btnRuta.onclick = () => abrirModalObjetivos(p, modalidad, nombreComp, g, codComp, jornada);
+      div.appendChild(btnVer);
+      div.appendChild(btnRuta);
       cont.appendChild(div);
     });
   } catch (e) { s.textContent = "Error cargando partidos: " + e.message; }
+}
+
+// ---------------- Ver partido (previa con plantillas, o acta si ya acabó) ----------------
+// A diferencia de "Mi ruta", aquí no hay ninguna fila guardada en la BD:
+// es solo una consulta de lectura a la FFCV, así que no hay checkboxes de
+// titular ni nada que se pueda editar/guardar.
+let verPartidoActual = null;   // contexto del último "Ver partido" abierto, para poder reintentar sin volver a serializar nada
+
+async function abrirVerPartido(p, modalidad, nombreComp, grupo, codComp, jornada) {
+  verPartidoActual = { p, modalidad, nombreComp, grupo, codComp, jornada };
+
+  document.getElementById("vp_titulo").textContent = `${p.local} vs ${p.visitante}`;
+  document.getElementById("vp_meta").textContent =
+    [p.fecha, p.hora, p.campo, modalidad, nombreComp, grupo?.nombre].filter(Boolean).join(" · ") +
+    (p.jugado ? " · Resultado: " + p.resultado : "");
+  document.getElementById("vp_contenido").innerHTML = '<p class="status">Cargando plantillas…</p>';
+  document.getElementById("modal_ver_partido").style.display = "flex";
+
+  if (!p.cod_equipo_local && !p.cod_equipo_visitante) {
+    document.getElementById("vp_contenido").innerHTML = '<p class="vacio">Este partido no tiene equipos de la FFCV enlazados, así que no hay plantilla disponible.</p>';
+    return;
+  }
+
+  try {
+    const d = await ffcv("detalle_partido", {
+      cod_partido: p.cod_partido,
+      cod_equipo_local: p.cod_equipo_local, cod_equipo_visitante: p.cod_equipo_visitante,
+      cod_temporada: catalogo.cod_temporada, cod_competicion: codComp, cod_grupo: grupo.codigo, cod_jornada: jornada,
+    });
+    document.getElementById("vp_contenido").innerHTML = renderVerPartidoAlineaciones(d, p.local, p.visitante);
+  } catch (e) {
+    document.getElementById("vp_contenido").innerHTML =
+      `<p class="status">Error cargando plantillas: ${escapeHtml(e.message)}</p>` +
+      `<button class="secondary" onclick="reintentarVerPartido()">Reintentar</button>`;
+  }
+}
+
+function reintentarVerPartido() {
+  if (!verPartidoActual) return;
+  const { p, modalidad, nombreComp, grupo, codComp, jornada } = verPartidoActual;
+  abrirVerPartido(p, modalidad, nombreComp, grupo, codComp, jornada);
+}
+
+function cerrarVerPartido() {
+  document.getElementById("modal_ver_partido").style.display = "none";
+  verPartidoActual = null;
+}
+
+function renderVerPartidoAlineaciones(d, localNombre, visitanteNombre) {
+  const fuenteTxt = d.fuente === "acta"
+    ? (d.cerrada ? "Alineaciones del acta (partido finalizado)." : "🔴 Alineación en directo del acta (subida por el club).")
+    : "Plantilla de cada equipo (todavía no hay alineación confirmada para este partido).";
+
+  const filaJug = (j) => `<div class="jug-fila ${j.titular ? "es-titular" : ""}">
+    <span class="dorsal">${escapeHtml(j.dorsal || "-")}</span>
+    <span class="nombre">${escapeHtml(j.nombre)}${j.capitan ? " ©" : ""}${j.portero ? " 🧤" : ""}</span>
+  </div>`;
+
+  const columna = (titulo, jugadores, esquema) => {
+    const lista = (jugadores || []).slice().sort((a, b) => dorsalNum(a.dorsal) - dorsalNum(b.dorsal));
+    const cab = `<h4>${escapeHtml(titulo)}${esquema ? ` <span style="color:var(--muted);font-weight:400;">${escapeHtml(esquema)}</span>` : ""}</h4>`;
+
+    if (d.fuente === "acta") {
+      const titulares = lista.filter(j => j.titular);
+      const suplentes = lista.filter(j => !j.titular);
+      return `<div class="alin-col">${cab}
+        <div class="grupo-tit">Titulares (${titulares.length})</div>
+        ${titulares.map(filaJug).join("") || '<p style="color:var(--muted);font-size:12px;margin:4px 0;">—</p>'}
+        <div class="grupo-tit">Suplentes (${suplentes.length})</div>
+        ${suplentes.map(filaJug).join("") || '<p style="color:var(--muted);font-size:12px;margin:4px 0;">—</p>'}
+      </div>`;
+    }
+    return `<div class="alin-col">${cab}
+      <div class="grupo-tit">Plantilla (${lista.length})</div>
+      ${lista.map(filaJug).join("") || '<p style="color:var(--muted);font-size:12px;margin:4px 0;">Sin datos de plantilla.</p>'}
+    </div>`;
+  };
+
+  return `<p class="status" style="margin:0 0 10px;">${fuenteTxt}</p>
+    <div class="alineaciones">
+      ${columna(localNombre, d.jugadores_local, d.esquema_local)}
+      ${columna(visitanteNombre, d.jugadores_visitante, d.esquema_visitante)}
+    </div>`;
 }
 
 // ---------------- añadir desde Horarios (con objetivos) ----------------
