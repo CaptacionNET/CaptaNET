@@ -70,6 +70,10 @@ table.ruta-tabla{width:100%;border-collapse:collapse;font-size:13px;}
 .modal-box{background:#fff;border-radius:10px;padding:24px;width:100%;max-width:440px;box-shadow:0 20px 50px rgba(0,0,0,.3);max-height:90vh;overflow-y:auto;}
 .modal-box h3{margin:0 0 14px;}
 .modal-box .field{margin-bottom:12px;}
+.mm-resultados{position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 20px rgba(0,0,0,.12);max-height:180px;overflow-y:auto;z-index:10;display:none;}
+.mm-resultados div{padding:7px 10px;font-size:13px;cursor:pointer;}
+.mm-resultados div:hover{background:var(--bg);}
+.mm-seleccionada{background:#eff6ff !important;}
 
 @media (max-width:800px){
   #topbar{padding:12px 16px;}
@@ -167,14 +171,28 @@ table.ruta-tabla{width:100%;border-collapse:collapse;font-size:13px;}
   <div class="modal-box">
     <h3>Añadir partido manual</h3>
     <p style="color:var(--muted);font-size:12px;margin:-8px 0 14px;">Para amistosos o partidos que no están en la FFCV.</p>
+
     <div class="field">
-      <label>Equipo local</label>
-      <input id="mm_local" type="text" style="width:100%;">
+      <label>Categoría</label>
+      <select id="mm_categoria" style="width:100%;" onchange="onCategoriaManualChange()">
+        <option value="">Selecciona categoría…</option>
+      </select>
+      <p id="mm_categoria_status" style="color:var(--muted);font-size:11px;margin:4px 0 0;"></p>
     </div>
-    <div class="field">
-      <label>Equipo visitante</label>
-      <input id="mm_visitante" type="text" style="width:100%;">
+
+    <div id="mm_equipos_wrap" style="display:none;">
+      <div class="field" style="position:relative;">
+        <label>Equipo local</label>
+        <input id="mm_local_buscar" type="text" style="width:100%;" placeholder="Escribe para buscar…" autocomplete="off" oninput="buscarEquipoManual('local')">
+        <div id="mm_local_resultados" class="mm-resultados"></div>
+      </div>
+      <div class="field" style="position:relative;">
+        <label>Equipo visitante</label>
+        <input id="mm_visitante_buscar" type="text" style="width:100%;" placeholder="Escribe para buscar…" autocomplete="off" oninput="buscarEquipoManual('visitante')">
+        <div id="mm_visitante_resultados" class="mm-resultados"></div>
+      </div>
     </div>
+
     <div style="display:flex;gap:12px;">
       <div class="field" style="flex:1;">
         <label>Fecha</label>
@@ -273,6 +291,45 @@ async function ffcv(accion, extra = {}) {
   if (error) throw new Error(await mensajeError(error));
   if (data && data.error) throw new Error(data.error);
   return data;
+}
+
+function normalizarTexto(s) {
+  return (s || "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+function coincideNombre(nombre, consulta) {
+  const nombreNorm = normalizarTexto(nombre);
+  const palabras = normalizarTexto(consulta).trim().split(/\s+/).filter(Boolean);
+  return palabras.every(p => nombreNorm.includes(p));
+}
+
+// Las ligas se agrupan en secciones reales por categoría de edad (de mayor
+// a menor), y dentro de cada una, alfabético. Se usa el nombre de categoría
+// que da la propia FFCV por competición (categoria_edad_ffcv, p.ej.
+// "Querubines") cuando existe, porque es más fiable que adivinar por el
+// nombre de la liga: "Escola de Gegants" no menciona ninguna edad en su
+// nombre, pero la FFCV la cataloga como "Querubines". Si no hay ese dato
+// (liga creada a mano, o pendiente de la próxima importación), se sigue
+// adivinando por el nombre de la liga como hasta ahora.
+// Las claves de texto están recortadas a la raíz común entre castellano y
+// valenciano (la FFCV nombra algunas ligas en valenciano: "Cadet", "Benjamí",
+// "Querubí", sin la "e"/"n" final del castellano "Cadete", "Benjamín", "Querubín").
+const ORDEN_EDAD_LIGAS = ["AMATEUR", "JUVENIL", "CADETE", "INFANTIL", "ALEVIN", "BENJAMIN", "PREBENJAMIN", "QUERUBIN"];
+const ETIQUETA_EDAD_LIGAS = {
+  AMATEUR: "AMATEUR", JUVENIL: "JUVENILES", CADETE: "CADETES", INFANTIL: "INFANTILES",
+  ALEVIN: "ALEVINES", BENJAMIN: "BENJAMINES", PREBENJAMIN: "PREBENJAMINES", QUERUBIN: "QUERUBINES"
+};
+function edadDeLiga(nombreLiga, categoriaEdadFfcv) {
+  const nombreN = normalizarTexto(nombreLiga);
+  if (nombreN.includes("gegant")) return "QUERUBIN"; // "Escola de Gegants" (F5) = Querubines
+  const n = normalizarTexto(categoriaEdadFfcv) || nombreN;
+  if (n.includes("querubi")) return "QUERUBIN";
+  if (n.includes("prebenjami")) return "PREBENJAMIN";
+  if (n.includes("benjami")) return "BENJAMIN";
+  if (n.includes("alevi")) return "ALEVIN";
+  if (n.includes("infantil")) return "INFANTIL";
+  if (n.includes("cadet")) return "CADETE";
+  if (n.includes("juvenil")) return "JUVENIL";
+  return "AMATEUR";
 }
 
 function cambiarSeccion(nombre) {
@@ -558,12 +615,12 @@ async function abrirDetalle(id, autoAlineacion = false) {
     <p style="color:var(--muted);font-size:13px;margin:0 0 6px;">${linea2}</p>
     ${soloLectura ? `<p style="color:var(--muted);font-size:12px;margin:0 0 6px;">👤 Ruta de ${escapeHtml(ojeadorNombre[rp.user_id] || "otro ojeador")} · solo lectura</p>` : ""}
     <div id="d_alineaciones_wrap" style="margin-top:14px;">
-      ${rp.es_manual
-        ? '<p class="vacio">Los partidos manuales no tienen plantillas de la FFCV.</p>'
-        : '<button class="secondary" onclick="cargarAlineaciones()">Ver plantillas y titulares</button>'}
+      ${(rp.cod_equipo_local || rp.cod_equipo_visitante)
+        ? '<button class="secondary" onclick="cargarAlineaciones()">Ver plantillas y titulares</button>'
+        : '<p class="vacio">Este partido no tiene equipos de la FFCV enlazados, así que no hay plantilla.</p>'}
     </div>
   `;
-  if (autoAlineacion && !rp.es_manual) cargarAlineaciones();
+  if (autoAlineacion && (rp.cod_equipo_local || rp.cod_equipo_visitante)) cargarAlineaciones();
 }
 
 async function cargarAlineaciones(refrescar = false) {
@@ -705,23 +762,145 @@ function cerrarInformeModal() {
 }
 
 // ---------------- MODAL MANUAL ----------------
-function abrirModalManual() {
-  ["mm_local", "mm_visitante", "mm_fecha", "mm_hora", "mm_campo", "mm_objetivos"].forEach(id => document.getElementById(id).value = "");
+// Para que el partido manual pueda mostrar la plantilla real, primero se
+// elige la categoría (edad) y luego se busca el equipo entre los ya
+// importados de esa categoría — así queda enlazado a su cod_ffcv real,
+// igual que un partido añadido desde Horarios.
+let temporadaActivaId = null;
+let ligasIdsPorEdadManual = {};       // { CADETE: [ligaId, ...], ... }
+let equiposCategoriaManual = [];      // equipos de la categoría elegida
+let equipoManualLocal = null;         // { id, nombre, cod_ffcv, escudo_url } o null (texto libre)
+let equipoManualVisitante = null;
+
+async function abrirModalManual() {
+  ["mm_fecha", "mm_hora", "mm_campo", "mm_objetivos", "mm_local_buscar", "mm_visitante_buscar"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("mm_categoria").value = "";
+  document.getElementById("mm_equipos_wrap").style.display = "none";
+  document.getElementById("mm_local_resultados").style.display = "none";
+  document.getElementById("mm_visitante_resultados").style.display = "none";
+  equipoManualLocal = null;
+  equipoManualVisitante = null;
+  equiposCategoriaManual = [];
   document.getElementById("mm_status").textContent = "";
   document.getElementById("modal_manual").style.display = "flex";
+  await cargarCategoriasManual();
 }
 function cerrarModalManual() { document.getElementById("modal_manual").style.display = "none"; }
 
+async function cargarCategoriasManual() {
+  const sel = document.getElementById("mm_categoria");
+  const s = document.getElementById("mm_categoria_status");
+  sel.innerHTML = '<option value="">Selecciona categoría…</option>';
+  s.textContent = "Cargando categorías…";
+  try {
+    if (!temporadaActivaId) {
+      const { data: temp } = await client.from("temporadas").select("id").eq("activa", true).maybeSingle();
+      temporadaActivaId = temp?.id || null;
+    }
+    if (!temporadaActivaId) { s.textContent = "No hay temporada activa."; return; }
+
+    const { data: cats } = await client.from("categorias").select("id").eq("temporada_id", temporadaActivaId);
+    const catIds = (cats || []).map(c => c.id);
+    if (!catIds.length) { s.textContent = "No hay categorías en la temporada activa."; return; }
+
+    const { data: ligas } = await client.from("ligas").select("id, nombre, categoria_edad_ffcv").in("categoria_id", catIds);
+
+    ligasIdsPorEdadManual = {};
+    (ligas || []).forEach(l => {
+      const edad = edadDeLiga(l.nombre, l.categoria_edad_ffcv);
+      if (!ligasIdsPorEdadManual[edad]) ligasIdsPorEdadManual[edad] = [];
+      ligasIdsPorEdadManual[edad].push(l.id);
+    });
+
+    const edadesPresentes = ORDEN_EDAD_LIGAS.filter(e => ligasIdsPorEdadManual[e]?.length);
+    sel.innerHTML = '<option value="">Selecciona categoría…</option>' +
+      edadesPresentes.map(e => `<option value="${e}">${ETIQUETA_EDAD_LIGAS[e]}</option>`).join("");
+    s.textContent = "";
+  } catch (e) {
+    s.textContent = "Error cargando categorías: " + e.message;
+  }
+}
+
+async function onCategoriaManualChange() {
+  const edad = document.getElementById("mm_categoria").value;
+  const wrap = document.getElementById("mm_equipos_wrap");
+  const s = document.getElementById("mm_categoria_status");
+  equipoManualLocal = null;
+  equipoManualVisitante = null;
+  document.getElementById("mm_local_buscar").value = "";
+  document.getElementById("mm_visitante_buscar").value = "";
+  document.getElementById("mm_local_resultados").style.display = "none";
+  document.getElementById("mm_visitante_resultados").style.display = "none";
+
+  if (!edad) { wrap.style.display = "none"; equiposCategoriaManual = []; return; }
+
+  const ligaIds = ligasIdsPorEdadManual[edad] || [];
+  s.textContent = "Cargando equipos…";
+  try {
+    const { data: grupos } = await client.from("grupos").select("id").in("liga_id", ligaIds);
+    const grupoIds = (grupos || []).map(g => g.id);
+    if (!grupoIds.length) { equiposCategoriaManual = []; s.textContent = "Sin equipos importados en esta categoría."; wrap.style.display = "block"; return; }
+
+    const equipos = await fetchPorIdsGrupo(grupoIds);
+    equiposCategoriaManual = equipos.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    s.textContent = `${equiposCategoriaManual.length} equipos disponibles para buscar. Si no encuentras uno, escribe su nombre igualmente.`;
+    wrap.style.display = "block";
+  } catch (e) {
+    s.textContent = "Error cargando equipos: " + e.message;
+    wrap.style.display = "block";
+  }
+}
+
+// Trocea los grupoIds (por si son muchos) para no generar una URL demasiado larga.
+async function fetchPorIdsGrupo(grupoIds) {
+  const lotes = [];
+  for (let i = 0; i < grupoIds.length; i += 200) lotes.push(grupoIds.slice(i, i + 200));
+  const resultados = await Promise.all(lotes.map(lote =>
+    client.from("equipos").select("id, nombre, cod_ffcv, escudo_url").in("grupo_id", lote).then(r => r.data || [])));
+  return resultados.flat();
+}
+
+function buscarEquipoManual(lado) {
+  const input = document.getElementById(`mm_${lado}_buscar`);
+  const cont = document.getElementById(`mm_${lado}_resultados`);
+  if (lado === "local") equipoManualLocal = null; else equipoManualVisitante = null;
+
+  const q = input.value.trim();
+  if (!q) { cont.style.display = "none"; cont.innerHTML = ""; return; }
+
+  const resultados = equiposCategoriaManual.filter(e => coincideNombre(e.nombre, q)).slice(0, 8);
+  if (!resultados.length) { cont.style.display = "none"; cont.innerHTML = ""; return; }
+
+  cont.innerHTML = resultados.map(e => `<div onclick="seleccionarEquipoManual('${lado}','${e.id}')">${escapeHtml(e.nombre)}</div>`).join("");
+  cont.style.display = "block";
+}
+
+function seleccionarEquipoManual(lado, equipoId) {
+  const equipo = equiposCategoriaManual.find(e => e.id === equipoId);
+  if (!equipo) return;
+  if (lado === "local") equipoManualLocal = equipo; else equipoManualVisitante = equipo;
+  document.getElementById(`mm_${lado}_buscar`).value = equipo.nombre;
+  const cont = document.getElementById(`mm_${lado}_resultados`);
+  cont.style.display = "none";
+  cont.innerHTML = "";
+}
+
 async function guardarManual() {
-  const local = document.getElementById("mm_local").value.trim();
-  const visitante = document.getElementById("mm_visitante").value.trim();
+  const local = document.getElementById("mm_local_buscar").value.trim();
+  const visitante = document.getElementById("mm_visitante_buscar").value.trim();
   const s = document.getElementById("mm_status");
   if (!local || !visitante) { s.textContent = "Pon al menos los dos equipos."; return; }
   const btn = document.getElementById("mm_btn");
   btn.disabled = true;
+  const categoriaEdad = document.getElementById("mm_categoria").value;
   const registro = {
     club_id: miClubId, es_manual: true,
     local, visitante,
+    categoria: categoriaEdad ? ETIQUETA_EDAD_LIGAS[categoriaEdad] : null,
+    cod_equipo_local: equipoManualLocal?.cod_ffcv || null,
+    cod_equipo_visitante: equipoManualVisitante?.cod_ffcv || null,
+    escudo_local: equipoManualLocal?.escudo_url || null,
+    escudo_visitante: equipoManualVisitante?.escudo_url || null,
     fecha: document.getElementById("mm_fecha").value || null,
     hora: document.getElementById("mm_hora").value || null,
     campo: document.getElementById("mm_campo").value.trim() || null,
