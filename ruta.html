@@ -875,10 +875,7 @@ function buscarEquipoManual(lado) {
   const resultados = equiposCategoriaManual.filter(e => coincideNombre(e.nombre, q)).slice(0, 8);
   if (!resultados.length) { cont.style.display = "none"; cont.innerHTML = ""; return; }
 
-  // mousedown (con preventDefault) en vez de click: si no, al hacer clic el
-  // campo de texto pierde el foco justo antes y el navegador puede no llegar
-  // a disparar el click sobre el resultado.
-  cont.innerHTML = resultados.map(e => `<div onmousedown="event.preventDefault();seleccionarEquipoManual('${lado}','${e.id}')">${escapeHtml(e.nombre)}</div>`).join("");
+  cont.innerHTML = resultados.map(e => `<div data-equipo-id="${e.id}">${escapeHtml(e.nombre)}</div>`).join("");
   cont.style.display = "block";
 }
 
@@ -891,6 +888,23 @@ function seleccionarEquipoManual(lado, equipoId) {
   cont.style.display = "none";
   cont.innerHTML = "";
 }
+
+// Un único listener por contenedor (delegación), en vez de un onmousedown
+// distinto en cada fila: más fiable, porque no depende de que el navegador
+// llegue a disparar el evento sobre un nodo que se acaba de crear justo
+// cuando el campo de texto pierde el foco. Se registra una sola vez al
+// cargar la página (el contenido de dentro se puede regenerar sin problema).
+function wireResultadosManual(lado) {
+  const cont = document.getElementById(`mm_${lado}_resultados`);
+  cont.addEventListener("mousedown", (e) => {
+    const fila = e.target.closest("[data-equipo-id]");
+    if (!fila) return;
+    e.preventDefault();
+    seleccionarEquipoManual(lado, fila.dataset.equipoId);
+  });
+}
+wireResultadosManual("local");
+wireResultadosManual("visitante");
 
 async function guardarManual() {
   const local = document.getElementById("mm_local_buscar").value.trim();
