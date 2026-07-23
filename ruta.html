@@ -573,17 +573,21 @@ async function cargarAlineaciones(refrescar = false) {
       cod_temporada: ctx.cod_temporada, cod_competicion: ctx.cod_competicion, cod_grupo: ctx.cod_grupo, cod_jornada: ctx.cod_jornada,
       refrescar,
     });
-    // resolver qué codjugadores existen en nuestra base (para enlazar Informes y sacar el año)
+    // resolver qué codjugadores existen en nuestra base (para enlazar Informes,
+    // sacar el año, y el nombre completo real — la FFCV a veces da en el acta
+    // el nombre deportivo corto, p.ej. "Navarro" en vez de "NAVARRO PÉREZ,
+    // JAVIER"; si el jugador ya está importado, usamos nuestro nombre bueno).
     const todos = [...(d.jugadores_local || []), ...(d.jugadores_visitante || [])].map(j => j.codjugador).filter(Boolean);
-    const mapaId = {}, mapaAnio = {};
+    const mapaId = {}, mapaAnio = {}, mapaNombre = {};
     if (todos.length) {
-      const { data: jugs } = await client.from("jugadores").select("id, cod_ffcv, fecha_nacimiento").in("cod_ffcv", todos);
+      const { data: jugs } = await client.from("jugadores").select("id, cod_ffcv, fecha_nacimiento, nombre").in("cod_ffcv", todos);
       (jugs || []).forEach(j => {
         mapaId[j.cod_ffcv] = j.id;
         if (j.fecha_nacimiento) mapaAnio[j.cod_ffcv] = new Date(j.fecha_nacimiento).getFullYear();
+        if (j.nombre) mapaNombre[j.cod_ffcv] = j.nombre;
       });
     }
-    detalleAlineacion = { ...d, mapaId, mapaAnio };
+    detalleAlineacion = { ...d, mapaId, mapaAnio, mapaNombre };
     renderAlineaciones();
   } catch (e) {
     wrap.innerHTML = `<p class="status">Error cargando plantillas: ${escapeHtml(e.message)}</p><button class="secondary" onclick="cargarAlineaciones()">Reintentar</button>`;
@@ -610,12 +614,15 @@ function renderAlineaciones() {
     const tit = esTitular(lado, j);
     const anio = d.mapaAnio[j.codjugador];
     const idJug = d.mapaId[j.codjugador];
+    // Preferimos el nombre completo de nuestra base (si ya está importado) al
+    // nombre deportivo corto que a veces da el acta de la FFCV.
+    const nombre = d.mapaNombre[j.codjugador] || j.nombre;
     const informe = idJug
       ? `<span onclick="abrirInformeModal('${idJug}')" title="Hacer informe" style="cursor:pointer;">📝</span>`
       : `<span title="No está en la base de datos" style="color:var(--border);">📝</span>`;
     return `<div class="jug-fila ${tit ? "es-titular" : ""}">
       <span class="dorsal">${escapeHtml(j.dorsal || "-")}</span>
-      <span class="nombre">${escapeHtml(j.nombre)}${anio ? ` <span class="anio">(${anio})</span>` : ""}${j.capitan ? " ©" : ""}${j.portero ? " 🧤" : ""}</span>
+      <span class="nombre">${escapeHtml(nombre)}${anio ? ` <span class="anio">(${anio})</span>` : ""}${j.capitan ? " ©" : ""}${j.portero ? " 🧤" : ""}</span>
       <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);cursor:pointer;">
         <input type="checkbox" ${tit ? "checked" : ""} ${detalleActual.soloLectura ? "disabled" : ""} onchange="toggleTitular('${lado}','${escapeHtml(j.codjugador)}',this.checked)"> titular
       </label>
@@ -681,7 +688,7 @@ function abrirInformeModal(jugadorId) {
     const cod = Object.keys(detalleAlineacion.mapaId || {}).find(c => detalleAlineacion.mapaId[c] === jugadorId);
     const todos = [...(detalleAlineacion.jugadores_local || []), ...(detalleAlineacion.jugadores_visitante || [])];
     const j = cod ? todos.find(x => x.codjugador === cod) : null;
-    nombre = j ? j.nombre : "";
+    nombre = cod && detalleAlineacion.mapaNombre[cod] ? detalleAlineacion.mapaNombre[cod] : (j ? j.nombre : "");
   }
   document.getElementById("mi_titulo").textContent = nombre ? "Informe · " + nombre : "Informe del jugador";
   document.getElementById("informe_iframe").src = "jugadores.html?jugador_id=" + encodeURIComponent(jugadorId) + "&modal=1";
