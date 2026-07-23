@@ -83,7 +83,7 @@ table.ruta-tabla{width:100%;border-collapse:collapse;font-size:13px;}
 <body>
 
 <div id="topbar">
-  <div class="brand">CaptaNET · Ruta</div>
+  <div class="brand"><img id="brand_escudo" style="display:none;height:26px;width:26px;object-fit:contain;border-radius:4px;vertical-align:middle;margin-right:6px;">CaptaNET · Ruta</div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;">
     <button class="secondary" onclick="atras()">← Atrás</button>
     <button class="secondary" onclick="window.location.href='visor.html'">Visor</button>
@@ -239,13 +239,18 @@ async function protegerPagina() {
   if (!session.session) { window.location.href = "index.html"; return false; }
   miUserId = session.session.user.id;
   const { data: perfil } = await client
-    .from("profiles").select("is_admin, is_club_admin, club_id, nombre, username").eq("id", session.session.user.id).single();
+    .from("profiles").select("is_admin, is_club_admin, club_id, nombre, username, clubs(escudo_url)").eq("id", session.session.user.id).single();
   miClubId = perfil?.club_id || null;
   miNombre = perfil?.nombre || perfil?.username || "";
   esAdmin = !!perfil?.is_admin;
   esClubAdmin = !!perfil?.is_club_admin;
   if (perfil?.is_admin) document.getElementById("btn_admin").style.display = "inline-block";
   if (perfil?.is_club_admin) document.getElementById("btn_equipo").style.display = "inline-block";
+  if (perfil?.clubs?.escudo_url) {
+    const img = document.getElementById("brand_escudo");
+    img.src = perfil.clubs.escudo_url;
+    img.style.display = "inline-block";
+  }
   return true;
 }
 

@@ -29,7 +29,7 @@ input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-rad
 <body>
 
 <div id="topbar">
-  <div class="brand">CaptaNET · Mi equipo</div>
+  <div class="brand"><img id="brand_escudo" style="display:none;height:26px;width:26px;object-fit:contain;border-radius:4px;vertical-align:middle;margin-right:6px;">CaptaNET · Mi equipo</div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;">
     <button class="secondary" onclick="atras()">← Atrás</button>
     <button class="secondary" onclick="window.location.href='visor.html'">Visor</button>
@@ -93,12 +93,17 @@ async function protegerPagina() {
   if (!session.session) { window.location.href = "index.html"; return false; }
 
   const { data: perfil } = await client
-    .from("profiles").select("is_admin, is_club_admin, club_id").eq("id", session.session.user.id).single();
+    .from("profiles").select("is_admin, is_club_admin, club_id, clubs(escudo_url)").eq("id", session.session.user.id).single();
 
   if (!perfil?.is_club_admin) { window.location.href = "visor.html"; return false; }
 
   miClubId = perfil.club_id;
   if (perfil?.is_admin) document.getElementById("btn_admin").style.display = "inline-block";
+  if (perfil?.clubs?.escudo_url) {
+    const img = document.getElementById("brand_escudo");
+    img.src = perfil.clubs.escudo_url;
+    img.style.display = "inline-block";
+  }
   return true;
 }
 

@@ -28,7 +28,7 @@ button.secondary.active{background:#eff6ff;color:var(--primary);border-color:var
 
 <body>
   <div id="topbar">
-    <div class="brand">CaptaNET · Mi perfil</div>
+    <div class="brand"><img id="brand_escudo" style="display:none;height:26px;width:26px;object-fit:contain;border-radius:4px;vertical-align:middle;margin-right:6px;">CaptaNET · Mi perfil</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
       <button class="secondary" onclick="atras()">← Atrás</button>
       <button class="secondary" onclick="window.location.href='visor.html'">Visor</button>
@@ -66,9 +66,15 @@ button.secondary.active{background:#eff6ff;color:var(--primary);border-color:var
 
       const { data: perfil } = await client
         .from("profiles")
-        .select("*, clubs(nombre)")
+        .select("*, clubs(nombre, escudo_url)")
         .eq("id", user.id)
         .single();
+
+      if (perfil.clubs?.escudo_url) {
+        const img = document.getElementById("brand_escudo");
+        img.src = perfil.clubs.escudo_url;
+        img.style.display = "inline-block";
+      }
 
       document.getElementById("perfil").innerHTML = `
         <div class="fila"><span>Usuario</span><b>${perfil.username || ""}</b></div>

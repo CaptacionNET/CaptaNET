@@ -113,6 +113,8 @@ label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px;}
     <button onclick="anadirFilaClub()">+ Añadir club</button>
   </div>
   <div class="tabla-scroll"><div id="tabla-clubs"></div></div>
+  <p id="escudo_status" class="status" style="margin:8px 24px 0;"></p>
+  <input id="escudo_file_input" type="file" accept="image/*" style="display:none;" onchange="subirEscudoSeleccionado(event)">
 </div>
 
 <!-- IMPORTAR FFCV -->
@@ -562,6 +564,18 @@ async function cargarClubs() {
     reactiveData: true,
     height: "520px",
     columns: [
+      {
+        title: "Escudo", field: "escudo_url", width: 90, hozAlign: "center", headerSort: false,
+        formatter: cell => cell.getValue()
+          ? `<img src="${cell.getValue()}" style="width:28px;height:28px;object-fit:contain;border-radius:4px;">`
+          : `<span style="color:var(--primary);font-size:12px;text-decoration:underline;cursor:pointer;">Subir</span>`,
+        cellClick: (e, cell) => {
+          const row = cell.getRow().getData();
+          if (!row.id) { alert("Guarda el club primero (nombre y slug) antes de subir el escudo."); return; }
+          filaEscudoPendiente = cell.getRow();
+          document.getElementById("escudo_file_input").click();
+        }
+      },
       { title: "Nombre", field: "nombre", editor: "input" },
       { title: "Slug (subdominio)", field: "slug", editor: "input" },
       {
@@ -591,6 +605,53 @@ async function cargarClubs() {
 
 function anadirFilaClub() {
   tablaClubs.addRow({ nombre: "", slug: "" }, true);
+}
+
+let filaEscudoPendiente = null;
+
+// Se reduce en el propio navegador antes de subirla (máx. 300px de lado):
+// un escudo no necesita más resolución y así la subida es rápida.
+function redimensionarEscudo(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 300;
+      const escala = Math.min(1, max / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * escala);
+      canvas.height = Math.round(img.height * escala);
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+async function subirEscudoSeleccionado(event) {
+  const file = event.target.files[0];
+  event.target.value = "";
+  const row = filaEscudoPendiente;
+  filaEscudoPendiente = null;
+  if (!file || !row) return;
+
+  const clubId = row.getData().id;
+  const status = document.getElementById("escudo_status");
+  status.textContent = "Subiendo escudo...";
+
+  try {
+    const dataUri = await redimensionarEscudo(file);
+    const { data, error } = await client.functions.invoke("subir-escudo-club", { body: { club_id: clubId, data_uri: dataUri } });
+    if (error || !data?.url) { status.textContent = "Error: " + (error ? await mensajeError(error) : "no se pudo subir el escudo."); return; }
+
+    const { error: errGuardar } = await client.from("clubs").update({ escudo_url: data.url }).eq("id", clubId);
+    if (errGuardar) { status.textContent = "Error guardando: " + errGuardar.message; return; }
+
+    row.update({ escudo_url: data.url });
+    status.textContent = "Escudo actualizado.";
+  } catch (e) {
+    status.textContent = "Error al procesar la imagen.";
+  }
 }
 
 // ============ IMPORTAR EXCEL ============

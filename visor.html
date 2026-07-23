@@ -44,7 +44,7 @@ input,select,textarea{padding:8px 10px;border:1px solid var(--border);border-rad
 <body>
 
 <div id="topbar">
-  <div class="brand">CaptaNET <span id="brand_extra" style="color:var(--muted);font-weight:400;"></span></div>
+  <div class="brand"><img id="brand_escudo" style="display:none;height:26px;width:26px;object-fit:contain;border-radius:4px;vertical-align:middle;margin-right:6px;">CaptaNET <span id="brand_extra" style="color:var(--muted);font-weight:400;"></span></div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;">
     <button class="secondary" onclick="atras()">← Atrás</button>
     <button class="secondary active" onclick="window.location.href='visor.html'">Visor</button>
@@ -199,7 +199,7 @@ async function protegerPagina() {
   if (!session.session) { window.location.href = "index.html"; return false; }
 
   const { data: perfil } = await client
-    .from("profiles").select("is_admin, is_club_admin, club_id, clubs(nombre)").eq("id", session.session.user.id).single();
+    .from("profiles").select("is_admin, is_club_admin, club_id, clubs(nombre, escudo_url)").eq("id", session.session.user.id).single();
 
   esAdmin = !!perfil?.is_admin;
   miClubId = perfil?.club_id || null;
@@ -212,6 +212,11 @@ async function protegerPagina() {
 
   document.getElementById("brand_extra").textContent =
     esAdmin ? "· ADMIN" : (perfil?.clubs?.nombre ? "· " + perfil.clubs.nombre : "");
+  if (perfil?.clubs?.escudo_url) {
+    const img = document.getElementById("brand_escudo");
+    img.src = perfil.clubs.escudo_url;
+    img.style.display = "inline-block";
+  }
 
   return true;
 }

@@ -113,6 +113,7 @@ button:disabled{opacity:.6;cursor:default;}
 
 <body>
   <div class="card">
+    <img id="escudo_club" style="display:none;width:64px;height:64px;object-fit:contain;margin:0 auto 10px;">
     <div class="logo">CaptaNET</div>
     <div class="subtitle" id="subtitle">Plataforma de scouting</div>
 
@@ -227,11 +228,16 @@ button:disabled{opacity:.6;cursor:default;}
       const slug = getClubSlug();
       if (!slug) return;
 
-      const { data: nombre, error } = await client.rpc("get_club_nombre_by_slug", { p_slug: slug });
-      if (error) { console.error("[CaptaNET] get_club_nombre_by_slug:", error); return; }
-      if (nombre) {
-        document.getElementById("subtitle").textContent = nombre;
-        document.title = "CaptaNET - " + nombre;
+      const { data, error } = await client.rpc("club_branding_by_slug", { p_slug: slug }).maybeSingle();
+      if (error) { console.error("[CaptaNET] club_branding_by_slug:", error); return; }
+      if (data?.nombre) {
+        document.getElementById("subtitle").textContent = data.nombre;
+        document.title = "CaptaNET - " + data.nombre;
+      }
+      if (data?.escudo_url) {
+        const img = document.getElementById("escudo_club");
+        img.src = data.escudo_url;
+        img.style.display = "block";
       }
     }
 
