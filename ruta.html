@@ -871,7 +871,10 @@ function buscarEquipoManual(lado) {
   const resultados = equiposCategoriaManual.filter(e => coincideNombre(e.nombre, q)).slice(0, 8);
   if (!resultados.length) { cont.style.display = "none"; cont.innerHTML = ""; return; }
 
-  cont.innerHTML = resultados.map(e => `<div onclick="seleccionarEquipoManual('${lado}','${e.id}')">${escapeHtml(e.nombre)}</div>`).join("");
+  // mousedown (con preventDefault) en vez de click: si no, al hacer clic el
+  // campo de texto pierde el foco justo antes y el navegador puede no llegar
+  // a disparar el click sobre el resultado.
+  cont.innerHTML = resultados.map(e => `<div onmousedown="event.preventDefault();seleccionarEquipoManual('${lado}','${e.id}')">${escapeHtml(e.nombre)}</div>`).join("");
   cont.style.display = "block";
 }
 
