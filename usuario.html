@@ -64,13 +64,19 @@ button.secondary.active{background:#eff6ff;color:var(--primary);border-color:var
 
       const user = session.session.user;
 
-      const { data: perfil } = await client
+      const { data: perfil, error } = await client
         .from("profiles")
         .select("*, clubs(nombre, escudo_url)")
         .eq("id", user.id)
         .single();
 
-      if (perfil.clubs?.escudo_url) {
+      if (error || !perfil) {
+        document.getElementById("perfil").innerHTML =
+          `<p style="color:#dc2626;font-size:14px;margin:0;">Error cargando tu perfil: ${error?.message || "sin datos"}</p>`;
+        return;
+      }
+
+      if (perfil?.clubs?.escudo_url) {
         const img = document.getElementById("brand_escudo");
         img.src = perfil.clubs.escudo_url;
         img.style.display = "inline-block";

@@ -198,8 +198,14 @@ async function protegerPagina() {
   const { data: session } = await client.auth.getSession();
   if (!session.session) { window.location.href = "index.html"; return false; }
 
-  const { data: perfil } = await client
+  const { data: perfil, error } = await client
     .from("profiles").select("is_admin, is_club_admin, club_id, clubs(nombre, escudo_url)").eq("id", session.session.user.id).single();
+
+  if (error) {
+    document.getElementById("aviso").style.display = "block";
+    document.getElementById("aviso").textContent = "Error cargando tu perfil: " + error.message;
+    return false;
+  }
 
   esAdmin = !!perfil?.is_admin;
   miClubId = perfil?.club_id || null;

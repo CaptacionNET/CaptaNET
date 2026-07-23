@@ -256,8 +256,12 @@ async function protegerPagina() {
   const { data: session } = await client.auth.getSession();
   if (!session.session) { window.location.href = "index.html"; return false; }
   miUserId = session.session.user.id;
-  const { data: perfil } = await client
+  const { data: perfil, error } = await client
     .from("profiles").select("is_admin, is_club_admin, club_id, nombre, username, clubs(escudo_url)").eq("id", session.session.user.id).single();
+  if (error) {
+    document.body.insertAdjacentHTML("afterbegin", `<p style="background:#fef2f2;color:#dc2626;border-bottom:1px solid #fecaca;padding:10px 24px;margin:0;font-size:14px;">Error cargando tu perfil: ${error.message}</p>`);
+    return false;
+  }
   miClubId = perfil?.club_id || null;
   miNombre = perfil?.nombre || perfil?.username || "";
   esAdmin = !!perfil?.is_admin;
