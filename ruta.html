@@ -543,8 +543,7 @@ function onBuscarCampoInput() {
 // agrupados por día, empezando por los próximos 7 días (puede haber
 // 40-50 partidos en un mismo campo en un fin de semana con varios subcampos).
 let campoBusquedaResultados = [];
-let campoBusquedaActualizadoTexto = "";
-let campoSeleccionado = null;   // { normalizado, etiqueta }
+let campoSeleccionado = null;   // { claves: Set<string>, etiqueta }
 let campoMostrarTodos = false;
 
 async function buscarPorCampo() {
@@ -573,46 +572,82 @@ async function buscarPorCampo() {
   if (error) { s.textContent = "Error buscando: " + error.message; selectorCont.innerHTML = ""; return; }
   campoBusquedaResultados = data || [];
   if (!campoBusquedaResultados.length) { s.textContent = `Sin partidos en campos que coincidan con "${termino}".`; selectorCont.innerHTML = ""; return; }
-
-  const masReciente = campoBusquedaResultados.reduce((max, r) => (r.actualizado_at > max ? r.actualizado_at : max), campoBusquedaResultados[0].actualizado_at);
-  campoBusquedaActualizadoTexto = "datos actualizados el " + new Date(masReciente).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   s.textContent = "";
 
   const instalaciones = agruparInstalaciones(campoBusquedaResultados);
   if (instalaciones.size === 1) {
-    const [clave, info] = [...instalaciones.entries()][0];
-    seleccionarInstalacion(clave, info.etiqueta);
+    const [, info] = [...instalaciones.entries()][0];
+    seleccionarInstalacion(info.claves, info.etiqueta);
     return;
   }
   renderSelectorInstalaciones(instalaciones);
 }
 
+// Quita el sufijo de subcampo del texto ORIGINAL (con mayúsculas/acentos,
+// a diferencia de campo_normalizado) para mostrar un nombre limpio de la
+// instalación, sin dar a entender que es un campo/subcampo concreto.
+function nombreInstalacion(campo) {
+  let t = (campo || "").trim();
+  t = t.replace(/\bf-?\d+(-\d+)?\b/gi, " ");
+  t = t.replace(/\bcampo\s+(?!de\b|del\b|la\b|el\b|los\b|las\b|en\b)[a-z0-9]{1,3}\b/gi, " ");
+  return t.replace(/\s+/g, " ").trim();
+}
+
+// Agrupa primero por campo_normalizado exacto, y luego fusiona claves
+// donde una es prefijo de la otra: la propia FFCV no escribe el nombre
+// de una instalación siempre igual (p.ej. "... Castellón" en un partido
+// y "... Castellon de la Plana" en otro del mismo campo), así que exigir
+// coincidencia exacta deja instalaciones idénticas separadas.
 function agruparInstalaciones(filas) {
-  const grupos = new Map();
+  const porClave = new Map();
   filas.forEach(fila => {
     const clave = fila.campo_normalizado || "";
-    if (!grupos.has(clave)) grupos.set(clave, { etiqueta: fila.campo || "(sin nombre)", count: 0 });
-    grupos.get(clave).count++;
+    if (!porClave.has(clave)) porClave.set(clave, []);
+    porClave.get(clave).push(fila);
   });
-  return grupos;
+
+  const claves = [...porClave.keys()].sort((a, b) => a.length - b.length);
+  const fusionadas = new Set();
+  const resultado = new Map();
+
+  claves.forEach(clave => {
+    if (fusionadas.has(clave)) return;
+    const clavesGrupo = new Set([clave]);
+    let filasGrupo = [...porClave.get(clave)];
+
+    claves.forEach(otra => {
+      if (otra === clave || fusionadas.has(otra)) return;
+      const relacionadas = clave.length >= 6 && (otra.startsWith(clave) || clave.startsWith(otra));
+      if (relacionadas) {
+        clavesGrupo.add(otra);
+        filasGrupo = filasGrupo.concat(porClave.get(otra));
+        fusionadas.add(otra);
+      }
+    });
+
+    fusionadas.add(clave);
+    resultado.set(clave, { claves: clavesGrupo, etiqueta: nombreInstalacion(filasGrupo[0].campo) || "(sin nombre)", count: filasGrupo.length });
+  });
+
+  return resultado;
 }
 
 function renderSelectorInstalaciones(instalaciones) {
   const cont = document.getElementById("campo_selector_instalaciones");
-  cont.innerHTML = `<p class="meta" style="margin:8px 0;">${instalaciones.size} instalaciones encontradas (${campoBusquedaActualizadoTexto}) — elige una:</p>`;
+  cont.innerHTML = `<p class="meta" style="margin:8px 0;">${instalaciones.size} instalaciones encontradas — elige una:</p>`;
   [...instalaciones.entries()]
     .sort((a, b) => b[1].count - a[1].count)
-    .forEach(([clave, info]) => {
+    .forEach(([, info]) => {
       const div = document.createElement("div");
       div.className = "partido partido-clic";
       div.innerHTML = `<div class="equipos">${escapeHtml(info.etiqueta)}</div><div class="meta">${info.count} partido${info.count === 1 ? "" : "s"}</div>`;
-      div.onclick = () => seleccionarInstalacion(clave, info.etiqueta);
+      div.onclick = () => seleccionarInstalacion(info.claves, info.etiqueta);
       cont.appendChild(div);
     });
 }
 
-function seleccionarInstalacion(normalizado, etiqueta) {
-  campoSeleccionado = { normalizado, etiqueta };
+function seleccionarInstalacion(claves, etiqueta) {
+  campoSeleccionado = { claves, etiqueta };
   campoMostrarTodos = false;
   document.getElementById("campo_selector_instalaciones").innerHTML = "";
   renderResultadosCampo();
@@ -645,13 +680,13 @@ function renderResultadosCampo() {
   const cont = document.getElementById("campo_resultados_dia");
   if (!campoSeleccionado) { cont.innerHTML = ""; return; }
 
-  const filas = campoBusquedaResultados.filter(f => (f.campo_normalizado || "") === campoSeleccionado.normalizado);
+  const filas = campoBusquedaResultados.filter(f => campoSeleccionado.claves.has(f.campo_normalizado || ""));
   const proximos = filas.filter(f => { const d = diasDesdeHoy(f.fecha); return d !== null && d >= 0 && d <= 6; });
   const restoCount = filas.length - proximos.length;
   const mostrar = campoMostrarTodos ? filas : proximos;
 
   cont.innerHTML = `<div class="fila-flex" style="justify-content:space-between;margin:14px 0 6px;">
-    <div><b>${escapeHtml(campoSeleccionado.etiqueta)}</b> <span class="meta">· ${campoBusquedaActualizadoTexto}</span></div>
+    <b>${escapeHtml(campoSeleccionado.etiqueta)}</b>
     <a onclick="volverASelectorCampos()" style="cursor:pointer;color:var(--primary);font-size:13px;">← Elegir otro campo</a>
   </div>`;
 

@@ -51,19 +51,18 @@ function normalizarTexto(s: string): string {
   return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
-// Quita el sufijo de subcampo ("F-11", "F8-1", "Campo C", "Campo 3"...)
-// para que buscar el nombre de la instalación encuentre los partidos de
-// todos sus subcampos a la vez. Heurística: solo se considera "Campo X"
-// como subcampo cuando X es una sola letra o un número corto (1-2
-// dígitos) — así no se come nombres propios como "Campo Municipal".
+// Quita el sufijo de subcampo ("F-11", "F8-1", "Campo B", "Campo A1",
+// "Campo D2"...) para que buscar el nombre de la instalación encuentre
+// los partidos de todos sus subcampos a la vez. Heurística: "Campo X"
+// cuenta como subcampo cuando X son 1-3 caracteres alfanuméricos cortos
+// (letras, dígitos, o ambos combinados) que no sean una palabra común
+// española corta (de/del/la/el/los/las/en) — así no se come "Campo
+// Municipal" (demasiado largo) ni "Campo de Fútbol..." (por la
+// exclusión de "de").
 function normalizarCampo(campo: string): string {
   let t = normalizarTexto(campo);
   t = t.replace(/\bf-?\d+(-\d+)?\b/g, " ");
-  // Se quita del todo (no se deja la palabra "campo" suelta): si se
-  // dejara, "... F-11" (sin sufijo) y "... F-8 Campo 1" (con sufijo)
-  // normalizarían distinto por ese resto de palabra, aunque sea la
-  // misma instalación con dos subcampos.
-  t = t.replace(/\bcampo\s+([a-z]|\d{1,2})\b/g, " ");
+  t = t.replace(/\bcampo\s+(?!de\b|del\b|la\b|el\b|los\b|las\b|en\b)[a-z0-9]{1,3}\b/g, " ");
   return t.replace(/\s+/g, " ").trim();
 }
 
