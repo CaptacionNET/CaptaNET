@@ -139,8 +139,19 @@ table.ruta-tabla{width:100%;border-collapse:collapse;font-size:13px;}
         <label>Buscar por campo</label>
         <input id="f_campo_busqueda" type="text" placeholder="Ej. Chencho, Beniferri..." autocomplete="off" oninput="onBuscarCampoInput()" style="width:100%;">
       </div>
+      <div class="campo">
+        <label>Modalidad</label>
+        <select id="f_campo_modalidad" onchange="onBuscarCampoInput()">
+          <option value="">Todas</option>
+          <option value="MASCULÍ F11">F11</option>
+          <option value="MASCULÍ F8">F8</option>
+        </select>
+      </div>
     </div>
     <p class="meta" style="margin:-4px 0 4px;">Busca entre todas las categorías y ligas activas a la vez, no solo la competición seleccionada arriba.</p>
+
+    <div id="campo_selector_instalaciones"></div>
+    <div id="campo_resultados_dia"></div>
   </div>
 
   <p id="horarios_status" class="status"></p>
@@ -517,6 +528,8 @@ function cambiarModoHorarios(modo) {
   document.getElementById("bloque_campo").style.display = modo === "campo" ? "block" : "none";
   document.getElementById("horarios_lista").innerHTML = "";
   document.getElementById("horarios_status").textContent = "";
+  document.getElementById("campo_selector_instalaciones").innerHTML = "";
+  document.getElementById("campo_resultados_dia").innerHTML = "";
 }
 
 let busquedaCampoTimeout = null;
@@ -525,73 +538,184 @@ function onBuscarCampoInput() {
   busquedaCampoTimeout = setTimeout(buscarPorCampo, 300);
 }
 
+// Flujo: 1) buscar por texto (+ modalidad opcional) -> 2) si hay varias
+// instalaciones distintas que coinciden, elegir una -> 3) ver sus partidos
+// agrupados por día, empezando por los próximos 7 días (puede haber
+// 40-50 partidos en un mismo campo en un fin de semana con varios subcampos).
+let campoBusquedaResultados = [];
+let campoBusquedaActualizadoTexto = "";
+let campoSeleccionado = null;   // { normalizado, etiqueta }
+let campoMostrarTodos = false;
+
 async function buscarPorCampo() {
   const termino = document.getElementById("f_campo_busqueda").value.trim();
-  const cont = document.getElementById("horarios_lista");
+  const modalidad = document.getElementById("f_campo_modalidad").value;
+  const selectorCont = document.getElementById("campo_selector_instalaciones");
+  const resultadosCont = document.getElementById("campo_resultados_dia");
   const s = document.getElementById("horarios_status");
 
+  campoSeleccionado = null;
+  campoMostrarTodos = false;
+  resultadosCont.innerHTML = "";
+
   if (termino.length < 2) {
-    cont.innerHTML = "";
+    selectorCont.innerHTML = "";
     s.textContent = termino.length ? "Escribe al menos 2 letras." : "";
     return;
   }
 
   s.textContent = "Buscando...";
   const terminoNorm = normalizarTexto(termino);
-  const { data, error } = await client.from("ruta_partidos_activos")
-    .select("*")
-    .ilike("campo_normalizado", `%${terminoNorm}%`)
-    .order("fecha", { ascending: true }).order("hora", { ascending: true })
-    .limit(200);
+  let query = client.from("ruta_partidos_activos").select("*").ilike("campo_normalizado", `%${terminoNorm}%`);
+  if (modalidad) query = query.eq("modalidad", modalidad);
+  const { data, error } = await query.order("fecha", { ascending: true }).order("hora", { ascending: true }).limit(500);
 
-  if (error) { s.textContent = "Error buscando: " + error.message; cont.innerHTML = ""; return; }
-  if (!data.length) { s.textContent = `Sin partidos en campos que coincidan con "${termino}".`; cont.innerHTML = ""; return; }
+  if (error) { s.textContent = "Error buscando: " + error.message; selectorCont.innerHTML = ""; return; }
+  campoBusquedaResultados = data || [];
+  if (!campoBusquedaResultados.length) { s.textContent = `Sin partidos en campos que coincidan con "${termino}".`; selectorCont.innerHTML = ""; return; }
 
-  const masReciente = data.reduce((max, r) => (r.actualizado_at > max ? r.actualizado_at : max), data[0].actualizado_at);
-  const fechaAct = new Date(masReciente).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-  s.textContent = `${data.length} partido${data.length === 1 ? "" : "s"} · datos actualizados el ${fechaAct}`;
+  const masReciente = campoBusquedaResultados.reduce((max, r) => (r.actualizado_at > max ? r.actualizado_at : max), campoBusquedaResultados[0].actualizado_at);
+  campoBusquedaActualizadoTexto = "datos actualizados el " + new Date(masReciente).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  s.textContent = "";
 
-  cont.innerHTML = "";
-  data.forEach(fila => {
-    const div = document.createElement("div");
-    div.className = "partido";
-    const centro = fila.jugado
-      ? `<span class="resultado">${escapeHtml(fila.resultado || "")}</span>`
-      : `<span style="color:var(--muted);font-weight:400;">vs</span>`;
-    const fecha = fila.fecha ? new Date(fila.fecha + "T00:00:00").toLocaleDateString("es-ES") : "";
-    const chipTexto = [fila.modalidad, fila.competicion_nombre].filter(Boolean).join(" · ");
-    div.innerHTML =
-      `<div class="equipos">${escapeHtml(fila.local)} ${centro} ${escapeHtml(fila.visitante)}` +
-      (chipTexto ? ` <span class="chip">${escapeHtml(chipTexto)}</span>` : "") + `</div>` +
-      `<div class="meta">${fecha} ${fila.hora ? fila.hora.slice(0, 5) : ""}${fila.campo ? " · " + escapeHtml(fila.campo) : ""}</div>`;
+  const instalaciones = agruparInstalaciones(campoBusquedaResultados);
+  if (instalaciones.size === 1) {
+    const [clave, info] = [...instalaciones.entries()][0];
+    seleccionarInstalacion(clave, info.etiqueta);
+    return;
+  }
+  renderSelectorInstalaciones(instalaciones);
+}
 
-    // abrirVerPartido/abrirModalObjetivos esperan la forma de "partidos"
-    // (fecha en DD/MM/YYYY, como la da la FFCV en vivo), no la de la tabla.
-    const pAdaptado = {
-      cod_partido: fila.cod_partido, local: fila.local, visitante: fila.visitante,
-      cod_equipo_local: fila.cod_equipo_local, cod_equipo_visitante: fila.cod_equipo_visitante,
-      escudo_local: fila.escudo_local, escudo_visitante: fila.escudo_visitante,
-      fecha: fila.fecha ? fila.fecha.split("-").reverse().join("/") : "",
-      hora: fila.hora, campo: fila.campo, resultado: fila.resultado, jugado: fila.jugado,
-    };
-    const grupoAdaptado = { codigo: fila.grupo_codigo, nombre: fila.grupo_nombre };
-
-    const btnVer = document.createElement("button");
-    btnVer.className = "secondary";
-    btnVer.style.cssText = "font-size:12px;padding:6px 10px;";
-    btnVer.textContent = "Ver partido";
-    btnVer.onclick = () => abrirVerPartido(pAdaptado, fila.modalidad, fila.competicion_nombre, grupoAdaptado, fila.competicion_codigo, fila.jornada);
-
-    const btnRuta = document.createElement("button");
-    btnRuta.className = "secondary";
-    btnRuta.style.cssText = "font-size:12px;padding:6px 10px;";
-    btnRuta.textContent = "+ A mi ruta";
-    btnRuta.onclick = () => abrirModalObjetivos(pAdaptado, fila.modalidad, fila.competicion_nombre, grupoAdaptado, fila.competicion_codigo, fila.jornada);
-
-    div.appendChild(btnVer);
-    div.appendChild(btnRuta);
-    cont.appendChild(div);
+function agruparInstalaciones(filas) {
+  const grupos = new Map();
+  filas.forEach(fila => {
+    const clave = fila.campo_normalizado || "";
+    if (!grupos.has(clave)) grupos.set(clave, { etiqueta: fila.campo || "(sin nombre)", count: 0 });
+    grupos.get(clave).count++;
   });
+  return grupos;
+}
+
+function renderSelectorInstalaciones(instalaciones) {
+  const cont = document.getElementById("campo_selector_instalaciones");
+  cont.innerHTML = `<p class="meta" style="margin:8px 0;">${instalaciones.size} instalaciones encontradas (${campoBusquedaActualizadoTexto}) — elige una:</p>`;
+  [...instalaciones.entries()]
+    .sort((a, b) => b[1].count - a[1].count)
+    .forEach(([clave, info]) => {
+      const div = document.createElement("div");
+      div.className = "partido partido-clic";
+      div.innerHTML = `<div class="equipos">${escapeHtml(info.etiqueta)}</div><div class="meta">${info.count} partido${info.count === 1 ? "" : "s"}</div>`;
+      div.onclick = () => seleccionarInstalacion(clave, info.etiqueta);
+      cont.appendChild(div);
+    });
+}
+
+function seleccionarInstalacion(normalizado, etiqueta) {
+  campoSeleccionado = { normalizado, etiqueta };
+  campoMostrarTodos = false;
+  document.getElementById("campo_selector_instalaciones").innerHTML = "";
+  renderResultadosCampo();
+}
+
+function volverASelectorCampos() {
+  campoSeleccionado = null;
+  document.getElementById("campo_resultados_dia").innerHTML = "";
+  renderSelectorInstalaciones(agruparInstalaciones(campoBusquedaResultados));
+}
+
+function diasDesdeHoy(fechaIso) {
+  if (!fechaIso) return null;
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const f = new Date(fechaIso + "T00:00:00");
+  return Math.round((f - hoy) / 86400000);
+}
+
+function etiquetaDia(fechaIso) {
+  const dias = diasDesdeHoy(fechaIso);
+  const f = new Date(fechaIso + "T00:00:00");
+  const diasSemana = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+  const fechaCorta = f.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit" });
+  if (dias === 0) return `Hoy · ${fechaCorta}`;
+  if (dias === 1) return `Mañana · ${fechaCorta}`;
+  return `${diasSemana[f.getDay()]} ${fechaCorta}`;
+}
+
+function renderResultadosCampo() {
+  const cont = document.getElementById("campo_resultados_dia");
+  if (!campoSeleccionado) { cont.innerHTML = ""; return; }
+
+  const filas = campoBusquedaResultados.filter(f => (f.campo_normalizado || "") === campoSeleccionado.normalizado);
+  const proximos = filas.filter(f => { const d = diasDesdeHoy(f.fecha); return d !== null && d >= 0 && d <= 6; });
+  const restoCount = filas.length - proximos.length;
+  const mostrar = campoMostrarTodos ? filas : proximos;
+
+  cont.innerHTML = `<div class="fila-flex" style="justify-content:space-between;margin:14px 0 6px;">
+    <div><b>${escapeHtml(campoSeleccionado.etiqueta)}</b> <span class="meta">· ${campoBusquedaActualizadoTexto}</span></div>
+    <a onclick="volverASelectorCampos()" style="cursor:pointer;color:var(--primary);font-size:13px;">← Elegir otro campo</a>
+  </div>`;
+
+  if (!mostrar.length) {
+    cont.insertAdjacentHTML("beforeend", `<p class="vacio">${campoMostrarTodos ? "Sin partidos." : "Sin partidos en los próximos 7 días en este campo."}</p>`);
+  } else {
+    let diaActual = null;
+    mostrar.forEach(fila => {
+      if (fila.fecha !== diaActual) {
+        diaActual = fila.fecha;
+        cont.insertAdjacentHTML("beforeend", `<div class="grupo-tit" style="margin-top:14px;">${escapeHtml(etiquetaDia(fila.fecha))}</div>`);
+      }
+      cont.appendChild(crearFilaPartidoActivo(fila));
+    });
+  }
+
+  if (!campoMostrarTodos && restoCount > 0) {
+    const btn = document.createElement("button");
+    btn.className = "secondary";
+    btn.style.cssText = "margin-top:12px;font-size:13px;";
+    btn.textContent = `Ver también ${restoCount} partido${restoCount === 1 ? "" : "s"} fuera de los próximos 7 días`;
+    btn.onclick = () => { campoMostrarTodos = true; renderResultadosCampo(); };
+    cont.appendChild(btn);
+  }
+}
+
+// abrirVerPartido/abrirModalObjetivos esperan la forma de "partidos" (fecha
+// en DD/MM/YYYY, como la da la FFCV en vivo), no la de la tabla.
+function crearFilaPartidoActivo(fila) {
+  const div = document.createElement("div");
+  div.className = "partido";
+  const centro = fila.jugado
+    ? `<span class="resultado">${escapeHtml(fila.resultado || "")}</span>`
+    : `<span style="color:var(--muted);font-weight:400;">vs</span>`;
+  const chipTexto = [fila.modalidad, fila.competicion_nombre].filter(Boolean).join(" · ");
+  div.innerHTML =
+    `<div class="equipos">${escapeHtml(fila.local)} ${centro} ${escapeHtml(fila.visitante)}` +
+    (chipTexto ? ` <span class="chip">${escapeHtml(chipTexto)}</span>` : "") + `</div>` +
+    `<div class="meta">${fila.hora ? fila.hora.slice(0, 5) : ""}${fila.campo ? " · " + escapeHtml(fila.campo) : ""}</div>`;
+
+  const pAdaptado = {
+    cod_partido: fila.cod_partido, local: fila.local, visitante: fila.visitante,
+    cod_equipo_local: fila.cod_equipo_local, cod_equipo_visitante: fila.cod_equipo_visitante,
+    escudo_local: fila.escudo_local, escudo_visitante: fila.escudo_visitante,
+    fecha: fila.fecha ? fila.fecha.split("-").reverse().join("/") : "",
+    hora: fila.hora, campo: fila.campo, resultado: fila.resultado, jugado: fila.jugado,
+  };
+  const grupoAdaptado = { codigo: fila.grupo_codigo, nombre: fila.grupo_nombre };
+
+  const btnVer = document.createElement("button");
+  btnVer.className = "secondary";
+  btnVer.style.cssText = "font-size:12px;padding:6px 10px;";
+  btnVer.textContent = "Ver partido";
+  btnVer.onclick = () => abrirVerPartido(pAdaptado, fila.modalidad, fila.competicion_nombre, grupoAdaptado, fila.competicion_codigo, fila.jornada);
+
+  const btnRuta = document.createElement("button");
+  btnRuta.className = "secondary";
+  btnRuta.style.cssText = "font-size:12px;padding:6px 10px;";
+  btnRuta.textContent = "+ A mi ruta";
+  btnRuta.onclick = () => abrirModalObjetivos(pAdaptado, fila.modalidad, fila.competicion_nombre, grupoAdaptado, fila.competicion_codigo, fila.jornada);
+
+  div.appendChild(btnVer);
+  div.appendChild(btnRuta);
+  return div;
 }
 
 // ---------------- Ver partido (previa con plantillas, o acta si ya acabó) ----------------
