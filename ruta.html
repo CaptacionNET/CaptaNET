@@ -92,6 +92,7 @@ table.ruta-tabla{width:100%;border-collapse:collapse;font-size:13px;}
     <button class="secondary" onclick="window.location.href='plantillas.html'">Plantillas</button>
     <button class="secondary" onclick="window.location.href='gestion_pruebas.html'">Pruebas</button>
     <button class="secondary active" onclick="window.location.href='ruta.html'">Ruta</button>
+    <button class="secondary" onclick="window.location.href='asistente.html'">Asistente</button>
     <button class="secondary" onclick="window.location.href='usuario.html'">Mi perfil</button>
     <button id="btn_equipo" class="secondary" style="display:none;" onclick="window.location.href='equipo.html'">Mi equipo</button>
     <button id="btn_admin" class="secondary" style="display:none;" onclick="window.location.href='admin.html'">Panel Admin</button>
@@ -106,24 +107,42 @@ table.ruta-tabla{width:100%;border-collapse:collapse;font-size:13px;}
 
 <!-- HORARIOS -->
 <div class="contenedor" id="seccion_horarios">
-  <div class="filtros">
-    <div class="campo">
-      <label>Modalidad</label>
-      <select id="f_modalidad" onchange="onModalidadChange()"><option value="">-</option></select>
-    </div>
-    <div class="campo">
-      <label>Competición</label>
-      <select id="f_competicion" onchange="onCompeticionChange()"><option value="">-</option></select>
-    </div>
-    <div class="campo" id="campo_grupo" style="display:none;">
-      <label>Grupo</label>
-      <select id="f_grupo" onchange="onGrupoChange()"></select>
-    </div>
-    <div class="campo">
-      <label>Jornada</label>
-      <select id="f_jornada" onchange="cargarPartidos()"><option value="">-</option></select>
+  <div class="sub-tabs" style="margin:0 0 16px;">
+    <div class="sub-tab active" id="modo_competicion" onclick="cambiarModoHorarios('competicion')">Por competición</div>
+    <div class="sub-tab" id="modo_campo" onclick="cambiarModoHorarios('campo')">Por campo</div>
+  </div>
+
+  <div id="bloque_competicion">
+    <div class="filtros">
+      <div class="campo">
+        <label>Modalidad</label>
+        <select id="f_modalidad" onchange="onModalidadChange()"><option value="">-</option></select>
+      </div>
+      <div class="campo">
+        <label>Competición</label>
+        <select id="f_competicion" onchange="onCompeticionChange()"><option value="">-</option></select>
+      </div>
+      <div class="campo" id="campo_grupo" style="display:none;">
+        <label>Grupo</label>
+        <select id="f_grupo" onchange="onGrupoChange()"></select>
+      </div>
+      <div class="campo">
+        <label>Jornada</label>
+        <select id="f_jornada" onchange="cargarPartidos()"><option value="">-</option></select>
+      </div>
     </div>
   </div>
+
+  <div id="bloque_campo" style="display:none;">
+    <div class="filtros">
+      <div class="campo" style="flex:1;min-width:260px;">
+        <label>Buscar por campo</label>
+        <input id="f_campo_busqueda" type="text" placeholder="Ej. Chencho, Beniferri..." autocomplete="off" oninput="onBuscarCampoInput()" style="width:100%;">
+      </div>
+    </div>
+    <p class="meta" style="margin:-4px 0 4px;">Busca entre todas las categorías y ligas activas a la vez, no solo la competición seleccionada arriba.</p>
+  </div>
+
   <p id="horarios_status" class="status"></p>
   <div id="horarios_lista"></div>
 </div>
@@ -480,6 +499,99 @@ async function cargarPartidos() {
       cont.appendChild(div);
     });
   } catch (e) { s.textContent = "Error cargando partidos: " + e.message; }
+}
+
+// ---------------- Buscar por campo (todas las categorías/ligas activas) ----------------
+// A diferencia de los filtros de arriba (una competición+grupo+jornada a
+// la vez), esto consulta la tabla ruta_partidos_activos, que un cron
+// mantiene actualizada recorriendo las ~726 grupos F11/F8 en segundo
+// plano (ver ruta/8_funcion_ruta_refrescar_activos.ts) — recorrerlos en
+// caliente en cada búsqueda tarda varios minutos, así que no es viable.
+let modoHorarios = "competicion";
+
+function cambiarModoHorarios(modo) {
+  modoHorarios = modo;
+  document.getElementById("modo_competicion").classList.toggle("active", modo === "competicion");
+  document.getElementById("modo_campo").classList.toggle("active", modo === "campo");
+  document.getElementById("bloque_competicion").style.display = modo === "competicion" ? "block" : "none";
+  document.getElementById("bloque_campo").style.display = modo === "campo" ? "block" : "none";
+  document.getElementById("horarios_lista").innerHTML = "";
+  document.getElementById("horarios_status").textContent = "";
+}
+
+let busquedaCampoTimeout = null;
+function onBuscarCampoInput() {
+  clearTimeout(busquedaCampoTimeout);
+  busquedaCampoTimeout = setTimeout(buscarPorCampo, 300);
+}
+
+async function buscarPorCampo() {
+  const termino = document.getElementById("f_campo_busqueda").value.trim();
+  const cont = document.getElementById("horarios_lista");
+  const s = document.getElementById("horarios_status");
+
+  if (termino.length < 2) {
+    cont.innerHTML = "";
+    s.textContent = termino.length ? "Escribe al menos 2 letras." : "";
+    return;
+  }
+
+  s.textContent = "Buscando...";
+  const terminoNorm = normalizarTexto(termino);
+  const { data, error } = await client.from("ruta_partidos_activos")
+    .select("*")
+    .ilike("campo_normalizado", `%${terminoNorm}%`)
+    .order("fecha", { ascending: true }).order("hora", { ascending: true })
+    .limit(200);
+
+  if (error) { s.textContent = "Error buscando: " + error.message; cont.innerHTML = ""; return; }
+  if (!data.length) { s.textContent = `Sin partidos en campos que coincidan con "${termino}".`; cont.innerHTML = ""; return; }
+
+  const masReciente = data.reduce((max, r) => (r.actualizado_at > max ? r.actualizado_at : max), data[0].actualizado_at);
+  const fechaAct = new Date(masReciente).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  s.textContent = `${data.length} partido${data.length === 1 ? "" : "s"} · datos actualizados el ${fechaAct}`;
+
+  cont.innerHTML = "";
+  data.forEach(fila => {
+    const div = document.createElement("div");
+    div.className = "partido";
+    const centro = fila.jugado
+      ? `<span class="resultado">${escapeHtml(fila.resultado || "")}</span>`
+      : `<span style="color:var(--muted);font-weight:400;">vs</span>`;
+    const fecha = fila.fecha ? new Date(fila.fecha + "T00:00:00").toLocaleDateString("es-ES") : "";
+    const chipTexto = [fila.modalidad, fila.competicion_nombre].filter(Boolean).join(" · ");
+    div.innerHTML =
+      `<div class="equipos">${escapeHtml(fila.local)} ${centro} ${escapeHtml(fila.visitante)}` +
+      (chipTexto ? ` <span class="chip">${escapeHtml(chipTexto)}</span>` : "") + `</div>` +
+      `<div class="meta">${fecha} ${fila.hora ? fila.hora.slice(0, 5) : ""}${fila.campo ? " · " + escapeHtml(fila.campo) : ""}</div>`;
+
+    // abrirVerPartido/abrirModalObjetivos esperan la forma de "partidos"
+    // (fecha en DD/MM/YYYY, como la da la FFCV en vivo), no la de la tabla.
+    const pAdaptado = {
+      cod_partido: fila.cod_partido, local: fila.local, visitante: fila.visitante,
+      cod_equipo_local: fila.cod_equipo_local, cod_equipo_visitante: fila.cod_equipo_visitante,
+      escudo_local: fila.escudo_local, escudo_visitante: fila.escudo_visitante,
+      fecha: fila.fecha ? fila.fecha.split("-").reverse().join("/") : "",
+      hora: fila.hora, campo: fila.campo, resultado: fila.resultado, jugado: fila.jugado,
+    };
+    const grupoAdaptado = { codigo: fila.grupo_codigo, nombre: fila.grupo_nombre };
+
+    const btnVer = document.createElement("button");
+    btnVer.className = "secondary";
+    btnVer.style.cssText = "font-size:12px;padding:6px 10px;";
+    btnVer.textContent = "Ver partido";
+    btnVer.onclick = () => abrirVerPartido(pAdaptado, fila.modalidad, fila.competicion_nombre, grupoAdaptado, fila.competicion_codigo, fila.jornada);
+
+    const btnRuta = document.createElement("button");
+    btnRuta.className = "secondary";
+    btnRuta.style.cssText = "font-size:12px;padding:6px 10px;";
+    btnRuta.textContent = "+ A mi ruta";
+    btnRuta.onclick = () => abrirModalObjetivos(pAdaptado, fila.modalidad, fila.competicion_nombre, grupoAdaptado, fila.competicion_codigo, fila.jornada);
+
+    div.appendChild(btnVer);
+    div.appendChild(btnRuta);
+    cont.appendChild(div);
+  });
 }
 
 // ---------------- Ver partido (previa con plantillas, o acta si ya acabó) ----------------
