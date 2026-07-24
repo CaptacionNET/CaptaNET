@@ -59,7 +59,11 @@ function normalizarTexto(s: string): string {
 function normalizarCampo(campo: string): string {
   let t = normalizarTexto(campo);
   t = t.replace(/\bf-?\d+(-\d+)?\b/g, " ");
-  t = t.replace(/\bcampo\s+([a-z]|\d{1,2})\b/g, " campo ");
+  // Se quita del todo (no se deja la palabra "campo" suelta): si se
+  // dejara, "... F-11" (sin sufijo) y "... F-8 Campo 1" (con sufijo)
+  // normalizarían distinto por ese resto de palabra, aunque sea la
+  // misma instalación con dos subcampos.
+  t = t.replace(/\bcampo\s+([a-z]|\d{1,2})\b/g, " ");
   return t.replace(/\s+/g, " ").trim();
 }
 
